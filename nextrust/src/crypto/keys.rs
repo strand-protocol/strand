@@ -10,8 +10,14 @@ use crate::error::{NexTrustError, Result};
 pub type NodeId = [u8; 16];
 
 /// An Ed25519 identity keypair with its derived Node ID.
+///
+/// Secret key material is automatically zeroed when this struct is dropped.
+/// This relies on ed25519-dalek's `zeroize` feature which implements
+/// `ZeroizeOnDrop` for `SigningKey`.
 #[derive(Debug)]
 pub struct IdentityKeyPair {
+    /// Ed25519 signing key. Implements `ZeroizeOnDrop` via ed25519-dalek's
+    /// `zeroize` feature — zeroed automatically when dropped.
     signing_key: SigningKey,
     verifying_key: VerifyingKey,
     node_id: NodeId,

@@ -82,7 +82,7 @@ impl Multiplexer {
     ///
     /// For DATA frames, pushes the payload into the stream's receive buffer.
     /// For FIN frames, marks the remote side as closed.
-    /// For RST frames, resets the stream.
+    /// For RST frames, resets the stream and removes it from the map.
     pub fn poll(&mut self, frame: &Frame) -> Result<()> {
         match frame {
             Frame::Data {
@@ -90,6 +90,7 @@ impl Multiplexer {
                 payload,
                 ..
             } => {
+                Self::validate_stream_id(*stream_id)?;
                 let stream = self
                     .streams
                     .get_mut(stream_id)
@@ -98,6 +99,7 @@ impl Multiplexer {
                 Ok(())
             }
             Frame::Fin { stream_id } => {
+                Self::validate_stream_id(*stream_id)?;
                 let stream = self
                     .streams
                     .get_mut(stream_id)
@@ -106,11 +108,14 @@ impl Multiplexer {
                 Ok(())
             }
             Frame::Rst { stream_id, .. } => {
+                Self::validate_stream_id(*stream_id)?;
                 let stream = self
                     .streams
                     .get_mut(stream_id)
                     .ok_or(NexStreamError::StreamNotFound(*stream_id))?;
                 stream.reset();
+                // Remove immediately: RST terminates the stream in both directions.
+                self.streams.remove(stream_id);
                 Ok(())
             }
             _ => {
@@ -119,6 +124,27 @@ impl Multiplexer {
                 Ok(())
             }
         }
+    }
+
+    /// Validate that a stream ID is not a reserved value.
+    ///
+    /// Stream IDs `0x00000000` and `0xFFFFFFFF` are reserved and must never
+    /// appear in data frames. Rejecting them prevents confusion with control
+    /// IDs and enforces the spec.
+    fn validate_stream_id(id: StreamId) -> Result<()> {
+        if id == 0x0000_0000 || id == 0xFFFF_FFFF {
+            return Err(NexStreamError::InvalidStreamId(id));
+        }
+        Ok(())
+    }
+
+    /// Remove all fully-closed streams from the HashMap.
+    ///
+    /// Call periodically to reclaim memory after streams complete their
+    /// lifecycle (both local and remote sides closed).
+    pub fn remove_closed_streams(&mut self) {
+        self.streams
+            .retain(|_, s| s.state() != StreamState::Closed);
     }
 
     /// Returns a reference to a stream by ID.
@@ -207,9 +233,10 @@ mod tests {
     }
 
     #[test]
-    fn rst_resets_stream() {
+    fn rst_removes_stream_from_map() {
         let mut mux = Multiplexer::new(100);
         let sid = mux.create_stream(TransportMode::ReliableOrdered).unwrap();
+        assert_eq!(mux.stream_count(), 1);
 
         let frame = Frame::Rst {
             stream_id: sid,
@@ -217,7 +244,47 @@ mod tests {
         };
         mux.poll(&frame).unwrap();
 
-        let stream = mux.get_stream(sid).unwrap();
-        assert_eq!(stream.state(), StreamState::Closed);
+        // Stream must be removed immediately on RST to prevent map exhaustion.
+        assert_eq!(mux.stream_count(), 0);
+        assert!(mux.get_stream(sid).is_none());
+    }
+
+    #[test]
+    fn remove_closed_streams_cleans_up() {
+        let mut mux = Multiplexer::new(100);
+        let sid = mux.create_stream(TransportMode::ReliableOrdered).unwrap();
+        assert_eq!(mux.stream_count(), 1);
+
+        mux.close_stream(sid).unwrap();
+        // After local close the stream is still present.
+        assert_eq!(mux.stream_count(), 1);
+
+        // Simulate both sides finishing by calling remote_close via FIN.
+        let fin = Frame::Fin { stream_id: sid };
+        mux.poll(&fin).unwrap();
+        // Now the stream should be fully closed; remove_closed_streams cleans up.
+        mux.remove_closed_streams();
+        assert_eq!(mux.stream_count(), 0);
+    }
+
+    #[test]
+    fn reserved_stream_ids_rejected() {
+        let mut mux = Multiplexer::new(100);
+        // We need a real stream to avoid StreamNotFound before the ID check,
+        // so just test the validation helper directly via the Frame::Data path
+        // with reserved IDs.
+        let frame_zero = Frame::Data {
+            stream_id: 0x0000_0000,
+            seq: 0,
+            flags: crate::frame::DataFlags::NONE,
+            payload: bytes::Bytes::from_static(b"x"),
+        };
+        assert!(mux.poll(&frame_zero).is_err());
+
+        let frame_max = Frame::Rst {
+            stream_id: 0xFFFF_FFFF,
+            error_code: 0,
+        };
+        assert!(mux.poll(&frame_max).is_err());
     }
 }

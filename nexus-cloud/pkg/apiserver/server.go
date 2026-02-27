@@ -17,6 +17,12 @@ type ServerOptions struct {
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	IdleTimeout  time.Duration
+	// APIKeys maps Bearer token → description. When non-empty, all routes except
+	// /healthz and /readyz require a valid Bearer token in the Authorization header.
+	// Leave empty to disable authentication (dev/test mode only).
+	APIKeys map[string]string
+	// AllowedOrigins lists the origins allowed for CORS. Reserved for future use.
+	AllowedOrigins []string
 }
 
 // DefaultServerOptions returns sensible defaults.
@@ -35,6 +41,7 @@ type Server struct {
 	ca         *ca.CA
 	metrics    *observability.Metrics
 	mux        *http.ServeMux
+	opts       ServerOptions
 }
 
 // NewServer creates a Server wired to the given Store, CA, and options.
@@ -44,6 +51,7 @@ func NewServer(s store.Store, authority *ca.CA, opts ServerOptions) *Server {
 		ca:      authority,
 		metrics: observability.NewMetrics(),
 		mux:     http.NewServeMux(),
+		opts:    opts,
 	}
 	srv.registerRoutes()
 	handler := srv.applyMiddleware(srv.mux)

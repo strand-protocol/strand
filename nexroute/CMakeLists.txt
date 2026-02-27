@@ -10,17 +10,25 @@ option(ENABLE_ASAN  "Enable Address Sanitizer" OFF)
 option(ENABLE_TSAN  "Enable Thread Sanitizer"  OFF)
 
 # Compiler flags
-add_compile_options(-Wall -Wextra -Wpedantic -Werror=implicit-function-declaration)
+add_compile_options(
+    -Wall -Wextra -Wpedantic -Werror=implicit-function-declaration
+    # Security hardening: stack canaries, source fortification, format-string protection
+    -fstack-protector-strong
+    -D_FORTIFY_SOURCE=2
+    -Wformat -Wformat-security -Werror=format-security
+)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_compile_options(-O2)
+    # RELRO + BIND_NOW: makes GOT read-only after dynamic linking
+    add_link_options(-Wl,-z,relro,-z,now)
 else()
     add_compile_options(-g -O0)
 endif()
 
 if(ENABLE_ASAN)
-    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-    add_link_options(-fsanitize=address)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
 endif()
 
 if(ENABLE_TSAN)

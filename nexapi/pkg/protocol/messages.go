@@ -1,7 +1,16 @@
 package protocol
 
 import (
+	"fmt"
+
 	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
+)
+
+// Allocation-bomb guards: cap collection sizes read from the wire so a
+// malicious peer cannot exhaust heap memory with a single crafted message.
+const (
+	maxMetadataEntries = 256
+	maxShapeDimensions = 8
 )
 
 // InferenceRequest is the primary message sent by a client to request model
@@ -73,10 +82,13 @@ func (m *InferenceRequest) Decode(r *nexbuf.Reader) error {
 	if err != nil {
 		return err
 	}
-	// Metadata
+	// Metadata — cap to prevent allocation-bomb DoS.
 	count, err := r.ReadMapLen()
 	if err != nil {
 		return err
+	}
+	if count > maxMetadataEntries {
+		return fmt.Errorf("nexapi: metadata count %d exceeds max %d", count, maxMetadataEntries)
 	}
 	m.Metadata = make(map[string]string, count)
 	for i := uint32(0); i < count; i++ {
@@ -226,6 +238,10 @@ func (m *TensorTransfer) Decode(r *nexbuf.Reader) error {
 	count, err := r.ReadList()
 	if err != nil {
 		return err
+	}
+	// Cap to prevent allocation-bomb DoS.
+	if count > maxShapeDimensions {
+		return fmt.Errorf("nexapi: shape dimension count %d exceeds max %d", count, maxShapeDimensions)
 	}
 	m.Shape = make([]uint32, count)
 	for i := uint32(0); i < count; i++ {

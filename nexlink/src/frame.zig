@@ -39,6 +39,7 @@ pub const FrameError = error{
     CrcMismatch,
     OptionsTruncated,
     FrameTooLarge,
+    OptionsTooLarge,
 };
 
 /// A decoded frame — views into the original buffer (zero-copy).
@@ -65,6 +66,8 @@ pub fn encode(
     payload: []const u8,
     out_buf: []u8,
 ) FrameError!usize {
+    // Validate options size before any arithmetic to prevent bypassing OptionBuilder's check
+    if (options_data.len > MAX_OPTIONS_SIZE) return error.OptionsTooLarge;
     const total_len = HEADER_SIZE + options_data.len + payload.len + CRC_SIZE;
     if (total_len > MAX_FRAME_SIZE) return error.FrameTooLarge;
     if (out_buf.len < total_len) return error.BufferTooSmall;
@@ -255,4 +258,51 @@ test "frame all frame types encode/decode" {
         const frame = try decode(buf[0..written]);
         try testing.expectEqual(ft, frame.header.frame_type);
     }
+}
+
+// ── Security tests ──
+
+test "frame encode rejects options_data exceeding MAX_OPTIONS_SIZE" {
+    var hdr = FrameHeader.init(.data);
+    // Raw options_data bypassing OptionBuilder must be rejected
+    const oversized = [_]u8{0} ** (MAX_OPTIONS_SIZE + 1);
+    var buf: [MAX_FRAME_SIZE + 100]u8 = undefined;
+    try testing.expectError(error.OptionsTooLarge, encode(&hdr, &oversized, &.{}, &buf));
+}
+
+test "frame encode accepts options_data exactly at MAX_OPTIONS_SIZE" {
+    var hdr = FrameHeader.init(.data);
+    const exact = [_]u8{0} ** MAX_OPTIONS_SIZE;
+    var buf: [MAX_FRAME_SIZE + 100]u8 = undefined;
+    // Must NOT return OptionsTooLarge when at exact limit
+    _ = try encode(&hdr, &exact, &.{}, &buf);
+}
+
+test "frame decode frame_length field lying about actual data size" {
+    var hdr = FrameHeader.init(.data);
+    const payload = "security test";
+    var buf: [1024]u8 = undefined;
+    const written = try encode(&hdr, &.{}, payload, &buf);
+
+    // Corrupt frame_length in the wire buffer to claim a larger size
+    // frame_length is bytes 4-7 in the header (big-endian u32)
+    const fake_len: u32 = @intCast(written + 100);
+    std.mem.writeInt(u32, buf[4..8], fake_len, .big);
+
+    // Decode must detect the inconsistency (CRC mismatch or invalid length)
+    try testing.expectError(error.CrcMismatch, decode(buf[0..written]));
+}
+
+test "frame decode unknown TLV option type is gracefully skipped" {
+    // Build a frame with a raw TLV using an undefined option type (0xFF)
+    var hdr = FrameHeader.init(.data);
+    var opts_buf: [8]u8 = .{ 0xFF, 2, 0xAB, 0xCD, 0, 0, 0, 0 }; // type=0xFF, len=2, value
+    var buf: [1024]u8 = undefined;
+    const written = try encode(&hdr, opts_buf[0..4], "payload", &buf);
+    const f = try decode(buf[0..written]);
+    // Frame decodes successfully; iterator encounters unknown type
+    var iter = f.optionIterator();
+    const opt = try iter.next();
+    // Unknown type is returned (decoder does not reject unknown types)
+    try testing.expect(opt != null);
 }

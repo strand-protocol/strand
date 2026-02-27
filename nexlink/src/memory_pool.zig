@@ -112,10 +112,12 @@ pub const MemoryPool = struct {
         const base_addr = @intFromPtr(self.backing.ptr);
 
         if (block_addr < base_addr) return error.InvalidPointer;
-        const byte_offset = block_addr - base_addr;
-        if (byte_offset % self.block_size != 0) return error.InvalidPointer;
-        const idx: u32 = @intCast(byte_offset / self.block_size);
-        if (idx >= self.pool_size) return error.InvalidPointer;
+        const byte_offset: usize = block_addr - base_addr;
+        if (byte_offset % @as(usize, self.block_size) != 0) return error.InvalidPointer;
+        // Bounds-check before casting to u32 to avoid @intCast panic on 64-bit systems
+        const byte_div: usize = byte_offset / @as(usize, self.block_size);
+        if (byte_div >= self.pool_size) return error.InvalidPointer;
+        const idx: u32 = @intCast(byte_div);
 
         // Push onto freelist via CAS
         while (true) {

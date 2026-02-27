@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/nexus-protocol/nexus/nexctl/pkg/api"
 	"github.com/spf13/cobra"
 )
 
@@ -22,6 +23,9 @@ var trustIssueMICCmd = &cobra.Command{
 		if trustIssueMICNodeFlag == "" {
 			return fmt.Errorf("--node flag is required")
 		}
+		if err := api.ValidateID(trustIssueMICNodeFlag); err != nil {
+			return fmt.Errorf("invalid --node value: %w", err)
+		}
 		mic, err := client.IssueMIC(trustIssueMICNodeFlag)
 		if err != nil {
 			return fmt.Errorf("failed to issue MIC: %w", err)
@@ -36,7 +40,11 @@ var trustVerifyCmd = &cobra.Command{
 	Short: "Verify a MIC file",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		data, err := os.ReadFile(args[0])
+		cleanPath, err := api.ValidateFilePath(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid file path: %w", err)
+		}
+		data, err := os.ReadFile(cleanPath)
 		if err != nil {
 			return fmt.Errorf("failed to read MIC file: %w", err)
 		}

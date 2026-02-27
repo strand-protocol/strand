@@ -61,17 +61,26 @@ func (c *CA) IssueMIC(mic *model.MIC) error {
 	return nil
 }
 
-// VerifyMIC checks the signature of a MIC and whether it has been revoked.
+// VerifyMIC checks the signature of a MIC, whether it has been revoked, and
+// whether it is within its validity window.
+//
+// The read lock is held for the entire duration to prevent a TOCTOU race where
+// a concurrent RevokeMIC call could complete between the revocation check and
+// signature verification, causing a revoked MIC to appear valid.
 func (c *CA) VerifyMIC(mic *model.MIC) (bool, error) {
 	c.mu.RLock()
-	if c.revoked[mic.ID] {
-		c.mu.RUnlock()
+	defer c.mu.RUnlock()
+
+	// Check revocation under the same lock — prevents TOCTOU.
+	if c.revoked[mic.ID] || mic.Revoked {
 		return false, nil
 	}
-	c.mu.RUnlock()
 
-	if mic.Revoked {
-		return false, nil
+	// Check time validity before doing expensive signature verification.
+	now := time.Now().UTC()
+	if now.Before(mic.ValidFrom) || now.After(mic.ValidUntil) {
+		return false, fmt.Errorf("MIC %q is expired or not yet valid (valid %v – %v, now %v)",
+			mic.ID, mic.ValidFrom, mic.ValidUntil, now)
 	}
 
 	pub, err := c.keyStore.LoadPublicKey(rootKeyID)

@@ -30,11 +30,20 @@ pub enum NexStreamError {
     #[error("maximum streams ({0}) exceeded")]
     MaxStreamsExceeded(u32),
 
+    #[error("invalid stream id: 0x{0:08x}")]
+    InvalidStreamId(u32),
+
+    #[error("retransmit buffer full: {inflight} bytes inflight exceeds max {max}")]
+    RetransmitBufferFull { inflight: usize, max: usize },
+
     #[error("maximum retransmissions ({0}) exceeded for stream {1}")]
     MaxRetransmissionsExceeded(u32, u32),
 
     #[error("flow control window exhausted for stream {0}")]
     FlowControlBlocked(u32),
+
+    #[error("flow control violation: send exceeds available window")]
+    FlowControlViolation,
 
     #[error("invalid state transition from {from} to {to}")]
     InvalidStateTransition { from: String, to: String },

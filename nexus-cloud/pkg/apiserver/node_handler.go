@@ -22,6 +22,11 @@ func (s *Server) handleListNodes(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetNode(w http.ResponseWriter, r *http.Request) {
 	s.metrics.IncRequest()
 	id := r.PathValue("id")
+	if err := ValidateID(id); err != nil {
+		s.metrics.IncError()
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	node, err := s.store.Nodes().Get(id)
 	if err != nil {
 		s.metrics.IncError()
@@ -44,6 +49,11 @@ func (s *Server) handleCreateNode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "node id is required")
 		return
 	}
+	if err := ValidateID(node.ID); err != nil {
+		s.metrics.IncError()
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if node.Status == "" {
 		node.Status = "online"
 	}
@@ -60,6 +70,11 @@ func (s *Server) handleCreateNode(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleUpdateNode(w http.ResponseWriter, r *http.Request) {
 	s.metrics.IncRequest()
 	id := r.PathValue("id")
+	if err := ValidateID(id); err != nil {
+		s.metrics.IncError()
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	var node model.Node
 	if err := json.NewDecoder(r.Body).Decode(&node); err != nil {
 		s.metrics.IncError()
@@ -78,6 +93,11 @@ func (s *Server) handleUpdateNode(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
 	s.metrics.IncRequest()
 	id := r.PathValue("id")
+	if err := ValidateID(id); err != nil {
+		s.metrics.IncError()
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if err := s.store.Nodes().Delete(id); err != nil {
 		s.metrics.IncError()
 		writeError(w, http.StatusNotFound, err.Error())
@@ -90,6 +110,11 @@ func (s *Server) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleNodeHeartbeat(w http.ResponseWriter, r *http.Request) {
 	s.metrics.IncRequest()
 	id := r.PathValue("id")
+	if err := ValidateID(id); err != nil {
+		s.metrics.IncError()
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	node, err := s.store.Nodes().Get(id)
 	if err != nil {
 		s.metrics.IncError()
@@ -99,7 +124,7 @@ func (s *Server) handleNodeHeartbeat(w http.ResponseWriter, r *http.Request) {
 	// Optionally decode metrics from body.
 	var metrics model.NodeMetrics
 	if r.Body != nil && r.ContentLength > 0 {
-		json.NewDecoder(r.Body).Decode(&metrics)
+		json.NewDecoder(r.Body).Decode(&metrics) //nolint:errcheck
 		node.Metrics = metrics
 	}
 	node.LastSeen = time.Now()

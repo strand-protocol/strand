@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/nexus-protocol/nexus/nexctl/pkg/api"
 	"github.com/spf13/cobra"
 )
 
@@ -30,6 +31,9 @@ var nodeDescribeCmd = &cobra.Command{
 	Short: "Show detailed info for a node",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := api.ValidateID(args[0]); err != nil {
+			return fmt.Errorf("invalid node-id: %w", err)
+		}
 		node, err := client.DescribeNode(args[0])
 		if err != nil {
 			return fmt.Errorf("failed to describe node: %w", err)
@@ -44,6 +48,9 @@ var nodeDrainCmd = &cobra.Command{
 	Short: "Drain a node (gracefully remove from rotation)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := api.ValidateID(args[0]); err != nil {
+			return fmt.Errorf("invalid node-id: %w", err)
+		}
 		if err := client.DrainNode(args[0]); err != nil {
 			return fmt.Errorf("failed to drain node: %w", err)
 		}

@@ -81,9 +81,10 @@ fn fin_closes_remote_side() {
 }
 
 #[test]
-fn rst_resets_stream() {
+fn rst_removes_stream() {
     let mut mux = Multiplexer::new(100);
     let s = mux.create_stream(TransportMode::ReliableOrdered).unwrap();
+    assert_eq!(mux.stream_count(), 1);
 
     // Send some data.
     mux.send(s, Bytes::from_static(b"data")).unwrap();
@@ -94,8 +95,9 @@ fn rst_resets_stream() {
     };
     mux.poll(&rst).unwrap();
 
-    let stream = mux.get_stream(s).unwrap();
-    assert_eq!(stream.state(), StreamState::Closed);
+    // RST removes the stream immediately to prevent HashMap exhaustion.
+    assert_eq!(mux.stream_count(), 0);
+    assert!(mux.get_stream(s).is_none());
 }
 
 #[test]

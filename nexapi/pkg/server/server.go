@@ -21,6 +21,10 @@ func WithStreamHandler(sh StreamHandler) ServerOption {
 	}
 }
 
+// maxConcurrentFrames limits the number of goroutines processing frames
+// simultaneously, preventing goroutine exhaustion under burst traffic.
+const maxConcurrentFrames = 1000
+
 // Server listens for NexAPI frames on an overlay transport, dispatches
 // requests to registered handlers, and writes responses back.
 type Server struct {
@@ -29,6 +33,8 @@ type Server struct {
 	transport     *transport.OverlayTransport
 	mu            sync.Mutex
 	done          chan struct{}
+	// sem bounds the number of in-flight frame handler goroutines.
+	sem chan struct{}
 }
 
 // New creates a Server with the given inference handler and options.
@@ -36,6 +42,7 @@ func New(handler Handler, opts ...ServerOption) *Server {
 	s := &Server{
 		handler: handler,
 		done:    make(chan struct{}),
+		sem:     make(chan struct{}, maxConcurrentFrames),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -72,8 +79,17 @@ func (s *Server) ListenAndServe(addr string) error {
 				return err
 			}
 		}
-		// Dispatch in a goroutine so we can keep receiving.
-		go s.handleFrame(ctx, opcode, payload)
+		// Dispatch in a goroutine bounded by the semaphore to prevent
+		// goroutine exhaustion under burst traffic.
+		select {
+		case s.sem <- struct{}{}:
+			go func(op byte, pl []byte) {
+				defer func() { <-s.sem }()
+				s.handleFrame(ctx, op, pl)
+			}(opcode, payload)
+		default:
+			log.Printf("nexapi server: overloaded, dropping frame opcode=0x%02x", opcode)
+		}
 	}
 }
 

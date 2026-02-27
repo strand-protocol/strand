@@ -135,10 +135,19 @@ impl Connection {
     }
 
     /// Send data on a stream.
+    ///
+    /// Enforces per-stream and connection-level flow control before forwarding
+    /// to the mux layer. Returns `FlowControlViolation` if the send would exceed
+    /// the available window, preventing unbounded memory growth and DoS.
     pub fn send(&mut self, stream_id: StreamId, data: Bytes) -> Result<()> {
         if self.state != ConnectionState::Open {
             return Err(NexStreamError::ConnectionClosed);
         }
+        // Enforce flow control before queuing data to prevent window exhaustion.
+        if self.flow_control.available(stream_id) < data.len() {
+            return Err(NexStreamError::FlowControlViolation);
+        }
+        self.flow_control.consume(stream_id, data.len())?;
         self.mux.send(stream_id, data)
     }
 

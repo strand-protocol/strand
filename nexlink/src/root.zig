@@ -49,17 +49,22 @@ const std = @import("std");
 
 /// Encode a NexLink frame. Returns 0 on success, negative on error.
 export fn nexlink_frame_encode(
-    hdr_buf: [*]const u8,
+    hdr_buf: ?[*]const u8,
     options_ptr: ?[*]const u8,
     options_len: u16,
     payload_ptr: ?[*]const u8,
     payload_len: u32,
-    out_buf: [*]u8,
+    out_buf: ?[*]u8,
     out_buf_len: u32,
-    out_frame_len: *u32,
+    out_frame_len: ?*u32,
 ) callconv(.c) c_int {
+    // Null-guard all required pointer parameters
+    const hdr_raw = hdr_buf orelse return -1;
+    const out_raw = out_buf orelse return -1;
+    const out_len_ptr = out_frame_len orelse return -1;
+
     // Deserialize header from raw bytes
-    const hdr_slice: *const [header.HEADER_SIZE]u8 = @ptrCast(hdr_buf);
+    const hdr_slice: *const [header.HEADER_SIZE]u8 = @ptrCast(hdr_raw);
     const hdr_result = FrameHeader.deserialize(hdr_slice);
     const hdr = hdr_result catch return -1;
 
@@ -73,30 +78,36 @@ export fn nexlink_frame_encode(
     else
         &.{};
 
-    const out_slice = out_buf[0..out_buf_len];
+    const out_slice = out_raw[0..out_buf_len];
 
     const written = encode(&hdr, opts, pl, out_slice) catch return -2;
-    out_frame_len.* = @intCast(written);
+    out_len_ptr.* = @intCast(written);
     return 0;
 }
 
 /// Decode a NexLink frame. Returns 0 on success, negative on error.
 export fn nexlink_frame_decode(
-    buf: [*]const u8,
+    buf: ?[*]const u8,
     buf_len: u32,
-    out_header_buf: [*]u8,
-    out_payload_ptr: *[*]const u8,
-    out_payload_len: *u32,
+    out_header_buf: ?[*]u8,
+    out_payload_ptr: ?*[*]const u8,
+    out_payload_len: ?*u32,
 ) callconv(.c) c_int {
-    const in_slice = buf[0..buf_len];
+    // Null-guard all required pointer parameters
+    const buf_raw = buf orelse return -1;
+    const out_hdr_raw = out_header_buf orelse return -1;
+    const out_payload_ptr_nn = out_payload_ptr orelse return -1;
+    const out_payload_len_nn = out_payload_len orelse return -1;
+
+    const in_slice = buf_raw[0..buf_len];
     const f = decode(in_slice) catch return -1;
 
     // Serialize header back into the output buffer
-    const out_hdr: *[header.HEADER_SIZE]u8 = @ptrCast(out_header_buf);
+    const out_hdr: *[header.HEADER_SIZE]u8 = @ptrCast(out_hdr_raw);
     f.header.serialize(out_hdr) catch return -2;
 
-    out_payload_ptr.* = if (f.payload.len > 0) f.payload.ptr else buf;
-    out_payload_len.* = @intCast(f.payload.len);
+    out_payload_ptr_nn.* = if (f.payload.len > 0) f.payload.ptr else buf_raw;
+    out_payload_len_nn.* = @intCast(f.payload.len);
     return 0;
 }
 
@@ -147,9 +158,10 @@ export fn nexlink_ring_buffer_release(rb: ?*RingBuffer) callconv(.c) void {
     if (rb) |r| r.release();
 }
 
-/// Compute CRC-32C over a buffer.
-export fn nexlink_crc32c(data: [*]const u8, len: u32) callconv(.c) u32 {
-    return crc.compute(data[0..len]);
+/// Compute CRC-32C over a buffer. Returns 0 if data is null.
+export fn nexlink_crc32c(data: ?[*]const u8, len: u32) callconv(.c) u32 {
+    const d = data orelse return 0;
+    return crc.compute(d[0..len]);
 }
 
 // Force test runner to include all module tests

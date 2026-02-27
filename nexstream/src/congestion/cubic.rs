@@ -22,6 +22,10 @@ const INITIAL_WINDOW: usize = 10 * MSS;
 /// Minimum congestion window: 2 * MSS.
 const MIN_WINDOW: usize = 2 * MSS;
 
+/// Maximum congestion window: 1 GiB. Clamps cwnd to prevent integer overflow
+/// and unbounded memory pressure on extremely high-bandwidth links.
+const MAX_CWND: usize = 1024 * 1024 * 1024;
+
 /// CUBIC congestion controller.
 #[derive(Debug)]
 pub struct Cubic {
@@ -84,7 +88,7 @@ impl CongestionController for Cubic {
 
         if self.in_slow_start() {
             // Slow start: increase cwnd by one MSS per ACK.
-            self.cwnd += MSS;
+            self.cwnd = self.cwnd.saturating_add(MSS).min(MAX_CWND);
             if self.cwnd >= self.ssthresh {
                 // Exiting slow start, start congestion avoidance epoch.
                 self.epoch_start = Some(Instant::now());
@@ -110,7 +114,7 @@ impl CongestionController for Cubic {
             if self.ack_accum >= self.cwnd {
                 let increase = ((target - self.cwnd as f64) / (self.cwnd as f64 / MSS as f64))
                     .max(0.0) as usize;
-                self.cwnd += increase.max(1); // at least 1 byte progress
+                self.cwnd = self.cwnd.saturating_add(increase.max(1)).min(MAX_CWND);
                 self.ack_accum = 0;
             }
         }
@@ -194,5 +198,17 @@ mod tests {
             c.on_loss(MSS);
         }
         assert!(c.window() >= MIN_WINDOW);
+    }
+
+    #[test]
+    fn max_window_clamped() {
+        let mut c = Cubic::new();
+        // Drive many ACKs to grow cwnd as large as possible.
+        for _ in 0..1_000_000 {
+            c.on_packet_sent(MSS);
+            c.on_ack(MSS);
+        }
+        // cwnd must never exceed MAX_CWND regardless of ACK count.
+        assert!(c.window() <= MAX_CWND, "cwnd {} exceeds MAX_CWND {}", c.window(), MAX_CWND);
     }
 }

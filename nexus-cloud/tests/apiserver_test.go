@@ -62,6 +62,10 @@ func TestReadyz(t *testing.T) {
 // CORS preflight
 // ---------------------------------------------------------------------------
 
+// TestCORSPreflight verifies that:
+//   - Preflight OPTIONS returns 204
+//   - The default (no AllowedOrigins configured) does NOT set a wildcard
+//     Access-Control-Allow-Origin header, enforcing deny-by-default CORS.
 func TestCORSPreflight(t *testing.T) {
 	ts := newTestServer(t)
 	defer ts.Close()
@@ -74,8 +78,13 @@ func TestCORSPreflight(t *testing.T) {
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", resp.StatusCode)
 	}
-	if v := resp.Header.Get("Access-Control-Allow-Origin"); v != "*" {
-		t.Fatalf("unexpected CORS origin: %s", v)
+	// No wildcard origin must be present when AllowedOrigins is unconfigured.
+	if v := resp.Header.Get("Access-Control-Allow-Origin"); v == "*" {
+		t.Fatal("wildcard Access-Control-Allow-Origin must not be set in production mode")
+	}
+	// CORS method/header advertisements should still be present.
+	if v := resp.Header.Get("Access-Control-Allow-Methods"); v == "" {
+		t.Fatal("Access-Control-Allow-Methods header should be set")
 	}
 }
 

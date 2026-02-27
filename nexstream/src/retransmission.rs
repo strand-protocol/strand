@@ -9,8 +9,14 @@ use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 
+use crate::error::{NexStreamError, Result};
+
 /// Maximum number of retransmission attempts before giving up.
 const MAX_RETRIES: u32 = 3;
+
+/// Default maximum bytes held in the retransmit buffer across all in-flight
+/// packets. 64 MiB prevents unbounded memory growth under sustained loss.
+const MAX_INFLIGHT_BYTES: usize = 64 * 1024 * 1024;
 
 /// An entry in the retransmission queue.
 #[derive(Debug, Clone)]
@@ -70,10 +76,17 @@ pub struct RetransmitPacket {
 /// Packets are pushed with an initial RTO. `poll_expired` returns packets
 /// whose timer has fired. Exponential backoff is applied on each retransmit.
 /// After `MAX_RETRIES` the packet is reported as given up.
+///
+/// The total in-flight byte count is capped at `max_bytes` (default 64 MiB)
+/// to prevent unbounded memory growth under sustained packet loss.
 pub struct RetransmissionEngine {
     heap: BinaryHeap<RetransmitEntry>,
-    /// Track which sequences are still pending (for on_ack removal).
-    pending: HashMap<u64, ()>,
+    /// Track which sequences are still pending and their payload size.
+    pending: HashMap<u64, usize>,
+    /// Total bytes currently held in the retransmit buffer.
+    inflight_bytes: usize,
+    /// Maximum allowed in-flight bytes.
+    max_bytes: usize,
 }
 
 impl RetransmissionEngine {
@@ -81,11 +94,38 @@ impl RetransmissionEngine {
         Self {
             heap: BinaryHeap::new(),
             pending: HashMap::new(),
+            inflight_bytes: 0,
+            max_bytes: MAX_INFLIGHT_BYTES,
+        }
+    }
+
+    /// Create an engine with a custom in-flight byte limit.
+    pub fn with_max_bytes(max_bytes: usize) -> Self {
+        Self {
+            heap: BinaryHeap::new(),
+            pending: HashMap::new(),
+            inflight_bytes: 0,
+            max_bytes,
         }
     }
 
     /// Register a packet for potential retransmission.
-    pub fn push(&mut self, seq: u64, data: Bytes, rto: Duration) {
+    ///
+    /// Returns `Err(RetransmitBufferFull)` if adding this packet would exceed
+    /// the configured in-flight byte limit.
+    pub fn push(&mut self, seq: u64, data: Bytes, rto: Duration) -> Result<()> {
+        let new_inflight = self
+            .inflight_bytes
+            .checked_add(data.len())
+            .unwrap_or(usize::MAX);
+        if new_inflight > self.max_bytes {
+            return Err(NexStreamError::RetransmitBufferFull {
+                inflight: self.inflight_bytes,
+                max: self.max_bytes,
+            });
+        }
+        self.inflight_bytes = new_inflight;
+        self.pending.insert(seq, data.len());
         let entry = RetransmitEntry {
             seq,
             data,
@@ -93,15 +133,20 @@ impl RetransmissionEngine {
             rto,
             attempts: 0,
         };
-        self.pending.insert(seq, ());
         self.heap.push(entry);
+        Ok(())
     }
 
     /// Acknowledge a packet, removing it from the retransmission queue.
     ///
     /// Returns `true` if the packet was still pending.
     pub fn on_ack(&mut self, seq: u64) -> bool {
-        self.pending.remove(&seq).is_some()
+        if let Some(len) = self.pending.remove(&seq) {
+            self.inflight_bytes = self.inflight_bytes.saturating_sub(len);
+            true
+        } else {
+            false
+        }
         // The entry may still be in the heap but will be skipped by poll_expired.
     }
 
@@ -126,7 +171,8 @@ impl RetransmissionEngine {
             }
 
             if entry.attempts >= MAX_RETRIES {
-                self.pending.remove(&entry.seq);
+                let len = self.pending.remove(&entry.seq).unwrap_or(0);
+                self.inflight_bytes = self.inflight_bytes.saturating_sub(len);
                 given_up.push(GivenUp {
                     seq: entry.seq,
                     data: entry.data,
@@ -138,7 +184,7 @@ impl RetransmissionEngine {
                     data: entry.data.clone(),
                 });
 
-                // Re-enqueue with exponential backoff.
+                // Re-enqueue with exponential backoff. inflight_bytes unchanged.
                 let new_rto = entry.rto * 2;
                 self.heap.push(RetransmitEntry {
                     seq: entry.seq,
@@ -157,6 +203,11 @@ impl RetransmissionEngine {
     pub fn pending_count(&self) -> usize {
         self.pending.len()
     }
+
+    /// Total bytes currently held in the retransmit buffer.
+    pub fn inflight_bytes(&self) -> usize {
+        self.inflight_bytes
+    }
 }
 
 impl Default for RetransmissionEngine {
@@ -172,17 +223,23 @@ mod tests {
     #[test]
     fn push_and_ack() {
         let mut engine = RetransmissionEngine::new();
-        engine.push(1, Bytes::from_static(b"hello"), Duration::from_millis(100));
+        engine
+            .push(1, Bytes::from_static(b"hello"), Duration::from_millis(100))
+            .unwrap();
         assert_eq!(engine.pending_count(), 1);
+        assert_eq!(engine.inflight_bytes(), 5);
         assert!(engine.on_ack(1));
         assert_eq!(engine.pending_count(), 0);
+        assert_eq!(engine.inflight_bytes(), 0);
     }
 
     #[test]
     fn poll_before_expiry_returns_nothing() {
         let mut engine = RetransmissionEngine::new();
         let now = Instant::now();
-        engine.push(1, Bytes::from_static(b"A"), Duration::from_secs(10));
+        engine
+            .push(1, Bytes::from_static(b"A"), Duration::from_secs(10))
+            .unwrap();
 
         let (retx, given) = engine.poll_expired(now);
         assert!(retx.is_empty());
@@ -192,7 +249,9 @@ mod tests {
     #[test]
     fn poll_after_expiry_returns_packet() {
         let mut engine = RetransmissionEngine::new();
-        engine.push(1, Bytes::from_static(b"A"), Duration::from_millis(10));
+        engine
+            .push(1, Bytes::from_static(b"A"), Duration::from_millis(10))
+            .unwrap();
 
         // Simulate time passing.
         let later = Instant::now() + Duration::from_millis(50);
@@ -206,7 +265,9 @@ mod tests {
     fn exponential_backoff_and_give_up() {
         let mut engine = RetransmissionEngine::new();
         let rto = Duration::from_millis(10);
-        engine.push(1, Bytes::from_static(b"A"), rto);
+        engine
+            .push(1, Bytes::from_static(b"A"), rto)
+            .unwrap();
 
         // Attempt 1 (attempts goes from 0 to 1, new rto = 20ms)
         let t1 = Instant::now() + Duration::from_millis(50);
@@ -230,5 +291,31 @@ mod tests {
         assert_eq!(given.len(), 1);
         assert_eq!(given[0].seq, 1);
         assert_eq!(engine.pending_count(), 0);
+        assert_eq!(engine.inflight_bytes(), 0);
+    }
+
+    #[test]
+    fn retransmit_buffer_limit_rejects_overflow() {
+        // Create an engine with a tiny limit (16 bytes).
+        let mut engine = RetransmissionEngine::with_max_bytes(16);
+
+        // First push fits: 10 bytes in flight.
+        engine
+            .push(1, Bytes::from(vec![0u8; 10]), Duration::from_secs(10))
+            .unwrap();
+
+        // Second push would bring total to 20 bytes, exceeding 16-byte limit.
+        let result = engine.push(2, Bytes::from(vec![0u8; 10]), Duration::from_secs(10));
+        assert!(result.is_err());
+        matches!(
+            result.unwrap_err(),
+            NexStreamError::RetransmitBufferFull { .. }
+        );
+
+        // After ACKing the first packet, push succeeds again.
+        assert!(engine.on_ack(1));
+        engine
+            .push(2, Bytes::from(vec![0u8; 10]), Duration::from_secs(10))
+            .unwrap();
     }
 }

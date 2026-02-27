@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 )
 
 // Overlay transport wire constants.
@@ -113,6 +114,11 @@ func (t *OverlayTransport) Recv(ctx context.Context) (byte, []byte, error) {
 	}
 	t.mu.Unlock()
 
+	// Return immediately if the context is already done.
+	if err := ctx.Err(); err != nil {
+		return 0, nil, err
+	}
+
 	buf := make([]byte, maxUDPPayload)
 
 	// Respect context deadline.
@@ -121,6 +127,19 @@ func (t *OverlayTransport) Recv(ctx context.Context) (byte, []byte, error) {
 			return 0, nil, err
 		}
 	}
+
+	// Monitor context cancellation. When ctx is cancelled (with or without a
+	// deadline), set an expired read deadline so ReadFromUDP unblocks promptly.
+	// The goroutine exits cleanly when the read finishes normally.
+	readDone := make(chan struct{})
+	defer close(readDone)
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = t.conn.SetReadDeadline(time.Now())
+		case <-readDone:
+		}
+	}()
 
 	n, remoteAddr, err := t.conn.ReadFromUDP(buf)
 	if err != nil {

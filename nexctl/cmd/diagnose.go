@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/nexus-protocol/nexus/nexctl/pkg/api"
 	"github.com/spf13/cobra"
 )
 
@@ -17,6 +18,9 @@ var diagnosePingCmd = &cobra.Command{
 	Short: "NexStream-level ping to measure latency",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := api.ValidateID(args[0]); err != nil {
+			return fmt.Errorf("invalid target: %w", err)
+		}
 		result, err := client.Ping(args[0])
 		if err != nil {
 			return fmt.Errorf("ping failed: %w", err)
@@ -31,6 +35,9 @@ var diagnoseTracerouteCmd = &cobra.Command{
 	Short: "Trace the NexRoute path to a target node",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := api.ValidateID(args[0]); err != nil {
+			return fmt.Errorf("invalid target: %w", err)
+		}
 		// Traceroute reuses Ping for now, showing hop count
 		result, err := client.Ping(args[0])
 		if err != nil {

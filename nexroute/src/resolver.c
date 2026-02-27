@@ -39,7 +39,17 @@ static resolver_config_t g_resolver_config = {
 
 void resolver_set_weights(const scoring_weights_t *w)
 {
-    if (w) g_resolver_config.weights = *w;
+    if (!w) return;
+    /* Reject degenerate weight vectors: any negative weight or a zero/negative
+     * sum would cause division-by-zero or inverted scoring in sad_find_best. */
+    float sum = w->capability + w->latency + w->cost + w->context_window + w->trust;
+    if (sum <= 0.0f)   return;
+    if (w->capability     < 0.0f) return;
+    if (w->latency        < 0.0f) return;
+    if (w->cost           < 0.0f) return;
+    if (w->context_window < 0.0f) return;
+    if (w->trust          < 0.0f) return;
+    g_resolver_config.weights = *w;
 }
 
 void resolver_set_top_k(int k)

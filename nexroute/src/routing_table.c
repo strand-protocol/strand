@@ -17,6 +17,7 @@
 #include <string.h>
 #include <stdatomic.h>
 #include <pthread.h>
+#include <sched.h>
 
 /* --------------------------------------------------------------------------
  * Internal snapshot - immutable array read by concurrent readers
@@ -77,9 +78,10 @@ static rt_snapshot_t *snapshot_clone(const rt_snapshot_t *src, uint32_t new_cap)
 static void wait_for_readers(rt_snapshot_t *old)
 {
     /* Spin-wait until all readers that held a reference have released it.
-     * In a real system this would use sched_yield() or a futex. */
+     * sched_yield() prevents busy-spin from starving readers on single-core
+     * or heavily loaded systems, which would otherwise deadlock. */
     while (atomic_load_explicit(&old->readers, memory_order_acquire) > 0) {
-        /* spin */
+        sched_yield();
     }
 }
 

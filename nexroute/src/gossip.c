@@ -17,6 +17,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 /* --------------------------------------------------------------------------
  * Constants
@@ -95,10 +97,29 @@ typedef struct {
 
 static uint32_t gossip_rand_state = 0;
 
+/* Seed PRNG from /dev/urandom to prevent predictable peer selection.
+ * Predictable seeds allow targeted gossip poisoning attacks. */
+static void gossip_seed_prng(void)
+{
+    uint32_t seed = 0;
+    int fd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
+    if (fd >= 0) {
+        ssize_t n = read(fd, &seed, sizeof(seed));
+        close(fd);
+        if (n != (ssize_t)sizeof(seed))
+            seed = 0;
+    }
+    /* Fallback: mix time with PID to reduce predictability */
+    if (seed == 0)
+        seed = (uint32_t)time(NULL) ^ (uint32_t)getpid();
+    /* xorshift requires non-zero state */
+    gossip_rand_state = (seed == 0) ? 0x12345678u : seed;
+}
+
 static uint32_t gossip_rand(void)
 {
     if (gossip_rand_state == 0) {
-        gossip_rand_state = (uint32_t)time(NULL) ^ 0xDEADBEEF;
+        gossip_seed_prng();
     }
     gossip_rand_state ^= gossip_rand_state << 13;
     gossip_rand_state ^= gossip_rand_state >> 17;

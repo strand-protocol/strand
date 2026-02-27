@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -33,11 +34,24 @@ func Load(path string) (*Config, error) {
 		Context:      "default",
 	}
 
-	data, err := os.ReadFile(path)
+	// Check permissions before reading: warn if the config file is
+	// world-readable, since it may contain an auth_token.
+	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return cfg, nil
 		}
+		return nil, err
+	}
+	if perm := info.Mode().Perm(); perm&0o077 != 0 {
+		fmt.Fprintf(os.Stderr,
+			"warning: config file %s has permissions %04o — expected 0600. "+
+				"Auth tokens may be exposed to other users.\n",
+			path, perm)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
 		return nil, err
 	}
 

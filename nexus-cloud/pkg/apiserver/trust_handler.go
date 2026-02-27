@@ -22,6 +22,11 @@ func (s *Server) handleListMICs(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetMIC(w http.ResponseWriter, r *http.Request) {
 	s.metrics.IncRequest()
 	id := r.PathValue("id")
+	if err := ValidateID(id); err != nil {
+		s.metrics.IncError()
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	mic, err := s.store.MICs().Get(id)
 	if err != nil {
 		s.metrics.IncError()
@@ -53,6 +58,16 @@ func (s *Server) handleIssueMIC(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "id and node_id are required")
 		return
 	}
+	if err := ValidateID(req.ID); err != nil {
+		s.metrics.IncError()
+		writeError(w, http.StatusBadRequest, "invalid id: "+err.Error())
+		return
+	}
+	if err := ValidateID(req.NodeID); err != nil {
+		s.metrics.IncError()
+		writeError(w, http.StatusBadRequest, "invalid node_id: "+err.Error())
+		return
+	}
 	validity := 365
 	if req.ValidDays > 0 {
 		validity = req.ValidDays
@@ -82,6 +97,11 @@ func (s *Server) handleIssueMIC(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleVerifyMIC(w http.ResponseWriter, r *http.Request) {
 	s.metrics.IncRequest()
 	id := r.PathValue("id")
+	if err := ValidateID(id); err != nil {
+		s.metrics.IncError()
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	mic, err := s.store.MICs().Get(id)
 	if err != nil {
 		s.metrics.IncError()
@@ -100,6 +120,11 @@ func (s *Server) handleVerifyMIC(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleRevokeMIC(w http.ResponseWriter, r *http.Request) {
 	s.metrics.IncRequest()
 	id := r.PathValue("id")
+	if err := ValidateID(id); err != nil {
+		s.metrics.IncError()
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if err := s.store.MICs().Revoke(id); err != nil {
 		s.metrics.IncError()
 		writeError(w, http.StatusNotFound, err.Error())
@@ -112,6 +137,11 @@ func (s *Server) handleRevokeMIC(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeleteMIC(w http.ResponseWriter, r *http.Request) {
 	s.metrics.IncRequest()
 	id := r.PathValue("id")
+	if err := ValidateID(id); err != nil {
+		s.metrics.IncError()
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if err := s.store.MICs().Delete(id); err != nil {
 		s.metrics.IncError()
 		writeError(w, http.StatusNotFound, err.Error())
