@@ -539,7 +539,9 @@ func TestRequestIDHeader(t *testing.T) {
 	}
 }
 
-// TestCORSHeaders verifies that CORS headers are present.
+// TestCORSHeaders verifies that CORS method/header headers are set but
+// Access-Control-Allow-Origin is NOT set to wildcard by default (P1 security
+// hardening: no wildcard CORS in production; origins must be explicitly configured).
 func TestCORSHeaders(t *testing.T) {
 	ts, _ := setupTestServer(t)
 	defer ts.Close()
@@ -550,8 +552,17 @@ func TestCORSHeaders(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
+	// Wildcard CORS must be absent — the P1 security fix removed it.
 	acao := resp.Header.Get("Access-Control-Allow-Origin")
-	if acao != "*" {
-		t.Errorf("CORS origin: got %q, want %q", acao, "*")
+	if acao == "*" {
+		t.Error("CORS: Access-Control-Allow-Origin must not be wildcard (*) by default")
+	}
+
+	// Method and header allow-lists must still be set.
+	if resp.Header.Get("Access-Control-Allow-Methods") == "" {
+		t.Error("CORS: Access-Control-Allow-Methods header missing")
+	}
+	if resp.Header.Get("Access-Control-Allow-Headers") == "" {
+		t.Error("CORS: Access-Control-Allow-Headers header missing")
 	}
 }
