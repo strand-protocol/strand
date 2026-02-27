@@ -354,6 +354,83 @@ static int test_routing_concurrent(void)
 }
 
 /* --------------------------------------------------------------------------
+ * Security test: TTL-based garbage collection (spec NR-RT-003)
+ * -------------------------------------------------------------------------- */
+
+#define NS_PER_SEC  UINT64_C(1000000000)
+
+static int test_routing_gc_ttl(void)
+{
+    int errors = 0;
+
+    routing_table_t *rt = routing_table_create(16);
+    TASSERT(rt != NULL);
+
+    uint64_t t0 = 100 * NS_PER_SEC;   /* baseline "now" */
+    uint64_t ttl_30s = 30 * NS_PER_SEC;
+
+    /* Entry A: inserted at t0, ttl=30s → expires at t0+30s */
+    route_entry_t ea = make_entry(0xAA, CAP_TEXT_GEN, 0, 50000, 500,
+                                   TRUST_IDENTITY, 840);
+    ea.last_updated = t0;
+    ea.ttl_ns       = ttl_30s;
+
+    /* Entry B: permanent (ttl_ns=0) */
+    route_entry_t eb = make_entry(0xBB, CAP_CODE_GEN, 0, 60000, 600,
+                                   TRUST_IDENTITY, 840);
+    eb.last_updated = t0;
+    eb.ttl_ns       = 0;  /* permanent */
+
+    /* Entry C: very short TTL, already expired at t0+1s */
+    route_entry_t ec = make_entry(0xCC, CAP_IMAGE_GEN, 0, 70000, 700,
+                                   TRUST_IDENTITY, 840);
+    ec.last_updated = t0;
+    ec.ttl_ns       = NS_PER_SEC;  /* 1-second TTL */
+
+    routing_table_insert(rt, &ea);
+    routing_table_insert(rt, &eb);
+    routing_table_insert(rt, &ec);
+    TASSERT(routing_table_size(rt) == 3);
+
+    /* GC at t0+20s: A is still live (20s < 30s), C is expired (20s > 1s) */
+    uint64_t t1 = t0 + 20 * NS_PER_SEC;
+    int removed = routing_table_gc(rt, t1);
+    TASSERT(removed == 1);                    /* only C expired */
+    TASSERT(routing_table_size(rt) == 2);     /* A and B remain */
+
+    /* GC at t0+35s: A is now expired (35s > 30s) */
+    uint64_t t2 = t0 + 35 * NS_PER_SEC;
+    removed = routing_table_gc(rt, t2);
+    TASSERT(removed == 1);                    /* A expires */
+    TASSERT(routing_table_size(rt) == 1);     /* only B (permanent) remains */
+
+    /* GC again at t2: nothing to remove */
+    removed = routing_table_gc(rt, t2);
+    TASSERT(removed == 0);
+    TASSERT(routing_table_size(rt) == 1);
+
+    /* Verify the surviving entry is B */
+    route_entry_t snap[2];
+    int n = routing_table_snapshot(rt, snap, 2);
+    TASSERT(n == 1);
+    TASSERT(snap[0].node_id[0] == 0xBB);
+
+    routing_table_destroy(rt);
+    return errors;
+}
+
+/* --------------------------------------------------------------------------
+ * Security test: GC on NULL table returns error
+ * -------------------------------------------------------------------------- */
+
+static int test_routing_gc_null(void)
+{
+    int errors = 0;
+    TASSERT(routing_table_gc(NULL, 0) == -1);
+    return errors;
+}
+
+/* --------------------------------------------------------------------------
  * Registration
  * -------------------------------------------------------------------------- */
 
@@ -367,4 +444,6 @@ void register_routing_tests(void)
     test_register("routing_grow",              test_routing_grow);
     test_register("routing_snapshot",          test_routing_snapshot);
     test_register("routing_concurrent_reads",  test_routing_concurrent);
+    test_register("routing_gc_ttl_expiry",     test_routing_gc_ttl);
+    test_register("routing_gc_null_safe",      test_routing_gc_null);
 }

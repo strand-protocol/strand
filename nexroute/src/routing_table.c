@@ -329,3 +329,51 @@ int routing_table_snapshot(const routing_table_t *rt,
     reader_release(snap);
     return n;
 }
+
+/* --------------------------------------------------------------------------
+ * routing_table_gc — TTL-based garbage collection (spec NR-RT-003)
+ *
+ * Removes entries where (now_ns - last_updated) > ttl_ns.
+ * Entries with ttl_ns == 0 are permanent and never expired.
+ * Prevents stale route poisoning from lingering unreachable nodes.
+ * -------------------------------------------------------------------------- */
+
+int routing_table_gc(routing_table_t *rt, uint64_t now_ns)
+{
+    if (!rt) return -1;
+
+    pthread_mutex_lock(&rt->write_lock);
+
+    rt_snapshot_t *cur = atomic_load_explicit(&rt->current, memory_order_acquire);
+
+    /* Count how many entries will survive GC */
+    uint32_t survivors = 0;
+    for (uint32_t i = 0; i < cur->count; i++) {
+        const route_entry_t *e = &cur->entries[i];
+        if (e->ttl_ns == 0 || (now_ns - e->last_updated) <= e->ttl_ns)
+            survivors++;
+    }
+
+    int expired = (int)(cur->count - survivors);
+    if (expired == 0) {
+        pthread_mutex_unlock(&rt->write_lock);
+        return 0;
+    }
+
+    /* Build a new snapshot containing only live entries */
+    rt_snapshot_t *next = snapshot_alloc(cur->capacity);
+    if (!next) {
+        pthread_mutex_unlock(&rt->write_lock);
+        return -1;
+    }
+
+    for (uint32_t i = 0; i < cur->count; i++) {
+        const route_entry_t *e = &cur->entries[i];
+        if (e->ttl_ns == 0 || (now_ns - e->last_updated) <= e->ttl_ns)
+            next->entries[next->count++] = *e;
+    }
+
+    publish_and_reclaim(rt, next);
+    pthread_mutex_unlock(&rt->write_lock);
+    return expired;
+}

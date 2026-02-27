@@ -83,6 +83,19 @@ int routing_table_snapshot(const routing_table_t *rt,
                            route_entry_t *out,
                            int max);
 
+/**
+ * TTL-based garbage collection: remove entries where
+ * (now_ns - last_updated) > ttl_ns.
+ *
+ * Entries with ttl_ns == 0 are considered permanent and are never removed.
+ * Should be called periodically (e.g., from gossip_tick).
+ *
+ * @param rt     Routing table.
+ * @param now_ns Current monotonic time in nanoseconds.
+ * @return       Number of expired entries removed, or -1 on error.
+ */
+int routing_table_gc(routing_table_t *rt, uint64_t now_ns);
+
 #ifdef __cplusplus
 }
 #endif

@@ -27,6 +27,13 @@ pub const MAX_FRAME_SIZE: usize = 65535;
 /// Minimum frame size: header + CRC-32C trailer.
 pub const MIN_FRAME_SIZE: usize = HEADER_SIZE + 4;
 
+// Compile-time invariant assertions — catch accidental constant changes early.
+comptime {
+    std.debug.assert(HEADER_SIZE == 64);
+    std.debug.assert(MAX_OPTIONS_SIZE == 256);
+    std.debug.assert(MIN_FRAME_SIZE == HEADER_SIZE + 4);
+}
+
 // ── Flag bits (byte 1 of header, bits [0..7]) ──
 
 pub const FrameFlags = packed struct(u8) {

@@ -28,6 +28,25 @@ func newTestServer(t *testing.T) *httptest.Server {
 	return httptest.NewServer(srv.Handler())
 }
 
+// newAuthTestServer creates a server with API keys and RBAC configured.
+func newAuthTestServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	s := store.NewMemoryStore()
+	ks := ca.NewMemoryKeyStore()
+	authority := ca.NewCA(ks)
+	if err := authority.GenerateCA(); err != nil {
+		t.Fatalf("generate CA: %v", err)
+	}
+	opts := apiserver.DefaultServerOptions()
+	opts.APIKeys = map[string]apiserver.APIKeyInfo{
+		"viewer-token":   {Description: "viewer", Role: apiserver.RoleViewer},
+		"operator-token": {Description: "operator", Role: apiserver.RoleOperator},
+		"admin-token":    {Description: "admin", Role: apiserver.RoleAdmin},
+	}
+	srv := apiserver.NewServer(s, authority, opts)
+	return httptest.NewServer(srv.Handler())
+}
+
 // ---------------------------------------------------------------------------
 // Health probes
 // ---------------------------------------------------------------------------
@@ -361,5 +380,183 @@ func TestCreateNodeValidation(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// RBAC — role-based access control (P1 security)
+// ---------------------------------------------------------------------------
+
+func TestRBACUnauthenticated(t *testing.T) {
+	ts := newAuthTestServer(t)
+	defer ts.Close()
+
+	// No auth header → 401
+	resp, err := http.Get(ts.URL + "/api/v1/nodes")
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestRBACHealthzNoAuth(t *testing.T) {
+	ts := newAuthTestServer(t)
+	defer ts.Close()
+
+	// Health endpoints must not require auth.
+	resp, _ := http.Get(ts.URL + "/healthz")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for /healthz without auth, got %d", resp.StatusCode)
+	}
+}
+
+func TestRBACViewerCanGet(t *testing.T) {
+	ts := newAuthTestServer(t)
+	defer ts.Close()
+
+	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/v1/nodes", nil)
+	req.Header.Set("Authorization", "Bearer viewer-token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("viewer GET /nodes: expected 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestRBACViewerCannotDelete(t *testing.T) {
+	ts := newAuthTestServer(t)
+	defer ts.Close()
+
+	// First create a node as admin.
+	body, _ := json.Marshal(model.Node{ID: "rbac-test-node", Address: "10.0.1.1"})
+	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/nodes", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer admin-token")
+	resp, _ := http.DefaultClient.Do(req)
+	resp.Body.Close()
+
+	// Viewer tries DELETE → 403.
+	req, _ = http.NewRequest(http.MethodDelete, ts.URL+"/api/v1/nodes/rbac-test-node", nil)
+	req.Header.Set("Authorization", "Bearer viewer-token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer DELETE: expected 403, got %d", resp.StatusCode)
+	}
+}
+
+func TestRBACOperatorCanPost(t *testing.T) {
+	ts := newAuthTestServer(t)
+	defer ts.Close()
+
+	body, _ := json.Marshal(model.Node{ID: "op-node", Address: "10.0.2.1"})
+	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/nodes", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer operator-token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("operator POST /nodes: expected 201, got %d", resp.StatusCode)
+	}
+}
+
+func TestRBACOperatorCannotDelete(t *testing.T) {
+	ts := newAuthTestServer(t)
+	defer ts.Close()
+
+	// Create as admin first.
+	body, _ := json.Marshal(model.Node{ID: "op-del-node", Address: "10.0.3.1"})
+	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/nodes", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer admin-token")
+	resp, _ := http.DefaultClient.Do(req)
+	resp.Body.Close()
+
+	// Operator tries DELETE → 403.
+	req, _ = http.NewRequest(http.MethodDelete, ts.URL+"/api/v1/nodes/op-del-node", nil)
+	req.Header.Set("Authorization", "Bearer operator-token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("operator DELETE: expected 403, got %d", resp.StatusCode)
+	}
+}
+
+func TestRBACAdminCanDelete(t *testing.T) {
+	ts := newAuthTestServer(t)
+	defer ts.Close()
+
+	body, _ := json.Marshal(model.Node{ID: "admin-node", Address: "10.0.4.1"})
+	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/nodes", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer admin-token")
+	resp, _ := http.DefaultClient.Do(req)
+	resp.Body.Close()
+
+	req, _ = http.NewRequest(http.MethodDelete, ts.URL+"/api/v1/nodes/admin-node", nil)
+	req.Header.Set("Authorization", "Bearer admin-token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("admin DELETE: expected 204, got %d", resp.StatusCode)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Path parameter injection (P1 security)
+// ---------------------------------------------------------------------------
+
+func TestPathInjectionNodeID(t *testing.T) {
+	ts := newTestServer(t)
+	defer ts.Close()
+
+	// Node ID containing path traversal characters must be rejected with 400.
+	resp, err := http.Get(ts.URL + "/api/v1/nodes/../etc/passwd")
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest && resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 400 or 404 for traversal ID, got %d", resp.StatusCode)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Request body size limit (P1 security)
+// ---------------------------------------------------------------------------
+
+func TestRequestBodyTooLarge(t *testing.T) {
+	ts := newTestServer(t)
+	defer ts.Close()
+
+	// Send a 2 MiB body — exceeds 1 MiB MaxBytesReader limit.
+	bigBody := bytes.Repeat([]byte("x"), 2<<20)
+	resp, err := http.Post(ts.URL+"/api/v1/nodes", "application/json", bytes.NewReader(bigBody))
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	resp.Body.Close()
+	// Expect 413 Payload Too Large or 400 Bad Request (MaxBytesReader triggers 400 via json decode).
+	if resp.StatusCode != http.StatusRequestEntityTooLarge && resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 413 or 400 for oversized body, got %d", resp.StatusCode)
 	}
 }

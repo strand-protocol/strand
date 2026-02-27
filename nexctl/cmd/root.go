@@ -15,6 +15,8 @@ var (
 	cfgFile      string
 	outputFormat string
 	serverURL    string
+	dryRun       bool // --dry-run: print actions without executing them
+	yesFlag      bool // --yes: skip confirmation prompts for destructive operations
 
 	// Shared state set during PersistentPreRun
 	cfg       *config.Config
@@ -89,4 +91,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ~/.nexus/config.yaml)")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "", "output format: table, json, yaml (default \"table\")")
 	rootCmd.PersistentFlags().StringVar(&serverURL, "server", "", "Nexus API server URL")
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "print actions that would be taken without executing them")
+	rootCmd.PersistentFlags().BoolVar(&yesFlag, "yes", false, "skip confirmation prompts for destructive operations")
 }

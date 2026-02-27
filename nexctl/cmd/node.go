@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/nexus-protocol/nexus/nexctl/pkg/api"
 	"github.com/spf13/cobra"
@@ -50,6 +53,19 @@ var nodeDrainCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := api.ValidateID(args[0]); err != nil {
 			return fmt.Errorf("invalid node-id: %w", err)
+		}
+		if dryRun {
+			fmt.Fprintf(cmd.OutOrStdout(), "(dry-run) would drain node %q\n", args[0])
+			return nil
+		}
+		if !yesFlag {
+			fmt.Fprintf(cmd.OutOrStdout(), "Drain node %q? This removes it from active rotation. [y/N]: ", args[0])
+			scanner := bufio.NewScanner(os.Stdin)
+			scanner.Scan()
+			if strings.ToLower(strings.TrimSpace(scanner.Text())) != "y" {
+				fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
+				return nil
+			}
 		}
 		if err := client.DrainNode(args[0]); err != nil {
 			return fmt.Errorf("failed to drain node: %w", err)

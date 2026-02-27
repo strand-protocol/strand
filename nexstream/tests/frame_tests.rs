@@ -203,6 +203,21 @@ fn encoded_len_matches_encode() {
             stream_id: 1,
             window_increment: 1024,
         },
+        Frame::StreamOpen {
+            stream_id: 1,
+            transport_mode: 0,
+        },
+        Frame::StreamAck { stream_id: 1 },
+        Frame::StreamClose { stream_id: 1 },
+        Frame::StreamReset {
+            stream_id: 1,
+            error_code: 42,
+        },
+        Frame::Congestion {
+            stream_id: 1,
+            cwnd: 65536,
+            rtt_us: 1000,
+        },
     ];
 
     for frame in &frames {
@@ -214,4 +229,74 @@ fn encoded_len_matches_encode() {
             frame.frame_type()
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// Control frame type tests (P1 spec compliance)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn stream_open_roundtrip() {
+    let frame = Frame::StreamOpen {
+        stream_id: 0x0000_0001,
+        transport_mode: 0x01, // ReliableOrdered
+    };
+    let encoded = frame.encode();
+    let decoded = Frame::decode(&encoded).unwrap();
+    assert_eq!(frame, decoded);
+    assert_eq!(frame.frame_type(), FrameType::StreamOpen);
+    assert_eq!(encoded[0], 0x10); // wire value
+}
+
+#[test]
+fn stream_ack_roundtrip() {
+    let frame = Frame::StreamAck { stream_id: 0x7FFF_FFFF };
+    let encoded = frame.encode();
+    let decoded = Frame::decode(&encoded).unwrap();
+    assert_eq!(frame, decoded);
+    assert_eq!(encoded[0], 0x11);
+}
+
+#[test]
+fn stream_close_roundtrip() {
+    let frame = Frame::StreamClose { stream_id: 0x0000_0003 };
+    let encoded = frame.encode();
+    let decoded = Frame::decode(&encoded).unwrap();
+    assert_eq!(frame, decoded);
+    assert_eq!(encoded[0], 0x12);
+}
+
+#[test]
+fn stream_reset_roundtrip() {
+    let frame = Frame::StreamReset {
+        stream_id: 5,
+        error_code: 0xDEAD_BEEF,
+    };
+    let encoded = frame.encode();
+    let decoded = Frame::decode(&encoded).unwrap();
+    assert_eq!(frame, decoded);
+    assert_eq!(encoded[0], 0x13);
+}
+
+#[test]
+fn congestion_roundtrip() {
+    let frame = Frame::Congestion {
+        stream_id: 7,
+        cwnd: 1_073_741_824, // 1 GiB (MAX_CWND)
+        rtt_us: 500,
+    };
+    let encoded = frame.encode();
+    let decoded = Frame::decode(&encoded).unwrap();
+    assert_eq!(frame, decoded);
+    assert_eq!(encoded[0], 0x40);
+}
+
+#[test]
+fn control_frame_wire_ids_are_correct() {
+    // Spec §4.3: verify wire values match requirements
+    assert_eq!(FrameType::StreamOpen as u8, 0x10);
+    assert_eq!(FrameType::StreamAck as u8, 0x11);
+    assert_eq!(FrameType::StreamClose as u8, 0x12);
+    assert_eq!(FrameType::StreamReset as u8, 0x13);
+    assert_eq!(FrameType::Congestion as u8, 0x40);
 }

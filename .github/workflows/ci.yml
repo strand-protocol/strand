@@ -116,6 +116,9 @@ jobs:
           restore-keys: |
             cargo-${{ runner.os }}-
 
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
       # ---- nextrust ----
       - name: "nextrust: check formatting"
         working-directory: nextrust
@@ -123,7 +126,11 @@ jobs:
 
       - name: "nextrust: clippy"
         working-directory: nextrust
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings -D clippy::pedantic -A clippy::missing_errors_doc -A clippy::missing_panics_doc
+
+      - name: "nextrust: audit"
+        working-directory: nextrust
+        run: cargo audit
 
       - name: "nextrust: build"
         working-directory: nextrust
@@ -140,7 +147,11 @@ jobs:
 
       - name: "nexstream: clippy"
         working-directory: nexstream
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings -D clippy::pedantic -A clippy::missing_errors_doc -A clippy::missing_panics_doc
+
+      - name: "nexstream: audit"
+        working-directory: nexstream
+        run: cargo audit
 
       - name: "nexstream: build"
         working-directory: nexstream
@@ -176,17 +187,19 @@ jobs:
           restore-keys: |
             go-${{ runner.os }}-
 
-      - name: Install staticcheck
-        run: go install honnef.co/go/tools/cmd/staticcheck@latest
+      - name: Install staticcheck and govulncheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@latest
 
       # ---- nexapi ----
       - name: "nexapi: build"
         working-directory: nexapi
         run: go build ./...
 
-      - name: "nexapi: test"
+      - name: "nexapi: test (with race detector)"
         working-directory: nexapi
-        run: go test ./...
+        run: go test -race ./...
 
       - name: "nexapi: vet"
         working-directory: nexapi
@@ -196,14 +209,18 @@ jobs:
         working-directory: nexapi
         run: staticcheck ./...
 
+      - name: "nexapi: govulncheck"
+        working-directory: nexapi
+        run: govulncheck ./...
+
       # ---- nexctl ----
       - name: "nexctl: build"
         working-directory: nexctl
         run: go build ./...
 
-      - name: "nexctl: test"
+      - name: "nexctl: test (with race detector)"
         working-directory: nexctl
-        run: go test ./...
+        run: go test -race ./...
 
       - name: "nexctl: vet"
         working-directory: nexctl
@@ -213,14 +230,18 @@ jobs:
         working-directory: nexctl
         run: staticcheck ./...
 
+      - name: "nexctl: govulncheck"
+        working-directory: nexctl
+        run: govulncheck ./...
+
       # ---- nexus-cloud ----
       - name: "nexus-cloud: build"
         working-directory: nexus-cloud
         run: go build ./...
 
-      - name: "nexus-cloud: test"
+      - name: "nexus-cloud: test (with race detector)"
         working-directory: nexus-cloud
-        run: go test ./...
+        run: go test -race ./...
 
       - name: "nexus-cloud: vet"
         working-directory: nexus-cloud
@@ -229,6 +250,10 @@ jobs:
       - name: "nexus-cloud: staticcheck"
         working-directory: nexus-cloud
         run: staticcheck ./...
+
+      - name: "nexus-cloud: govulncheck"
+        working-directory: nexus-cloud
+        run: govulncheck ./...
 
   # ---------------------------------------------------------------------------
   # Integration gate: cross-module verification

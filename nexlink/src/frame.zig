@@ -68,7 +68,10 @@ pub fn encode(
 ) FrameError!usize {
     // Validate options size before any arithmetic to prevent bypassing OptionBuilder's check
     if (options_data.len > MAX_OPTIONS_SIZE) return error.OptionsTooLarge;
-    const total_len = HEADER_SIZE + options_data.len + payload.len + CRC_SIZE;
+    // Overflow-safe length: options_data.len is bounded above (≤256), so only the payload
+    // dimension can cause integer overflow on adversarial inputs.
+    const partial = HEADER_SIZE + options_data.len + CRC_SIZE;
+    const total_len = std.math.add(usize, partial, payload.len) catch return error.FrameTooLarge;
     if (total_len > MAX_FRAME_SIZE) return error.FrameTooLarge;
     if (out_buf.len < total_len) return error.BufferTooSmall;
 
@@ -284,13 +287,15 @@ test "frame decode frame_length field lying about actual data size" {
     var buf: [1024]u8 = undefined;
     const written = try encode(&hdr, &.{}, payload, &buf);
 
-    // Corrupt frame_length in the wire buffer to claim a larger size
-    // frame_length is bytes 4-7 in the header (big-endian u32)
+    // Corrupt frame_length in the wire buffer to claim a larger size than the
+    // buffer actually contains.  frame_length is bytes 4-7 (big-endian u32).
     const fake_len: u32 = @intCast(written + 100);
     std.mem.writeInt(u32, buf[4..8], fake_len, .big);
 
-    // Decode must detect the inconsistency (CRC mismatch or invalid length)
-    try testing.expectError(error.CrcMismatch, decode(buf[0..written]));
+    // Decoder detects the lie: declared size > supplied buffer → BufferTooSmall.
+    // (The CRC check is never reached, which is correct — we refuse to read
+    // beyond the supplied buffer regardless of what the header claims.)
+    try testing.expectError(error.BufferTooSmall, decode(buf[0..written]));
 }
 
 test "frame decode unknown TLV option type is gracefully skipped" {

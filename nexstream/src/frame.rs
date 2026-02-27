@@ -3,9 +3,14 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use crate::error::{NexStreamError, Result};
 
 /// Frame type identifiers carried inside NexStream.
+///
+/// Values 0x01–0x08 are data-path frames. Values 0x10–0x13 are connection
+/// lifecycle control frames. 0x40 is the congestion-signalling frame.
+/// All wire values match the spec (§4.3 NexStream Control Frame Types).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum FrameType {
+    // Data-path frames (0x01–0x08)
     Data = 0x01,
     Ack = 0x02,
     Nack = 0x03,
@@ -14,6 +19,13 @@ pub enum FrameType {
     Ping = 0x06,
     Pong = 0x07,
     WindowUpdate = 0x08,
+    // Connection lifecycle control frames (0x10–0x13)
+    StreamOpen = 0x10,
+    StreamAck = 0x11,
+    StreamClose = 0x12,
+    StreamReset = 0x13,
+    // Congestion-signalling frame (0x40)
+    Congestion = 0x40,
 }
 
 impl TryFrom<u8> for FrameType {
@@ -29,6 +41,11 @@ impl TryFrom<u8> for FrameType {
             0x06 => Ok(FrameType::Ping),
             0x07 => Ok(FrameType::Pong),
             0x08 => Ok(FrameType::WindowUpdate),
+            0x10 => Ok(FrameType::StreamOpen),
+            0x11 => Ok(FrameType::StreamAck),
+            0x12 => Ok(FrameType::StreamClose),
+            0x13 => Ok(FrameType::StreamReset),
+            0x40 => Ok(FrameType::Congestion),
             other => Err(NexStreamError::UnknownFrameType(other)),
         }
     }
@@ -107,6 +124,30 @@ pub enum Frame {
         stream_id: u32,
         window_increment: u32,
     },
+    /// STREAM_OPEN: stream_id(4) + transport_mode(1)
+    StreamOpen {
+        stream_id: u32,
+        transport_mode: u8,
+    },
+    /// STREAM_ACK: stream_id(4)
+    StreamAck {
+        stream_id: u32,
+    },
+    /// STREAM_CLOSE: stream_id(4)
+    StreamClose {
+        stream_id: u32,
+    },
+    /// STREAM_RESET: stream_id(4) + error_code(4)
+    StreamReset {
+        stream_id: u32,
+        error_code: u32,
+    },
+    /// CONGESTION: stream_id(4) + cwnd(4) + rtt_us(4)
+    Congestion {
+        stream_id: u32,
+        cwnd: u32,
+        rtt_us: u32,
+    },
 }
 
 impl Frame {
@@ -121,6 +162,11 @@ impl Frame {
             Frame::Ping { .. } => FrameType::Ping,
             Frame::Pong { .. } => FrameType::Pong,
             Frame::WindowUpdate { .. } => FrameType::WindowUpdate,
+            Frame::StreamOpen { .. } => FrameType::StreamOpen,
+            Frame::StreamAck { .. } => FrameType::StreamAck,
+            Frame::StreamClose { .. } => FrameType::StreamClose,
+            Frame::StreamReset { .. } => FrameType::StreamReset,
+            Frame::Congestion { .. } => FrameType::Congestion,
         }
     }
 
@@ -198,6 +244,40 @@ impl Frame {
                 buf.put_u32(*stream_id);
                 buf.put_u32(*window_increment);
             }
+            Frame::StreamOpen {
+                stream_id,
+                transport_mode,
+            } => {
+                buf.put_u8(FrameType::StreamOpen as u8);
+                buf.put_u32(*stream_id);
+                buf.put_u8(*transport_mode);
+            }
+            Frame::StreamAck { stream_id } => {
+                buf.put_u8(FrameType::StreamAck as u8);
+                buf.put_u32(*stream_id);
+            }
+            Frame::StreamClose { stream_id } => {
+                buf.put_u8(FrameType::StreamClose as u8);
+                buf.put_u32(*stream_id);
+            }
+            Frame::StreamReset {
+                stream_id,
+                error_code,
+            } => {
+                buf.put_u8(FrameType::StreamReset as u8);
+                buf.put_u32(*stream_id);
+                buf.put_u32(*error_code);
+            }
+            Frame::Congestion {
+                stream_id,
+                cwnd,
+                rtt_us,
+            } => {
+                buf.put_u8(FrameType::Congestion as u8);
+                buf.put_u32(*stream_id);
+                buf.put_u32(*cwnd);
+                buf.put_u32(*rtt_us);
+            }
         }
     }
 
@@ -213,6 +293,11 @@ impl Frame {
             Frame::Ping { .. } => 8,
             Frame::Pong { .. } => 8,
             Frame::WindowUpdate { .. } => 4 + 4,
+            Frame::StreamOpen { .. } => 4 + 1,
+            Frame::StreamAck { .. } => 4,
+            Frame::StreamClose { .. } => 4,
+            Frame::StreamReset { .. } => 4 + 4,
+            Frame::Congestion { .. } => 4 + 4 + 4,
         }
     }
 
@@ -299,6 +384,45 @@ impl Frame {
                 Ok(Frame::WindowUpdate {
                     stream_id,
                     window_increment,
+                })
+            }
+            FrameType::StreamOpen => {
+                Self::ensure_len(data, 5, "STREAM_OPEN")?;
+                let stream_id = (&data[0..4]).get_u32();
+                let transport_mode = data[4];
+                Ok(Frame::StreamOpen {
+                    stream_id,
+                    transport_mode,
+                })
+            }
+            FrameType::StreamAck => {
+                Self::ensure_len(data, 4, "STREAM_ACK")?;
+                let stream_id = (&data[0..4]).get_u32();
+                Ok(Frame::StreamAck { stream_id })
+            }
+            FrameType::StreamClose => {
+                Self::ensure_len(data, 4, "STREAM_CLOSE")?;
+                let stream_id = (&data[0..4]).get_u32();
+                Ok(Frame::StreamClose { stream_id })
+            }
+            FrameType::StreamReset => {
+                Self::ensure_len(data, 8, "STREAM_RESET")?;
+                let stream_id = (&data[0..4]).get_u32();
+                let error_code = (&data[4..8]).get_u32();
+                Ok(Frame::StreamReset {
+                    stream_id,
+                    error_code,
+                })
+            }
+            FrameType::Congestion => {
+                Self::ensure_len(data, 12, "CONGESTION")?;
+                let stream_id = (&data[0..4]).get_u32();
+                let cwnd = (&data[4..8]).get_u32();
+                let rtt_us = (&data[8..12]).get_u32();
+                Ok(Frame::Congestion {
+                    stream_id,
+                    cwnd,
+                    rtt_us,
                 })
             }
         }

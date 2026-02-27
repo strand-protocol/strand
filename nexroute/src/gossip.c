@@ -66,6 +66,10 @@ typedef struct __attribute__((packed)) {
     uint8_t  sender_id[NEXLINK_NODE_ID_LEN];
     uint8_t  origin_id[NEXLINK_NODE_ID_LEN];  /* original initiator */
     uint16_t payload_len;
+    /* Ed25519 signature over all preceding fields (msg_type..payload_len).
+     * Populated when gossip_set_auth_fn() has been called.
+     * Zero-filled when no signing callback is configured. */
+    uint8_t  signature[64];
     /* payload follows */
 } gossip_msg_header_t;
 
@@ -89,6 +93,15 @@ typedef struct {
     int (*send_fn)(const uint8_t dst_node_id[NEXLINK_NODE_ID_LEN],
                    const void *msg, size_t msg_len, void *ctx);
     void *send_ctx;
+
+    /* Authentication callbacks for NexTrust integration (spec NR-G-005).
+     * When set, outgoing messages are signed and incoming messages are
+     * verified before processing.  A failed verification causes rejection. */
+    int (*sign_fn)(const void *msg, size_t msg_len,
+                   uint8_t sig[64], void *ctx);
+    int (*verify_fn)(const void *msg, size_t msg_len,
+                     const uint8_t sig[64], void *ctx);
+    void *auth_ctx;
 } gossip_state_t;
 
 /* --------------------------------------------------------------------------
@@ -211,6 +224,22 @@ void gossip_set_send_fn(gossip_state_t *gs,
 {
     gs->send_fn  = fn;
     gs->send_ctx = ctx;
+}
+
+/* Install NexTrust authentication callbacks (spec NR-G-005).
+ * sign_fn:   called to sign outgoing message headers.
+ * verify_fn: called to verify incoming message headers; returns 0 on success.
+ * ctx:       opaque context passed to both callbacks.
+ * Pass NULL for all parameters to disable authentication.
+ */
+void gossip_set_auth_fn(gossip_state_t *gs,
+                        int (*sign_fn)(const void *, size_t, uint8_t[64], void *),
+                        int (*verify_fn)(const void *, size_t, const uint8_t[64], void *),
+                        void *ctx)
+{
+    gs->sign_fn   = sign_fn;
+    gs->verify_fn = verify_fn;
+    gs->auth_ctx  = ctx;
 }
 
 /* --------------------------------------------------------------------------
@@ -487,6 +516,17 @@ int gossip_handle_message(gossip_state_t *gs,
         return -1;
 
     const gossip_msg_header_t *hdr = (const gossip_msg_header_t *)msg;
+
+    /* If a verify callback is installed, authenticate the message before
+     * processing.  The signature covers all header fields up to (but not
+     * including) the signature field itself. */
+    if (gs->verify_fn) {
+        /* signed_len = offset of signature field within the header */
+        static const size_t signed_len =
+            offsetof(gossip_msg_header_t, signature);
+        if (gs->verify_fn(msg, signed_len, hdr->signature, gs->auth_ctx) != 0)
+            return -1;   /* reject: bad or missing signature */
+    }
 
     switch (hdr->msg_type) {
     case GOSSIP_MSG_JOIN:

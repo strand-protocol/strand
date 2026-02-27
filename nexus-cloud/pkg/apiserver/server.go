@@ -12,15 +12,33 @@ import (
 	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
 )
 
+// Role represents the RBAC role assigned to an API key.
+type Role int
+
+const (
+	// RoleViewer allows read-only operations (GET).
+	RoleViewer Role = iota
+	// RoleOperator allows read and write operations (GET, POST, PUT).
+	RoleOperator
+	// RoleAdmin allows all operations including DELETE and certificate revocation.
+	RoleAdmin
+)
+
+// APIKeyInfo associates a Bearer token with its description and RBAC role.
+type APIKeyInfo struct {
+	Description string
+	Role        Role
+}
+
 // ServerOptions holds optional configuration for the Server.
 type ServerOptions struct {
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	IdleTimeout  time.Duration
-	// APIKeys maps Bearer token → description. When non-empty, all routes except
+	// APIKeys maps Bearer token → APIKeyInfo. When non-empty, all routes except
 	// /healthz and /readyz require a valid Bearer token in the Authorization header.
 	// Leave empty to disable authentication (dev/test mode only).
-	APIKeys map[string]string
+	APIKeys map[string]APIKeyInfo
 	// AllowedOrigins lists the origins allowed for CORS. Reserved for future use.
 	AllowedOrigins []string
 }

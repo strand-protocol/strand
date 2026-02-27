@@ -77,12 +77,28 @@ func TestNodeDescribeNotFound(t *testing.T) {
 
 func TestNodeDrainCommand(t *testing.T) {
 	setupTest()
-	out, err := executeCommand("node", "drain", "node-alpha-01")
+	// --yes skips the interactive confirmation prompt (required in non-TTY test env)
+	out, err := executeCommand("node", "drain", "--yes", "node-alpha-01")
 	if err != nil {
 		t.Fatalf("node drain command failed: %v", err)
 	}
 	if !strings.Contains(out, "drained successfully") {
 		t.Errorf("expected output to contain 'drained successfully', got: %s", out)
+	}
+}
+
+func TestNodeDrainDryRun(t *testing.T) {
+	setupTest()
+	out, err := executeCommand("node", "drain", "--dry-run", "node-alpha-01")
+	if err != nil {
+		t.Fatalf("node drain --dry-run command failed: %v", err)
+	}
+	if !strings.Contains(out, "dry-run") {
+		t.Errorf("expected output to contain 'dry-run', got: %s", out)
+	}
+	// Dry-run must NOT actually drain the node.
+	if strings.Contains(out, "drained successfully") {
+		t.Errorf("dry-run must not execute drain, got: %s", out)
 	}
 }
 
