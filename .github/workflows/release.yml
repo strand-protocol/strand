@@ -55,6 +55,9 @@ jobs:
           restore-keys: |
             go-release-${{ runner.os }}-
 
+      - name: Create dist directory
+        run: mkdir -p dist
+
       - name: Build nexctl
         working-directory: nexctl
         env:
@@ -62,7 +65,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
         run: |
-          go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
+          go build -ldflags="-s -w -X github.com/nexus-protocol/nexctl/cmd.nexctlVersion=${{ github.ref_name }}" \
             -o ../dist/nexctl-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} .
 
       - name: Upload artifact
@@ -116,8 +119,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            VERSION=${{ github.ref_name }}
 
   # ---------------------------------------------------------------------------
   # Create GitHub Release with all binaries

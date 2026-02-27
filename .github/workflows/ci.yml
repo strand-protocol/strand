@@ -27,17 +27,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Zig 0.15.x
+      - name: Install Zig 0.13.x
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.15.0
+          version: 0.13.0
 
       - name: Cache Zig build artifacts
         uses: actions/cache@v4
         with:
           path: |
             nexlink/.zig-cache
-            nexlink/zig-cache
             nexlink/zig-out
           key: zig-${{ runner.os }}-${{ hashFiles('nexlink/build.zig', 'nexlink/src/**') }}
           restore-keys: |
@@ -112,9 +111,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            nexstream/target/
-            nextrust/target/
-          key: cargo-${{ runner.os }}-${{ hashFiles('nexstream/Cargo.lock', 'nextrust/Cargo.lock', 'nexstream/Cargo.toml', 'nextrust/Cargo.toml') }}
+            target/
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'nextrust/Cargo.toml', 'nexstream/Cargo.toml') }}
           restore-keys: |
             cargo-${{ runner.os }}-
 
@@ -174,7 +172,7 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: go-${{ runner.os }}-${{ hashFiles('nexapi/go.sum', 'nexctl/go.sum', 'nexus-cloud/go.sum') }}
+          key: go-${{ runner.os }}-${{ hashFiles('go.work', 'nexctl/go.sum', 'nexctl/go.mod', 'nexapi/go.mod', 'nexus-cloud/go.mod') }}
           restore-keys: |
             go-${{ runner.os }}-
 
@@ -243,10 +241,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Zig 0.15.x
+      - name: Install Zig 0.13.x
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.15.0
+          version: 0.13.0
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -294,15 +292,34 @@ jobs:
         working-directory: nexus-cloud
         run: go build ./...
 
+      - name: Run integration tests
+        working-directory: tests/integration
+        run: go test ./... -v -timeout 120s
+
       - name: Cross-module verification
         run: |
+          set -e
           echo "=== Cross-Module Verification ==="
           echo ""
-          echo "Verified build artifacts:"
-          echo "  - nexlink:    $(test -d nexlink/zig-out && echo 'OK' || echo 'MISSING')"
-          echo "  - nexroute:   $(test -d nexroute/build && echo 'OK' || echo 'MISSING')"
-          echo "  - nextrust:   $(test -d nextrust/target && echo 'OK' || echo 'MISSING')"
-          echo "  - nexstream:  $(test -d nexstream/target && echo 'OK' || echo 'MISSING')"
+          fail=0
+          check() {
+            if [ -e "$1" ]; then
+              echo "  OK  $2"
+            else
+              echo "  MISSING  $2 (expected: $1)"
+              fail=1
+            fi
+          }
+          check nexlink/zig-out/lib/libnexlink.a     "nexlink static library"
+          check nexlink/include/nexlink.h             "nexlink C header"
+          check nexroute/build/libnexroute.a          "nexroute static library"
+          check nexroute/build/nexroute_tests         "nexroute test binary"
+          check target/release/libnextrust.a          "nextrust static library"
+          check target/release/libnexstream.a         "nexstream static library"
           echo ""
+          if [ "$fail" -ne 0 ]; then
+            echo "FAILED: one or more expected artifacts are missing."
+            exit 1
+          fi
           echo "Dependency graph validated: all modules build successfully in order."
           echo "=== Integration verification passed ==="

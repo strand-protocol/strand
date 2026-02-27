@@ -4,12 +4,17 @@ on:
   push:
     branches: [main]
     paths:
+      - "nexlink/src/**"
+      - "nexlink/include/**"
+      - "nexroute/src/**"
+      - "nexroute/include/**"
       - "nexstream/src/**"
       - "nextrust/src/**"
       - "nexapi/**/*.go"
       - "nexctl/**/*.go"
       - "nexus-cloud/**/*.go"
       - "docs/**"
+      - "*.md"
 
 permissions:
   contents: read
@@ -54,24 +59,21 @@ jobs:
 
       - name: Collect Rust docs
         run: |
-          cp -r nextrust/target/doc/* _site/rust/ 2>/dev/null || true
-          cp -r nexstream/target/doc/* _site/rust/ 2>/dev/null || true
+          cp -r nextrust/target/doc/* _site/rust/
+          cp -r nexstream/target/doc/* _site/rust/
 
       # ---- Go documentation ----
       - name: "nexapi: generate docs"
-        run: |
-          cd nexapi
-          go doc -all ./... > ../_site/go/nexapi/index.txt 2>/dev/null || true
+        working-directory: nexapi
+        run: go doc -all ./... > ../_site/go/nexapi/index.txt
 
       - name: "nexctl: generate docs"
-        run: |
-          cd nexctl
-          go doc -all ./... > ../_site/go/nexctl/index.txt 2>/dev/null || true
+        working-directory: nexctl
+        run: go doc -all ./... > ../_site/go/nexctl/index.txt
 
       - name: "nexus-cloud: generate docs"
-        run: |
-          cd nexus-cloud
-          go doc -all ./... > ../_site/go/nexus-cloud/index.txt 2>/dev/null || true
+        working-directory: nexus-cloud
+        run: go doc -all ./... > ../_site/go/nexus-cloud/index.txt
 
       # ---- Landing page ----
       - name: Generate index page
