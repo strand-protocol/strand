@@ -204,6 +204,23 @@ static int find_peer_idx(gossip_peer_t *view, int count,
 }
 
 /* --------------------------------------------------------------------------
+ * gossip_sign_header
+ *
+ * Sign a gossip header in-place when a signing callback is configured.
+ * The signature covers all header fields up to (but not including) the
+ * signature field itself -- the same region verified in gossip_handle_message.
+ * Returns 0 on success or when no sign_fn is set, -1 on signing failure.
+ * -------------------------------------------------------------------------- */
+
+static int gossip_sign_header(gossip_state_t *gs, gossip_msg_header_t *hdr)
+{
+    if (!gs->sign_fn)
+        return 0;
+    static const size_t signed_len = offsetof(gossip_msg_header_t, signature);
+    return gs->sign_fn(hdr, signed_len, hdr->signature, gs->auth_ctx);
+}
+
+/* --------------------------------------------------------------------------
  * gossip_init
  * -------------------------------------------------------------------------- */
 
@@ -271,7 +288,8 @@ int gossip_handle_join(gossip_state_t *gs,
             memset(&hdr, 0, sizeof(hdr));
             hdr.msg_type = GOSSIP_MSG_DISCONNECT;
             node_id_copy(hdr.sender_id, gs->self_id);
-            gs->send_fn(evicted.node_id, &hdr, sizeof(hdr), gs->send_ctx);
+            if (gossip_sign_header(gs, &hdr) == 0)
+                gs->send_fn(evicted.node_id, &hdr, sizeof(hdr), gs->send_ctx);
         }
     }
 
@@ -288,10 +306,12 @@ int gossip_handle_join(gossip_state_t *gs,
         node_id_copy(hdr.sender_id, gs->self_id);
         node_id_copy(hdr.origin_id, new_node);
 
-        for (int i = 0; i < gs->active_count; i++) {
-            if (!node_id_equal(gs->active_view[i].node_id, new_node)) {
-                gs->send_fn(gs->active_view[i].node_id,
-                            &hdr, sizeof(hdr), gs->send_ctx);
+        if (gossip_sign_header(gs, &hdr) == 0) {
+            for (int i = 0; i < gs->active_count; i++) {
+                if (!node_id_equal(gs->active_view[i].node_id, new_node)) {
+                    gs->send_fn(gs->active_view[i].node_id,
+                                &hdr, sizeof(hdr), gs->send_ctx);
+                }
             }
         }
     }
@@ -348,8 +368,9 @@ int gossip_handle_forward_join(gossip_state_t *gs,
             hdr.ttl      = ttl - 1;
             node_id_copy(hdr.sender_id, gs->self_id);
             node_id_copy(hdr.origin_id, origin);
-            gs->send_fn(gs->active_view[idx].node_id,
-                        &hdr, sizeof(hdr), gs->send_ctx);
+            if (gossip_sign_header(gs, &hdr) == 0)
+                gs->send_fn(gs->active_view[idx].node_id,
+                            &hdr, sizeof(hdr), gs->send_ctx);
         }
     }
 
@@ -433,7 +454,8 @@ int gossip_do_shuffle(gossip_state_t *gs)
             memcpy(msg + sizeof(gossip_msg_header_t),
                    shuffle_set, payload_len);
 
-            gs->send_fn(target->node_id, msg, msg_len, gs->send_ctx);
+            if (gossip_sign_header(gs, hdr) == 0)
+                gs->send_fn(target->node_id, msg, msg_len, gs->send_ctx);
             free(msg);
         }
     }
@@ -496,7 +518,8 @@ int gossip_handle_shuffle(gossip_state_t *gs,
                 node_id_copy(hdr->origin_id, gs->self_id);
                 hdr->payload_len = (uint16_t)rpl;
                 memcpy(msg + sizeof(gossip_msg_header_t), reply_set, rpl);
-                gs->send_fn(sender, msg, msg_len, gs->send_ctx);
+                if (gossip_sign_header(gs, hdr) == 0)
+                    gs->send_fn(sender, msg, msg_len, gs->send_ctx);
                 free(msg);
             }
         }
