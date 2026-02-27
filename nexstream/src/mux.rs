@@ -52,6 +52,10 @@ impl Multiplexer {
     }
 
     /// Queue data for sending on the given stream.
+    ///
+    /// Delegates to the stream's mode-specific `TransportSender`, which assigns
+    /// a sequence number and buffers the resulting `Frame` for network dispatch.
+    /// Call `drain_frames()` to retrieve the ready-to-send frames.
     pub fn send(&mut self, stream_id: StreamId, data: Bytes) -> Result<()> {
         let stream = self
             .streams
@@ -69,6 +73,20 @@ impl Multiplexer {
         stream.recv()
     }
 
+    /// Drain all outbound frames produced by `send()` calls on all streams.
+    ///
+    /// Returns a flat `Vec<Frame>` ready to be serialised and sent to the
+    /// network layer.  The order within the vector is stream-creation order
+    /// (HashMap iteration), which is non-deterministic but acceptable since
+    /// each stream maintains its own per-stream sequence numbering.
+    pub fn drain_frames(&mut self) -> Vec<Frame> {
+        let mut frames = Vec::new();
+        for stream in self.streams.values_mut() {
+            frames.extend(stream.drain_frames());
+        }
+        frames
+    }
+
     /// Close a stream.
     pub fn close_stream(&mut self, stream_id: StreamId) -> Result<()> {
         let stream = self
@@ -80,22 +98,24 @@ impl Multiplexer {
 
     /// Dispatch an incoming frame to the appropriate stream.
     ///
-    /// For DATA frames, pushes the payload into the stream's receive buffer.
+    /// For DATA frames, the frame is forwarded to the stream's mode-specific
+    /// `TransportReceiver` via `transport_receive()`.  The receiver applies
+    /// mode semantics (ordering reassembly for RO, deduplication for RU,
+    /// probabilistic drop for PR, unconditional delivery for BE) and enqueues
+    /// any ready payloads into the stream's application receive buffer.
+    ///
     /// For FIN frames, marks the remote side as closed.
     /// For RST frames, resets the stream and removes it from the map.
     pub fn poll(&mut self, frame: &Frame) -> Result<()> {
         match frame {
-            Frame::Data {
-                stream_id,
-                payload,
-                ..
-            } => {
+            Frame::Data { stream_id, .. } => {
                 Self::validate_stream_id(*stream_id)?;
                 let stream = self
                     .streams
                     .get_mut(stream_id)
                     .ok_or(NexStreamError::StreamNotFound(*stream_id))?;
-                stream.push_recv(payload.clone());
+                // Delegate to the mode-specific receiver for ordering / dedup.
+                stream.transport_receive(frame)?;
                 Ok(())
             }
             Frame::Fin { stream_id } => {

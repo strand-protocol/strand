@@ -7,27 +7,48 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/apiserver"
 	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/ca"
 	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/controller"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
+	storepkg "github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
 )
 
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
-	storeType := flag.String("store-type", "memory", "state store backend (memory)")
+	storeType := flag.String("store-type", "memory", "state store backend: memory or etcd")
 	flag.Parse()
 
 	// --- State store ---
-	var s store.Store
+	//
+	// The store backend can also be selected via the NEXUS_STORE_TYPE
+	// environment variable (takes precedence over the flag). For etcd, set
+	// NEXUS_ETCD_ENDPOINTS to a comma-separated list of endpoints, e.g.:
+	//   NEXUS_STORE_TYPE=etcd NEXUS_ETCD_ENDPOINTS=http://localhost:2379
+	if envType := os.Getenv("NEXUS_STORE_TYPE"); envType != "" {
+		*storeType = envType
+	}
+
+	var s storepkg.Store
 	switch *storeType {
 	case "memory":
-		s = store.NewMemoryStore()
+		s = storepkg.NewMemoryStore()
+	case "etcd":
+		endpoints := []string{"http://localhost:2379"}
+		if envEndpoints := os.Getenv("NEXUS_ETCD_ENDPOINTS"); envEndpoints != "" {
+			endpoints = strings.Split(envEndpoints, ",")
+		}
+		etcdStore, err := storepkg.NewEtcdStore(endpoints)
+		if err != nil {
+			log.Fatalf("connect to etcd %v: %v", endpoints, err)
+		}
+		log.Printf("connected to etcd at %v", endpoints)
+		s = etcdStore
 	default:
-		log.Fatalf("unsupported store type: %s", *storeType)
+		log.Fatalf("unsupported store type: %s (supported: memory, etcd)", *storeType)
 	}
 
 	// --- CA ---

@@ -2,6 +2,11 @@
 //!
 //! Each stream has an ID, a transport mode (immutable), and a state machine:
 //! Idle -> Open -> HalfClosedLocal / HalfClosedRemote -> Closed.
+//!
+//! The send and receive paths are delegated to mode-specific `TransportSender`
+//! and `TransportReceiver` objects (see `crate::transport`). This ensures that
+//! RU, BE, and Probabilistic streams use their proper deduplication, congestion,
+//! and ordering semantics rather than a generic `VecDeque`.
 
 use std::collections::VecDeque;
 use std::fmt;
@@ -9,7 +14,12 @@ use std::fmt;
 use bytes::Bytes;
 
 use crate::error::{NexStreamError, Result};
-use crate::transport::TransportMode;
+use crate::frame::Frame;
+use crate::transport::best_effort::{BestEffortReceiver, BestEffortSender};
+use crate::transport::probabilistic::{ProbabilisticReceiver, ProbabilisticSender};
+use crate::transport::reliable_ordered::{ReliableOrderedReceiver, ReliableOrderedSender};
+use crate::transport::reliable_unordered::{ReliableUnorderedReceiver, ReliableUnorderedSender};
+use crate::transport::{TransportMode, TransportReceiver, TransportSender};
 
 /// Stream state machine states.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,6 +49,16 @@ impl fmt::Display for StreamState {
 }
 
 /// A single multiplexed stream.
+///
+/// The outbound path goes through a mode-specific `TransportSender` that
+/// produces wire-ready `Frame` values (with sequence numbers assigned).
+/// The inbound path goes through a mode-specific `TransportReceiver` that
+/// applies mode semantics (ordering, deduplication, congestion gating) and
+/// returns zero or more application-visible `Bytes` payloads.
+///
+/// A plain `VecDeque<Bytes>` is still kept as the **application-level receive
+/// queue** — the receiver converts `Frame`s into `Bytes` and those are pushed
+/// here so that `Stream::recv()` remains a simple pop operation.
 pub struct Stream {
     /// Stream identifier.
     id: u32,
@@ -46,20 +66,68 @@ pub struct Stream {
     mode: TransportMode,
     /// Current state.
     state: StreamState,
-    /// Outbound data buffer.
-    send_buf: VecDeque<Bytes>,
-    /// Inbound data buffer.
+    /// Mode-specific sender: assigns sequence numbers, buffers for retransmit.
+    sender: Box<dyn TransportSender>,
+    /// Mode-specific receiver: applies ordering / dedup / probability filter.
+    receiver: Box<dyn TransportReceiver>,
+    /// Outbound frames ready to be handed to the network layer.
+    pending_frames: Vec<Frame>,
+    /// Application-level receive queue: payloads extracted by the receiver.
     recv_buf: VecDeque<Bytes>,
 }
 
 impl Stream {
     /// Create a new stream in the Idle state.
+    ///
+    /// The correct `TransportSender` / `TransportReceiver` pair is instantiated
+    /// based on `mode`.  Probabilistic streams use a 50% delivery probability
+    /// by default; callers that need a different probability should use
+    /// `new_probabilistic()`.
     pub fn new(id: u32, mode: TransportMode) -> Self {
+        let (sender, receiver): (Box<dyn TransportSender>, Box<dyn TransportReceiver>) =
+            match mode {
+                TransportMode::ReliableOrdered => (
+                    Box::new(ReliableOrderedSender::new()),
+                    Box::new(ReliableOrderedReceiver::new()),
+                ),
+                TransportMode::ReliableUnordered => (
+                    Box::new(ReliableUnorderedSender::new()),
+                    Box::new(ReliableUnorderedReceiver::new()),
+                ),
+                TransportMode::BestEffort => (
+                    Box::new(BestEffortSender::new()),
+                    Box::new(BestEffortReceiver::new()),
+                ),
+                TransportMode::Probabilistic => (
+                    Box::new(ProbabilisticSender::new()),
+                    // Default probability 0.5 — override with `new_probabilistic`.
+                    Box::new(ProbabilisticReceiver::new(0.5)),
+                ),
+            };
+
         Self {
             id,
             mode,
             state: StreamState::Idle,
-            send_buf: VecDeque::new(),
+            sender,
+            receiver,
+            pending_frames: Vec::new(),
+            recv_buf: VecDeque::new(),
+        }
+    }
+
+    /// Create a new Probabilistic stream with a custom delivery probability.
+    pub fn new_probabilistic(id: u32, probability: f64) -> Self {
+        let sender: Box<dyn TransportSender> = Box::new(ProbabilisticSender::new());
+        let receiver: Box<dyn TransportReceiver> =
+            Box::new(ProbabilisticReceiver::new(probability));
+        Self {
+            id,
+            mode: TransportMode::Probabilistic,
+            state: StreamState::Idle,
+            sender,
+            receiver,
+            pending_frames: Vec::new(),
             recv_buf: VecDeque::new(),
         }
     }
@@ -94,10 +162,16 @@ impl Stream {
     }
 
     /// Queue data for sending on this stream.
+    ///
+    /// The data is passed to the mode-specific `TransportSender` which assigns
+    /// a sequence number and returns the wire frame(s).  Those frames are
+    /// accumulated in `pending_frames` for the mux layer to drain via
+    /// `drain_frames()`.
     pub fn send(&mut self, data: Bytes) -> Result<()> {
         match self.state {
             StreamState::Open | StreamState::HalfClosedRemote => {
-                self.send_buf.push_back(data);
+                let frames = self.sender.send(self.id, data)?;
+                self.pending_frames.extend(frames);
                 Ok(())
             }
             StreamState::HalfClosedLocal | StreamState::Closed => {
@@ -120,12 +194,10 @@ impl Stream {
                 // Can still drain buffer even if remote closed.
                 if let Some(data) = self.recv_buf.pop_front() {
                     Ok(Some(data))
+                } else if self.state == StreamState::Closed {
+                    Err(NexStreamError::StreamClosed(self.id))
                 } else {
-                    if self.state == StreamState::Closed {
-                        Err(NexStreamError::StreamClosed(self.id))
-                    } else {
-                        Ok(None)
-                    }
+                    Ok(None)
                 }
             }
             StreamState::Idle => Err(NexStreamError::InvalidStateTransition {
@@ -135,14 +207,67 @@ impl Stream {
         }
     }
 
-    /// Enqueue received data into the receive buffer (called by the mux layer).
+    /// Process an inbound `Frame` through the mode-specific `TransportReceiver`.
+    ///
+    /// The receiver applies mode semantics (in-order reassembly for RO,
+    /// deduplication for RU, probabilistic drop for PR, unconditional delivery
+    /// for BE) and returns the payloads that are ready for the application.
+    /// Those payloads are pushed onto the application-level receive queue so
+    /// that subsequent `recv()` calls return them.
+    ///
+    /// This is the primary inbound path called by the mux layer; the legacy
+    /// `push_recv()` helper is preserved for direct testing.
+    pub fn transport_receive(&mut self, frame: &Frame) -> Result<()> {
+        let payloads = self.receiver.receive(frame)?;
+        for payload in payloads {
+            self.recv_buf.push_back(payload);
+        }
+        Ok(())
+    }
+
+    /// Enqueue received data into the receive buffer directly (bypasses the
+    /// transport receiver; useful for unit tests and the pure-Go overlay path).
     pub fn push_recv(&mut self, data: Bytes) {
         self.recv_buf.push_back(data);
     }
 
-    /// Drain pending send data (called by the mux layer).
+    /// Drain all outbound frames produced by `send()` calls (called by the
+    /// mux layer before transmitting to the network).
+    pub fn drain_frames(&mut self) -> Vec<Frame> {
+        std::mem::take(&mut self.pending_frames)
+    }
+
+    /// Drain pending send data as raw `Bytes` (legacy helper; used by tests
+    /// that do not inspect frame structure).
+    ///
+    /// Each `Bytes` value is the payload from one pending `Frame::Data`.
+    /// Non-data frames (if any) are silently dropped here — callers that need
+    /// full frame access should use `drain_frames()`.
     pub fn drain_send(&mut self) -> Vec<Bytes> {
-        self.send_buf.drain(..).collect()
+        self.pending_frames
+            .drain(..)
+            .filter_map(|f| {
+                if let Frame::Data { payload, .. } = f {
+                    Some(payload)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Notify the sender that a sequence number was acknowledged.
+    ///
+    /// For RO and RU streams this removes the frame from the retransmit buffer.
+    /// For BE / Probabilistic streams this is a no-op.
+    pub fn on_ack(&mut self, seq: u32) {
+        self.sender.on_ack(seq);
+    }
+
+    /// Retrieve any frames that need retransmission (called by the loss-
+    /// detection layer).
+    pub fn retransmit(&mut self) -> Vec<Frame> {
+        self.sender.retransmit()
     }
 
     /// Close the local side of the stream.
@@ -182,7 +307,7 @@ impl Stream {
     /// Abruptly reset the stream.
     pub fn reset(&mut self) {
         self.state = StreamState::Closed;
-        self.send_buf.clear();
+        self.pending_frames.clear();
         self.recv_buf.clear();
     }
 }
@@ -212,12 +337,83 @@ mod tests {
         s.open().unwrap();
 
         s.send(Bytes::from_static(b"hello")).unwrap();
+        // drain_send() extracts raw payloads from pending frames.
         let drained = s.drain_send();
         assert_eq!(drained.len(), 1);
+        assert_eq!(&drained[0][..], b"hello");
 
         s.push_recv(Bytes::from_static(b"world"));
         let data = s.recv().unwrap().unwrap();
         assert_eq!(&data[..], b"world");
+    }
+
+    #[test]
+    fn send_produces_frames() {
+        let mut s = Stream::new(1, TransportMode::ReliableOrdered);
+        s.open().unwrap();
+        s.send(Bytes::from_static(b"data")).unwrap();
+
+        let frames = s.drain_frames();
+        assert_eq!(frames.len(), 1);
+        match &frames[0] {
+            Frame::Data { stream_id, seq, payload, .. } => {
+                assert_eq!(*stream_id, 1);
+                assert_eq!(*seq, 0);
+                assert_eq!(&payload[..], b"data");
+            }
+            _ => panic!("expected Data frame"),
+        }
+    }
+
+    #[test]
+    fn transport_receive_ru_dedup() {
+        use crate::frame::DataFlags;
+        let mut s = Stream::new(1, TransportMode::ReliableUnordered);
+        s.open().unwrap();
+
+        let frame = Frame::Data {
+            stream_id: 1,
+            seq: 42,
+            flags: DataFlags::NONE,
+            payload: Bytes::from_static(b"msg"),
+        };
+
+        // First delivery: payload should appear in recv buffer.
+        s.transport_receive(&frame).unwrap();
+        assert_eq!(s.recv().unwrap().unwrap().as_ref(), b"msg");
+
+        // Second delivery (duplicate): no new data.
+        s.transport_receive(&frame).unwrap();
+        assert!(s.recv().unwrap().is_none());
+    }
+
+    #[test]
+    fn transport_receive_ro_ordered() {
+        use crate::frame::DataFlags;
+        let mut s = Stream::new(1, TransportMode::ReliableOrdered);
+        s.open().unwrap();
+
+        // Deliver seq=1 before seq=0 -- should be buffered.
+        let f1 = Frame::Data {
+            stream_id: 1,
+            seq: 1,
+            flags: DataFlags::NONE,
+            payload: Bytes::from_static(b"B"),
+        };
+        let f0 = Frame::Data {
+            stream_id: 1,
+            seq: 0,
+            flags: DataFlags::NONE,
+            payload: Bytes::from_static(b"A"),
+        };
+
+        s.transport_receive(&f1).unwrap();
+        assert!(s.recv().unwrap().is_none()); // not yet -- waiting for seq 0
+
+        s.transport_receive(&f0).unwrap();
+        // Now both 0 and 1 should flush.
+        assert_eq!(s.recv().unwrap().unwrap().as_ref(), b"A");
+        assert_eq!(s.recv().unwrap().unwrap().as_ref(), b"B");
     }
 
     #[test]
@@ -237,5 +433,19 @@ mod tests {
         s.reset();
         assert_eq!(s.state(), StreamState::Closed);
         assert!(s.drain_send().is_empty());
+    }
+
+    #[test]
+    fn on_ack_clears_retransmit_buffer() {
+        let mut s = Stream::new(1, TransportMode::ReliableOrdered);
+        s.open().unwrap();
+        s.send(Bytes::from_static(b"A")).unwrap();
+        s.send(Bytes::from_static(b"B")).unwrap();
+
+        assert_eq!(s.retransmit().len(), 2);
+        s.on_ack(0);
+        assert_eq!(s.retransmit().len(), 1);
+        s.on_ack(1);
+        assert!(s.retransmit().is_empty());
     }
 }

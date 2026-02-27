@@ -21,6 +21,16 @@ func WithStreamHandler(sh StreamHandler) ServerOption {
 	}
 }
 
+// WithAgentHandler registers a handler for OpAgentDelegate frames. When a
+// peer delegates a task to this server the handler is invoked with the decoded
+// AgentDelegate and must return an AgentResult (or an error). On error the
+// server sends back an AgentResult with ErrInternal and the error string.
+func WithAgentHandler(fn func(ctx context.Context, msg *protocol.AgentDelegate) (*protocol.AgentResult, error)) ServerOption {
+	return func(s *Server) {
+		s.agentHandler = fn
+	}
+}
+
 // maxConcurrentFrames limits the number of goroutines processing frames
 // simultaneously, preventing goroutine exhaustion under burst traffic.
 const maxConcurrentFrames = 1000
@@ -30,9 +40,11 @@ const maxConcurrentFrames = 1000
 type Server struct {
 	handler       Handler
 	streamHandler StreamHandler
-	transport     *transport.OverlayTransport
-	mu            sync.Mutex
-	done          chan struct{}
+	// agentHandler handles OpAgentDelegate frames (optional).
+	agentHandler func(ctx context.Context, msg *protocol.AgentDelegate) (*protocol.AgentResult, error)
+	transport    *transport.OverlayTransport
+	mu           sync.Mutex
+	done         chan struct{}
 	// sem bounds the number of in-flight frame handler goroutines.
 	sem chan struct{}
 }
@@ -111,6 +123,10 @@ func (s *Server) handleFrame(ctx context.Context, opcode byte, payload []byte) {
 		s.handleInference(ctx, payload)
 	case protocol.OpHeartbeat:
 		s.handleHeartbeat(ctx)
+	case protocol.OpAgentNegotiate:
+		s.handleAgentNegotiate(ctx, payload)
+	case protocol.OpAgentDelegate:
+		s.handleAgentDelegate(ctx, payload)
 	default:
 		log.Printf("nexapi server: unhandled opcode 0x%02x", opcode)
 	}
@@ -165,6 +181,77 @@ func (s *Server) handleStreamInference(ctx context.Context, req *protocol.Infere
 	// Send stream end
 	if err := s.transport.Send(ctx, protocol.OpTokenStreamEnd, nil); err != nil {
 		log.Printf("nexapi server: send stream end error: %v", err)
+	}
+}
+
+// handleAgentNegotiate responds to an AGENT_NEGOTIATE frame by echoing back
+// an AGENT_NEGOTIATE with this server's own capabilities (currently empty —
+// callers may extend this by wrapping the server).
+func (s *Server) handleAgentNegotiate(ctx context.Context, payload []byte) {
+	req := &protocol.AgentNegotiate{}
+	reader := nexbuf.NewReader(payload)
+	if err := req.Decode(reader); err != nil {
+		log.Printf("nexapi server: agent negotiate decode error: %v", err)
+		return
+	}
+	// Echo back with the same SessionID so the peer can correlate the reply.
+	resp := &protocol.AgentNegotiate{
+		SessionID:    req.SessionID,
+		Capabilities: []string{}, // Extend via higher-level server wrappers.
+		Version:      1,
+	}
+	buf := nexbuf.NewBuffer(64)
+	resp.Encode(buf)
+	if err := s.transport.Send(ctx, protocol.OpAgentNegotiate, buf.Bytes()); err != nil {
+		log.Printf("nexapi server: send agent negotiate response error: %v", err)
+	}
+}
+
+// handleAgentDelegate dispatches an AGENT_DELEGATE frame to the registered
+// agentHandler. If no handler is registered, it replies with ErrCapabilities.
+func (s *Server) handleAgentDelegate(ctx context.Context, payload []byte) {
+	req := &protocol.AgentDelegate{}
+	reader := nexbuf.NewReader(payload)
+	if err := req.Decode(reader); err != nil {
+		s.sendAgentResult(ctx, req.SessionID, nil, protocol.ErrInvalidRequest, fmt.Sprintf("decode error: %v", err))
+		return
+	}
+
+	if s.agentHandler == nil {
+		s.sendAgentResult(ctx, req.SessionID, nil, protocol.ErrCapabilities, "no agent handler registered")
+		return
+	}
+
+	result, err := s.agentHandler(ctx, req)
+	if err != nil {
+		s.sendAgentResult(ctx, req.SessionID, nil, protocol.ErrInternal, err.Error())
+		return
+	}
+
+	// Use the result as returned by the handler; set SessionID from request
+	// if the handler did not populate it.
+	if result.SessionID == 0 {
+		result.SessionID = req.SessionID
+	}
+	buf := nexbuf.NewBuffer(256)
+	result.Encode(buf)
+	if err := s.transport.Send(ctx, protocol.OpAgentResult, buf.Bytes()); err != nil {
+		log.Printf("nexapi server: send agent result error: %v", err)
+	}
+}
+
+// sendAgentResult is a helper that encodes and sends an AgentResult frame.
+func (s *Server) sendAgentResult(ctx context.Context, sessionID uint32, payload []byte, code uint16, msg string) {
+	result := &protocol.AgentResult{
+		SessionID:     sessionID,
+		ResultPayload: payload,
+		ErrorCode:     code,
+		ErrorMsg:      msg,
+	}
+	buf := nexbuf.NewBuffer(128)
+	result.Encode(buf)
+	if err := s.transport.Send(ctx, protocol.OpAgentResult, buf.Bytes()); err != nil {
+		log.Printf("nexapi server: send agent result error: %v", err)
 	}
 }
 
