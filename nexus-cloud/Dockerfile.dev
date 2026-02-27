@@ -3,7 +3,7 @@
 # Uses the full Go toolchain for source-mounted hot reload.
 # ============================================================
 
-FROM golang:1.22-bookworm
+FROM golang:1.26-bookworm
 
 WORKDIR /src
 
