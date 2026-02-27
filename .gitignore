@@ -1,0 +1,185 @@
+# ============================================================
+# Nexus Protocol Monorepo .gitignore
+# Covers: Zig, C/CMake, Rust, Go, P4, Docker, IDE, OS files
+# ============================================================
+
+# -----------------------------------------------------------
+# Zig (nexlink)
+# -----------------------------------------------------------
+zig-out/
+zig-cache/
+.zig-cache/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# -----------------------------------------------------------
+# C / CMake (nexroute)
+# -----------------------------------------------------------
+# CMake build directories
+nexroute/build/
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile.cmake
+*.cmake
+!CMakeLists.txt
+
+# C object files and libraries
+*.o
+*.obj
+*.lo
+*.la
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.lib
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Debug files
+*.dSYM/
+*.d
+
+# -----------------------------------------------------------
+# Rust (nexstream, nextrust)
+# -----------------------------------------------------------
+target/
+**/*.rs.bk
+Cargo.lock
+
+# -----------------------------------------------------------
+# Go (nexapi, nexctl, nexus-cloud)
+# -----------------------------------------------------------
+# Go binaries
+nexctl/nexctl
+nexapi/nexapi-bridge
+nexapi/nexbuf-gen
+
+# Go build cache (usually in $GOPATH but just in case)
+vendor/
+
+# Go test binary
+*.test
+
+# Go coverage
+*.out
+coverage.html
+coverage.txt
+
+# -----------------------------------------------------------
+# P4 (nexroute/p4)
+# -----------------------------------------------------------
+*.bmv2.json
+*.tofino/
+*.tofino2/
+*.p4i
+
+# -----------------------------------------------------------
+# Protocol / Schema generated code
+# -----------------------------------------------------------
+# NexBuf generated files (regenerated from .nexbuf schemas)
+# Uncomment if generated code should not be committed:
+# nexapi/pkg/protocol/*_generated.go
+
+# -----------------------------------------------------------
+# IDE and Editor
+# -----------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+.nvimrc
+.exrc
+
+# -----------------------------------------------------------
+# OS-specific
+# -----------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.directory
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# -----------------------------------------------------------
+# Docker
+# -----------------------------------------------------------
+.docker/
+docker-compose.override.yml
+
+# -----------------------------------------------------------
+# Testing and CI
+# -----------------------------------------------------------
+# Fuzz corpus and crashers
+fuzz/corpus/
+fuzz/crashers/
+**/fuzz/artifacts/
+**/fuzz_*/corpus/
+**/fuzz_*/artifacts/
+
+# Coverage reports
+lcov.info
+*.lcov
+htmlcov/
+.coverage
+
+# Benchmark results (keep templates, ignore outputs)
+**/bench_results/
+
+# -----------------------------------------------------------
+# Secrets and credentials (NEVER commit these)
+# -----------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+credentials.json
+secrets.yaml
+secrets.yml
+
+# -----------------------------------------------------------
+# Nix
+# -----------------------------------------------------------
+result
+result-*
+.direnv/
+
+# -----------------------------------------------------------
+# Misc
+# -----------------------------------------------------------
+*.log
+*.tmp
+*.bak
+*.orig
+*.pid
+.cache/
+dist/

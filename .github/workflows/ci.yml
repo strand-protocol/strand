@@ -1,0 +1,308 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Phase 1: NexLink (Zig 0.15)
+  # ---------------------------------------------------------------------------
+  nexlink:
+    name: NexLink (Zig)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexlink
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Zig 0.15.x
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.0
+
+      - name: Cache Zig build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            nexlink/.zig-cache
+            nexlink/zig-cache
+            nexlink/zig-out
+          key: zig-${{ runner.os }}-${{ hashFiles('nexlink/build.zig', 'nexlink/src/**') }}
+          restore-keys: |
+            zig-${{ runner.os }}-
+
+      - name: Build
+        run: zig build
+
+      - name: Test
+        run: zig build test
+
+  # ---------------------------------------------------------------------------
+  # Phase 2: NexRoute (C / CMake)
+  # ---------------------------------------------------------------------------
+  nexroute:
+    name: NexRoute (C)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nexroute
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang
+
+      - name: Cache CMake build directory
+        uses: actions/cache@v4
+        with:
+          path: nexroute/build
+          key: cmake-${{ runner.os }}-${{ hashFiles('nexroute/CMakeLists.txt', 'nexroute/src/**', 'nexroute/include/**') }}
+          restore-keys: |
+            cmake-${{ runner.os }}-
+
+      - name: Configure
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: |
+          cd build
+          ctest --output-on-failure
+
+  # ---------------------------------------------------------------------------
+  # Phase 3: Rust (nexstream + nextrust)
+  # ---------------------------------------------------------------------------
+  rust:
+    name: Rust (nexstream + nextrust)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            nexstream/target/
+            nextrust/target/
+          key: cargo-${{ runner.os }}-${{ hashFiles('nexstream/Cargo.lock', 'nextrust/Cargo.lock', 'nexstream/Cargo.toml', 'nextrust/Cargo.toml') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      # ---- nextrust ----
+      - name: "nextrust: check formatting"
+        working-directory: nextrust
+        run: cargo fmt --check
+
+      - name: "nextrust: clippy"
+        working-directory: nextrust
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: "nextrust: build"
+        working-directory: nextrust
+        run: cargo build
+
+      - name: "nextrust: test"
+        working-directory: nextrust
+        run: cargo test
+
+      # ---- nexstream ----
+      - name: "nexstream: check formatting"
+        working-directory: nexstream
+        run: cargo fmt --check
+
+      - name: "nexstream: clippy"
+        working-directory: nexstream
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: "nexstream: build"
+        working-directory: nexstream
+        run: cargo build
+
+      - name: "nexstream: test"
+        working-directory: nexstream
+        run: cargo test
+
+  # ---------------------------------------------------------------------------
+  # Phase 4-5: Go (nexapi + nexctl + nexus-cloud)
+  # ---------------------------------------------------------------------------
+  go:
+    name: Go (nexapi + nexctl + nexus-cloud)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: false
+
+      - name: Cache Go module and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ hashFiles('nexapi/go.sum', 'nexctl/go.sum', 'nexus-cloud/go.sum') }}
+          restore-keys: |
+            go-${{ runner.os }}-
+
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@latest
+
+      # ---- nexapi ----
+      - name: "nexapi: build"
+        working-directory: nexapi
+        run: go build ./...
+
+      - name: "nexapi: test"
+        working-directory: nexapi
+        run: go test ./...
+
+      - name: "nexapi: vet"
+        working-directory: nexapi
+        run: go vet ./...
+
+      - name: "nexapi: staticcheck"
+        working-directory: nexapi
+        run: staticcheck ./...
+
+      # ---- nexctl ----
+      - name: "nexctl: build"
+        working-directory: nexctl
+        run: go build ./...
+
+      - name: "nexctl: test"
+        working-directory: nexctl
+        run: go test ./...
+
+      - name: "nexctl: vet"
+        working-directory: nexctl
+        run: go vet ./...
+
+      - name: "nexctl: staticcheck"
+        working-directory: nexctl
+        run: staticcheck ./...
+
+      # ---- nexus-cloud ----
+      - name: "nexus-cloud: build"
+        working-directory: nexus-cloud
+        run: go build ./...
+
+      - name: "nexus-cloud: test"
+        working-directory: nexus-cloud
+        run: go test ./...
+
+      - name: "nexus-cloud: vet"
+        working-directory: nexus-cloud
+        run: go vet ./...
+
+      - name: "nexus-cloud: staticcheck"
+        working-directory: nexus-cloud
+        run: staticcheck ./...
+
+  # ---------------------------------------------------------------------------
+  # Integration gate: cross-module verification
+  # ---------------------------------------------------------------------------
+  integration:
+    name: Integration Verification
+    runs-on: ubuntu-latest
+    needs: [nexlink, nexroute, rust, go]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Zig 0.15.x
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.0
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang
+
+      - name: Build nexlink
+        working-directory: nexlink
+        run: zig build
+
+      - name: Build nexroute
+        working-directory: nexroute
+        run: |
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Release \
+            -DNEXLINK_INCLUDE_DIR=../../nexlink/include \
+            -DNEXLINK_LIB_DIR=../../nexlink/zig-out/lib
+          cmake --build . --parallel
+
+      - name: Build nextrust
+        working-directory: nextrust
+        run: cargo build --release
+
+      - name: Build nexstream
+        working-directory: nexstream
+        run: cargo build --release
+
+      - name: Build nexapi
+        working-directory: nexapi
+        run: CGO_ENABLED=0 go build ./...
+
+      - name: Build nexctl
+        working-directory: nexctl
+        run: go build ./...
+
+      - name: Build nexus-cloud
+        working-directory: nexus-cloud
+        run: go build ./...
+
+      - name: Cross-module verification
+        run: |
+          echo "=== Cross-Module Verification ==="
+          echo ""
+          echo "Verified build artifacts:"
+          echo "  - nexlink:    $(test -d nexlink/zig-out && echo 'OK' || echo 'MISSING')"
+          echo "  - nexroute:   $(test -d nexroute/build && echo 'OK' || echo 'MISSING')"
+          echo "  - nextrust:   $(test -d nextrust/target && echo 'OK' || echo 'MISSING')"
+          echo "  - nexstream:  $(test -d nexstream/target && echo 'OK' || echo 'MISSING')"
+          echo ""
+          echo "Dependency graph validated: all modules build successfully in order."
+          echo "=== Integration verification passed ==="

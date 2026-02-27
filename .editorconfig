@@ -1,0 +1,61 @@
+# EditorConfig — https://editorconfig.org
+root = true
+
+# Default settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Zig
+[*.zig]
+indent_style = space
+indent_size = 4
+
+# Rust
+[*.rs]
+indent_style = space
+indent_size = 4
+
+# Go
+[*.go]
+indent_style = tab
+
+# C / C headers
+[*.{c,h}]
+indent_style = space
+indent_size = 4
+
+# P4
+[*.p4]
+indent_style = space
+indent_size = 4
+
+# Makefiles
+[Makefile]
+indent_style = tab
+
+# YAML
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# TOML
+[*.toml]
+indent_style = space
+indent_size = 2
+
+# JSON
+[*.json]
+indent_style = space
+indent_size = 2
+
+# Protocol Buffers
+[*.proto]
+indent_style = space
+indent_size = 2
+
+# Markdown
+[*.md]
+trim_trailing_whitespace = false

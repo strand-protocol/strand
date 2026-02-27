@@ -1,0 +1,92 @@
+version: 2
+
+updates:
+  # Rust: nexstream
+  - package-ecosystem: "cargo"
+    directory: "/nexstream"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "nexus-protocol/transport-team"
+    labels:
+      - "dependencies"
+      - "rust"
+    commit-message:
+      prefix: "deps(nexstream):"
+
+  # Rust: nextrust
+  - package-ecosystem: "cargo"
+    directory: "/nextrust"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "nexus-protocol/transport-team"
+    labels:
+      - "dependencies"
+      - "rust"
+    commit-message:
+      prefix: "deps(nextrust):"
+
+  # Go: nexapi
+  - package-ecosystem: "gomod"
+    directory: "/nexapi"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "nexus-protocol/api-team"
+    labels:
+      - "dependencies"
+      - "go"
+    commit-message:
+      prefix: "deps(nexapi):"
+
+  # Go: nexctl
+  - package-ecosystem: "gomod"
+    directory: "/nexctl"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "nexus-protocol/api-team"
+    labels:
+      - "dependencies"
+      - "go"
+    commit-message:
+      prefix: "deps(nexctl):"
+
+  # Go: nexus-cloud
+  - package-ecosystem: "gomod"
+    directory: "/nexus-cloud"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "nexus-protocol/platform-team"
+    labels:
+      - "dependencies"
+      - "go"
+    commit-message:
+      prefix: "deps(nexus-cloud):"
+
+  # GitHub Actions workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "nexus-protocol/platform-team"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci(deps):"

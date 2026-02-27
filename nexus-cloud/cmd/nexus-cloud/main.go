@@ -1,0 +1,73 @@
+// nexus-cloud is the Nexus Cloud control plane server.
+package main
+
+import (
+	"context"
+	"flag"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/apiserver"
+	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/ca"
+	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/controller"
+	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
+)
+
+func main() {
+	addr := flag.String("addr", ":8080", "listen address")
+	storeType := flag.String("store-type", "memory", "state store backend (memory)")
+	flag.Parse()
+
+	// --- State store ---
+	var s store.Store
+	switch *storeType {
+	case "memory":
+		s = store.NewMemoryStore()
+	default:
+		log.Fatalf("unsupported store type: %s", *storeType)
+	}
+
+	// --- CA ---
+	ks := ca.NewMemoryKeyStore()
+	authority := ca.NewCA(ks)
+	if err := authority.GenerateCA(); err != nil {
+		log.Fatalf("generate CA: %v", err)
+	}
+	log.Println("CA root key pair generated")
+
+	// --- API server ---
+	opts := apiserver.DefaultServerOptions()
+	srv := apiserver.NewServer(s, authority, opts)
+
+	// --- Fleet controller ---
+	fc := controller.NewFleetController(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go fc.Start(ctx)
+
+	// --- Reconciler (no desired version set by default) ---
+	rc := controller.NewReconciler(s, "")
+	go rc.Start(ctx)
+
+	// --- Graceful shutdown ---
+	go func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		<-sigCh
+		log.Println("shutdown signal received")
+		cancel()
+		shutCtx, shutCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutCancel()
+		if err := srv.GracefulShutdown(shutCtx); err != nil {
+			log.Printf("graceful shutdown error: %v", err)
+		}
+	}()
+
+	log.Printf("starting nexus-cloud (store=%s)", *storeType)
+	if err := srv.ListenAndServe(*addr); err != nil && err.Error() != "http: Server closed" {
+		log.Fatalf("server error: %v", err)
+	}
+}

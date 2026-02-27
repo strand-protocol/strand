@@ -1,0 +1,105 @@
+name: Security
+
+on:
+  schedule:
+    # Run every Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Rust: cargo-audit vulnerability scanning
+  # ---------------------------------------------------------------------------
+  rust-audit:
+    name: Rust Vulnerability Scan (cargo-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: "nextrust: audit dependencies"
+        working-directory: nextrust
+        run: cargo audit
+
+      - name: "nexstream: audit dependencies"
+        working-directory: nexstream
+        run: cargo audit
+
+  # ---------------------------------------------------------------------------
+  # Go: govulncheck
+  # ---------------------------------------------------------------------------
+  go-vulncheck:
+    name: Go Vulnerability Scan (govulncheck)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: false
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: "nexapi: vulnerability check"
+        working-directory: nexapi
+        run: govulncheck ./...
+
+      - name: "nexctl: vulnerability check"
+        working-directory: nexctl
+        run: govulncheck ./...
+
+      - name: "nexus-cloud: vulnerability check"
+        working-directory: nexus-cloud
+        run: govulncheck ./...
+
+  # ---------------------------------------------------------------------------
+  # CodeQL: static analysis for C code (nexroute)
+  # ---------------------------------------------------------------------------
+  codeql:
+    name: CodeQL Analysis (C)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: c-cpp
+          queries: security-and-quality
+          source-root: nexroute
+
+      - name: Build nexroute for CodeQL
+        working-directory: nexroute
+        run: |
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug
+          cmake --build . --parallel
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:c-cpp"

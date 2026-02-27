@@ -1,0 +1,36 @@
+# ============================================================
+# nexus-cloud -- All-In-One Docker build
+# Produces the nexus-allinone binary that bundles every
+# control-plane component in a single process.
+# ============================================================
+
+# -----------------------------------------------------------
+# Stage 1: Builder
+# -----------------------------------------------------------
+FROM golang:1.22-bookworm AS builder
+
+WORKDIR /src
+
+# Cache dependency downloads.
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the full module source.
+COPY . .
+
+# Build the all-in-one binary (static, stripped).
+RUN CGO_ENABLED=0 go build \
+    -ldflags "-s -w" \
+    -o /nexus-allinone \
+    ./cmd/nexus-allinone
+
+# -----------------------------------------------------------
+# Stage 2: Minimal runtime
+# -----------------------------------------------------------
+FROM gcr.io/distroless/static-debian12
+
+COPY --from=builder /nexus-allinone /nexus-allinone
+
+EXPOSE 8080
+
+ENTRYPOINT ["/nexus-allinone"]

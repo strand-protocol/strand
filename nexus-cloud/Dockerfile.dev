@@ -1,0 +1,21 @@
+# ============================================================
+# nexus-cloud -- Development Dockerfile
+# Uses the full Go toolchain for source-mounted hot reload.
+# ============================================================
+
+FROM golang:1.22-bookworm
+
+WORKDIR /src
+
+# Pre-download dependencies for faster first run.
+COPY go.mod ./
+COPY go.su[m] ./
+RUN go mod download
+
+# Source is mounted at runtime via docker-compose.dev.yml;
+# the COPY below is only used if running this Dockerfile standalone.
+COPY . .
+
+EXPOSE 8080
+
+CMD ["go", "run", "./cmd/nexus-cloud", "-addr", "0.0.0.0:8080"]

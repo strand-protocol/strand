@@ -1,0 +1,33 @@
+# Nexus Protocol - Code Ownership
+#
+# Each line is a file pattern followed by one or more owners.
+# Order matters: later rules override earlier ones.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# ---- Default (catch-all) ----
+* @nexus-protocol/platform-team
+
+# ---- NexLink: L1 Data-Link Layer (Zig) ----
+/nexlink/ @nexus-protocol/firmware-team
+
+# ---- NexRoute: L2 Routing Layer (C) ----
+/nexroute/ @nexus-protocol/firmware-team
+
+# ---- NexStream: L3 Transport Layer (Rust) ----
+/nexstream/ @nexus-protocol/transport-team
+
+# ---- NexTrust: L4 Identity & Trust (Rust) ----
+/nextrust/ @nexus-protocol/transport-team
+
+# ---- NexAPI: L5 API Gateway (Go) ----
+/nexapi/ @nexus-protocol/api-team
+
+# ---- NexCtl: CLI Tool (Go) ----
+/nexctl/ @nexus-protocol/api-team
+
+# ---- Nexus Cloud: Platform Services (Go) ----
+/nexus-cloud/ @nexus-protocol/platform-team
+
+# ---- CI/CD and infrastructure ----
+/.github/ @nexus-protocol/platform-team
+/Makefile @nexus-protocol/platform-team

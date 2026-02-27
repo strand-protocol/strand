@@ -1,0 +1,108 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for the Nexus Protocol
+title: "[Feature]: "
+labels: ["enhancement"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature. Please fill out the sections below so we can evaluate and prioritize your request.
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Target Module
+      description: Which module would this feature affect?
+      multiple: true
+      options:
+        - nexlink (Zig - L1 Data-Link)
+        - nexroute (C - L2 Routing)
+        - nexstream (Rust - L3 Transport)
+        - nextrust (Rust - L4 Identity/Trust)
+        - nexapi (Go - L5 API Gateway)
+        - nexctl (Go - CLI)
+        - nexus-cloud (Go - Cloud Platform)
+        - Cross-module / Architecture
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Feature Type
+      description: What kind of feature is this?
+      options:
+        - New capability
+        - Enhancement to existing feature
+        - Performance improvement
+        - Developer experience / Tooling
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Describe the problem this feature would solve. What is the current pain point or limitation?
+      placeholder: "I'm always frustrated when ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your proposed solution or feature in detail.
+      placeholder: |
+        I'd like to see ...
+
+        API example:
+        ```
+        // example usage
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you have considered.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context, mockups, diagrams, or references about the feature request.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: willing_to_contribute
+    attributes:
+      label: Willingness to Contribute
+      description: Would you be willing to help implement this feature?
+      options:
+        - "Yes, I can submit a pull request"
+        - "Yes, with some guidance"
+        - "No, but I can help test"
+        - "No"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues and feature requests to ensure this is not a duplicate.
+          required: true
+        - label: I have considered whether this fits within the Nexus Protocol architecture.
+          required: false

@@ -1,0 +1,59 @@
+# ==========================================================
+# Nexus Protocol -- Development Override
+# ==========================================================
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# This override replaces the distroless runtime images with the
+# full Go toolchain so that source mounts and `go run` commands
+# work for rapid iteration without rebuilding images.
+#
+
+services:
+  # --------------------------------------------------------
+  # nexus-cloud: development mode with source mount
+  # --------------------------------------------------------
+  nexus-cloud:
+    build:
+      context: ./nexus-cloud
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./nexus-cloud:/src
+    command: ["go", "run", "./cmd/nexus-cloud", "-addr", "0.0.0.0:8080"]
+    environment:
+      - NEXUS_ADDR=0.0.0.0:8080
+      - NEXUS_STORE_TYPE=memory
+
+  # --------------------------------------------------------
+  # nexus-allinone: development mode with source mount
+  # --------------------------------------------------------
+  nexus-allinone:
+    build:
+      context: ./nexus-cloud
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./nexus-cloud:/src
+    command: ["go", "run", "./cmd/nexus-allinone", "-addr", "0.0.0.0:8080"]
+
+  # --------------------------------------------------------
+  # nexapi-inference: development mode with source mount
+  # --------------------------------------------------------
+  nexapi-inference:
+    build:
+      context: ./nexapi
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./nexapi:/src
+    command: ["go", "run", "./examples/inference", "0.0.0.0:9000"]
+
+  # --------------------------------------------------------
+  # nexapi-echo: development mode with source mount
+  # --------------------------------------------------------
+  nexapi-echo:
+    build:
+      context: ./nexapi
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./nexapi:/src
+    command: ["go", "run", "./examples/echo", "0.0.0.0:9000"]

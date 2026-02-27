@@ -1,0 +1,111 @@
+name: Bug Report
+description: Report a bug in the Nexus Protocol
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. Please fill out the sections below to help us reproduce and fix the issue.
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Affected Module
+      description: Which module is affected by this bug?
+      multiple: true
+      options:
+        - nexlink (Zig - L1 Data-Link)
+        - nexroute (C - L2 Routing)
+        - nexstream (Rust - L3 Transport)
+        - nextrust (Rust - L4 Identity/Trust)
+        - nexapi (Go - L5 API Gateway)
+        - nexctl (Go - CLI)
+        - nexus-cloud (Go - Cloud Platform)
+        - Other / Unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug.
+      placeholder: Describe what happened and what you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the behavior.
+      placeholder: |
+        1. Run `nexctl ...`
+        2. Send a request to ...
+        3. Observe error ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? Include error messages, stack traces, or logs.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Provide details about your environment.
+      value: |
+        - OS: [e.g., Ubuntu 22.04, macOS 14.2]
+        - Architecture: [e.g., amd64, arm64]
+        - Module version/commit: [e.g., v0.1.0 or commit hash]
+        - Toolchain versions: [e.g., Go 1.22, Rust 1.75, Zig 0.15]
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Paste any relevant log output. This will be automatically formatted as code.
+      render: shell
+    validations:
+      required: false
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - "Critical: System crash, data loss, or security vulnerability"
+        - "High: Major feature broken, no workaround"
+        - "Medium: Feature broken, workaround exists"
+        - "Low: Minor issue, cosmetic, or edge case"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate.
+          required: true
+        - label: I have tested with the latest version of the affected module.
+          required: false

@@ -1,0 +1,10 @@
+go 1.22
+
+use (
+	./nexapi
+	./nexctl
+	./nexus-cloud
+	./tests/integration
+	./tests/bench
+	./tests/fuzz
+)

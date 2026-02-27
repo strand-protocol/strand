@@ -1,0 +1,81 @@
+# ==========================================================
+# Nexus Protocol -- Full Stack Docker Compose
+# ==========================================================
+#
+# Usage:
+#   docker compose up                       -- start default services
+#   docker compose up --build               -- rebuild and start
+#   docker compose up -d                    -- start in background
+#   docker compose --profile allinone up    -- start all-in-one mode
+#   docker compose --profile examples up    -- start with example servers
+#   docker compose down                     -- stop all services
+#   docker compose logs -f                  -- follow logs
+#
+
+services:
+  # --------------------------------------------------------
+  # nexus-cloud: Control-plane API server
+  # --------------------------------------------------------
+  nexus-cloud:
+    build:
+      context: ./nexus-cloud
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - NEXUS_ADDR=0.0.0.0:8080
+      - NEXUS_STORE_TYPE=memory
+    healthcheck:
+      test: ["CMD", "/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # --------------------------------------------------------
+  # nexus-allinone: All-in-one binary (control plane + agent + CA)
+  # Activated with: docker compose --profile allinone up
+  # --------------------------------------------------------
+  nexus-allinone:
+    build:
+      context: ./nexus-cloud
+      dockerfile: Dockerfile
+    command: ["/nexus-allinone"]
+    ports:
+      - "8081:8080"
+    profiles:
+      - allinone
+    restart: unless-stopped
+
+  # --------------------------------------------------------
+  # nexapi-inference: Mock inference server (example)
+  # --------------------------------------------------------
+  nexapi-inference:
+    build:
+      context: ./nexapi
+      dockerfile: Dockerfile
+    ports:
+      - "9000:9000"
+    environment:
+      - NEXAPI_ADDR=0.0.0.0:9000
+    depends_on:
+      nexus-cloud:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --------------------------------------------------------
+  # nexapi-echo: Echo server (example)
+  # Activated with: docker compose --profile examples up
+  # --------------------------------------------------------
+  nexapi-echo:
+    build:
+      context: ./nexapi
+      dockerfile: Dockerfile
+    command: ["/nexapi-echo"]
+    ports:
+      - "9001:9000"
+    environment:
+      - NEXAPI_ADDR=0.0.0.0:9000
+    profiles:
+      - examples
+    restart: unless-stopped

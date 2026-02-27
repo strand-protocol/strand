@@ -1,0 +1,143 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "nexstream/src/**"
+      - "nextrust/src/**"
+      - "nexapi/**/*.go"
+      - "nexctl/**/*.go"
+      - "nexus-cloud/**/*.go"
+      - "docs/**"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: false
+
+      - name: Install Go doc tools
+        run: go install golang.org/x/tools/cmd/godoc@latest
+
+      - name: Create docs output directory
+        run: mkdir -p _site/rust _site/go/nexapi _site/go/nexctl _site/go/nexus-cloud
+
+      # ---- Rust documentation ----
+      - name: "nextrust: generate docs"
+        working-directory: nextrust
+        run: cargo doc --no-deps --document-private-items
+
+      - name: "nexstream: generate docs"
+        working-directory: nexstream
+        run: cargo doc --no-deps --document-private-items
+
+      - name: Collect Rust docs
+        run: |
+          cp -r nextrust/target/doc/* _site/rust/ 2>/dev/null || true
+          cp -r nexstream/target/doc/* _site/rust/ 2>/dev/null || true
+
+      # ---- Go documentation ----
+      - name: "nexapi: generate docs"
+        run: |
+          cd nexapi
+          go doc -all ./... > ../_site/go/nexapi/index.txt 2>/dev/null || true
+
+      - name: "nexctl: generate docs"
+        run: |
+          cd nexctl
+          go doc -all ./... > ../_site/go/nexctl/index.txt 2>/dev/null || true
+
+      - name: "nexus-cloud: generate docs"
+        run: |
+          cd nexus-cloud
+          go doc -all ./... > ../_site/go/nexus-cloud/index.txt 2>/dev/null || true
+
+      # ---- Landing page ----
+      - name: Generate index page
+        run: |
+          cat > _site/index.html << 'HEREDOC'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <title>Nexus Protocol - API Documentation</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #333; }
+              h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
+              .module { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+              .module h3 { margin-top: 0; }
+              a { color: #0366d6; text-decoration: none; }
+              a:hover { text-decoration: underline; }
+              .lang { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+              .rust { background: #dea584; color: #000; }
+              .go { background: #00add8; color: #fff; }
+            </style>
+          </head>
+          <body>
+            <h1>Nexus Protocol Documentation</h1>
+            <p>Auto-generated API documentation for the Nexus Protocol monorepo.</p>
+
+            <h2>Rust Modules</h2>
+            <div class="module">
+              <h3><span class="lang rust">Rust</span> <a href="rust/nextrust/">nextrust</a></h3>
+              <p>L4 - Model Identity, Cryptographic Trust &amp; Attestation</p>
+            </div>
+            <div class="module">
+              <h3><span class="lang rust">Rust</span> <a href="rust/nexstream/">nexstream</a></h3>
+              <p>L3 - Hybrid Transport Layer</p>
+            </div>
+
+            <h2>Go Modules</h2>
+            <div class="module">
+              <h3><span class="lang go">Go</span> <a href="go/nexapi/">nexapi</a></h3>
+              <p>L5 - API Gateway &amp; Orchestration</p>
+            </div>
+            <div class="module">
+              <h3><span class="lang go">Go</span> <a href="go/nexctl/">nexctl</a></h3>
+              <p>CLI Tool for Nexus Protocol</p>
+            </div>
+            <div class="module">
+              <h3><span class="lang go">Go</span> <a href="go/nexus-cloud/">nexus-cloud</a></h3>
+              <p>Cloud Platform Services</p>
+            </div>
+          </body>
+          </html>
+          HEREDOC
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build-docs
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
