@@ -3,19 +3,19 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/nexus-protocol/nexus/nexctl/pkg/api"
+	"github.com/strand-protocol/strand/strandctl/pkg/api"
 	"github.com/spf13/cobra"
 )
 
 var diagnoseCmd = &cobra.Command{
 	Use:   "diagnose",
 	Short: "Network diagnostics",
-	Long:  "Run diagnostic commands: ping, traceroute, and benchmark against Nexus nodes.",
+	Long:  "Run diagnostic commands: ping, traceroute, and benchmark against Strand nodes.",
 }
 
 var diagnosePingCmd = &cobra.Command{
 	Use:   "ping <target>",
-	Short: "NexStream-level ping to measure latency",
+	Short: "StrandStream-level ping to measure latency",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := api.ValidateID(args[0]); err != nil {
@@ -32,7 +32,7 @@ var diagnosePingCmd = &cobra.Command{
 
 var diagnoseTracerouteCmd = &cobra.Command{
 	Use:   "traceroute <target>",
-	Short: "Trace the NexRoute path to a target node",
+	Short: "Trace the StrandRoute path to a target node",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := api.ValidateID(args[0]); err != nil {

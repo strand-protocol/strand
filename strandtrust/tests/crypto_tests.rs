@@ -1,9 +1,9 @@
-// Integration tests for the NexTrust crypto layer.
+// Integration tests for the StrandTrust crypto layer.
 
-use nextrust::crypto::aead::AeadCipher;
-use nextrust::crypto::hash::{hash_blake3, hash_sha256};
-use nextrust::crypto::keys::{verify_signature, IdentityKeyPair};
-use nextrust::crypto::x25519::{derive_session_keys, X25519KeyPair};
+use strandtrust::crypto::aead::AeadCipher;
+use strandtrust::crypto::hash::{hash_blake3, hash_sha256};
+use strandtrust::crypto::keys::{verify_signature, IdentityKeyPair};
+use strandtrust::crypto::x25519::{derive_session_keys, X25519KeyPair};
 
 // ── Ed25519 key generation and signing ───────────────────────────────────
 
@@ -26,7 +26,7 @@ fn keypair_seed_roundtrip() {
 #[test]
 fn sign_and_verify() {
     let kp = IdentityKeyPair::generate();
-    let msg = b"NexTrust integration test message";
+    let msg = b"StrandTrust integration test message";
     let sig = kp.sign(msg);
     kp.verify(msg, &sig).expect("valid signature");
 }

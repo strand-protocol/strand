@@ -1,6 +1,6 @@
 # ============================================================
-# nexus-cloud -- All-In-One Docker build
-# Produces the nexus-allinone binary that bundles every
+# strand-cloud -- All-In-One Docker build
+# Produces the strand-allinone binary that bundles every
 # control-plane component in a single process.
 # ============================================================
 
@@ -21,16 +21,16 @@ COPY . .
 # Build the all-in-one binary (static, stripped).
 RUN CGO_ENABLED=0 go build \
     -ldflags "-s -w" \
-    -o /nexus-allinone \
-    ./cmd/nexus-allinone
+    -o /strand-allinone \
+    ./cmd/strand-allinone
 
 # -----------------------------------------------------------
 # Stage 2: Minimal runtime
 # -----------------------------------------------------------
 FROM gcr.io/distroless/static-debian12
 
-COPY --from=builder /nexus-allinone /nexus-allinone
+COPY --from=builder /strand-allinone /strand-allinone
 
 EXPOSE 8080
 
-ENTRYPOINT ["/nexus-allinone"]
+ENTRYPOINT ["/strand-allinone"]

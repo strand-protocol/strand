@@ -3,7 +3,9 @@ package apiserver
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -23,11 +25,12 @@ const (
 )
 
 // applyMiddleware wraps the given handler with the standard middleware chain.
-// Order (outermost to innermost): recovery -> auth -> rbac -> rateLimiter -> requestBodyLimit -> cors -> logging -> requestID
+// Order (outermost to innermost): recovery -> auth -> rbac -> rateLimiter -> requestBodyLimit -> cors -> securityHeaders -> logging -> requestID
 func (s *Server) applyMiddleware(h http.Handler) http.Handler {
 	h = requestIDMiddleware(h)
 	h = loggingMiddleware(h)
-	h = corsMiddleware(h)
+	h = securityHeadersMiddleware(h)
+	h = s.corsMiddleware(h)
 	h = requestBodyLimitMiddleware(h)
 	h = s.rateLimitMiddleware(h)
 	h = s.rbacMiddleware(h)
@@ -58,12 +61,22 @@ func (s *Server) apiKeyMiddleware(next http.Handler) http.Handler {
 			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		info, ok := s.opts.APIKeys[token]
-		if !ok {
+		// Constant-time comparison: iterate all keys to avoid timing
+		// side-channels that leak which tokens are valid.
+		var matchedInfo APIKeyInfo
+		var found bool
+		for key, info := range s.opts.APIKeys {
+			if subtle.ConstantTimeCompare([]byte(key), []byte(token)) == 1 {
+				matchedInfo = info
+				found = true
+				// Do NOT break: must iterate all keys for constant-time behaviour.
+			}
+		}
+		if !found {
 			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		ctx := context.WithValue(r.Context(), roleContextKey, info.Role)
+		ctx := context.WithValue(r.Context(), roleContextKey, matchedInfo.Role)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -188,6 +201,19 @@ func newTokenBucket(ratePerSec float64, burst float64) *tokenBucket {
 	}
 }
 
+// remaining returns the current number of available tokens (for rate-limit headers).
+func (tb *tokenBucket) remaining() float64 {
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
+	now := time.Now()
+	elapsed := now.Sub(tb.lastFill).Seconds()
+	tokens := tb.tokens + elapsed*tb.ratePerS
+	if tokens > tb.maxTok {
+		tokens = tb.maxTok
+	}
+	return tokens
+}
+
 // allow returns true and consumes one token if the bucket is non-empty.
 func (tb *tokenBucket) allow() bool {
 	tb.mu.Lock()
@@ -212,7 +238,11 @@ func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 	// 1000 requests per minute ≈ 16.67 req/s, burst of 50.
 	limiter := newTokenBucket(1000.0/60.0, 50)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-RateLimit-Limit", "1000")
+		remaining := int(limiter.remaining())
+		w.Header().Set("X-RateLimit-Remaining", fmt.Sprintf("%d", remaining))
 		if !limiter.allow() {
+			w.Header().Set("Retry-After", "60")
 			http.Error(w, `{"error":"rate limit exceeded"}`, http.StatusTooManyRequests)
 			return
 		}
@@ -220,14 +250,47 @@ func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// corsMiddleware adds CORS headers. In dev mode (no allowed origins configured)
-// it allows all origins; in production set ServerOptions.AllowedOrigins.
-func corsMiddleware(next http.Handler) http.Handler {
+// securityHeadersMiddleware adds defensive HTTP headers to every response.
+func securityHeadersMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// CORS is intentionally restrictive: no wildcard in production.
-		// AllowedOrigins is set via ServerOptions; empty means deny cross-origin.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'")
+		w.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// corsMiddleware adds CORS headers. When AllowedOrigins is configured, only
+// those origins are reflected; when empty (dev mode), all origins are allowed
+// with a log warning on first request.
+func (s *Server) corsMiddleware(next http.Handler) http.Handler {
+	var warnOnce sync.Once
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID")
+
+		if origin != "" {
+			if len(s.opts.AllowedOrigins) == 0 {
+				// Dev mode: allow all origins but warn.
+				warnOnce.Do(func() {
+					log.Println("WARNING: AllowedOrigins is empty — allowing all CORS origins (dev mode)")
+				})
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			} else {
+				for _, allowed := range s.opts.AllowedOrigins {
+					if allowed == origin {
+						w.Header().Set("Access-Control-Allow-Origin", origin)
+						w.Header().Set("Access-Control-Allow-Credentials", "true")
+						break
+					}
+				}
+			}
+		}
+
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return

@@ -1,4 +1,4 @@
-// NexTrust L4 — Model Identity, Cryptographic Trust & Attestation
+// StrandTrust L4 — Model Identity, Cryptographic Trust & Attestation
 //
 // Crate root: module declarations and public re-exports.
 
@@ -9,6 +9,6 @@ pub mod handshake;
 pub mod ffi;
 
 // Re-export key types at crate root for convenience.
-pub use error::{NexTrustError, Result};
+pub use error::{StrandTrustError, Result};
 pub use crypto::keys::IdentityKeyPair;
 pub use mic::MIC;

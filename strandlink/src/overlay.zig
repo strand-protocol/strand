@@ -1,10 +1,10 @@
-// overlay.zig — UDP overlay encapsulation for NexLink frames (Tier 3 compatibility)
+// overlay.zig — UDP overlay encapsulation for StrandLink frames (Tier 3 compatibility)
 //
-// Encapsulates NexLink frames inside UDP datagrams for transport over standard
+// Encapsulates StrandLink frames inside UDP datagrams for transport over standard
 // IP networks. Modeled after VXLAN (RFC 7348) and Geneve (RFC 8926).
 //
 // Overlay header (8 bytes):
-//   Bytes 0-1: Magic (0x4E58 = "NX")
+//   Bytes 0-1: Magic (0x504C = "PL")
 //   Byte  2:   Version (upper 4 bits) | Flags (lower 4 bits)
 //   Byte  3:   Reserved (must be 0)
 //   Bytes 4-7: VNI (Virtual Network Identifier, 32 bits)
@@ -16,13 +16,13 @@ const mem = std.mem;
 const testing = std.testing;
 const crc = @import("crc.zig");
 
-/// Overlay magic bytes: "NX" = 0x4E58
-pub const OVERLAY_MAGIC: u16 = 0x4E58;
+/// Overlay magic bytes: "PL" = 0x504C
+pub const OVERLAY_MAGIC: u16 = 0x504C;
 
 /// Current overlay version.
 pub const OVERLAY_VERSION: u4 = 1;
 
-/// Default UDP destination port for NexLink overlay.
+/// Default UDP destination port for StrandLink overlay.
 pub const OVERLAY_PORT: u16 = 6477;
 
 /// Overlay header size in bytes.
@@ -98,9 +98,9 @@ pub const OverlayHeader = struct {
     }
 };
 
-/// Encapsulate a NexLink frame inside an overlay packet.
+/// Encapsulate a StrandLink frame inside an overlay packet.
 ///
-/// Writes: [OverlayHeader (8B)] [NexLink Frame (variable)]
+/// Writes: [OverlayHeader (8B)] [StrandLink Frame (variable)]
 ///
 /// Returns the total number of bytes written to `out_buf`.
 pub fn encapsulate(
@@ -161,7 +161,7 @@ test "overlay header serialize/deserialize roundtrip" {
 }
 
 test "overlay encapsulate/decapsulate roundtrip" {
-    const frame = "NexLink frame content here";
+    const frame = "StrandLink frame content here";
     var buf: [256]u8 = undefined;
 
     const written = try encapsulate(42, frame, &buf);

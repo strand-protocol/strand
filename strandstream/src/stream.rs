@@ -13,7 +13,7 @@ use std::fmt;
 
 use bytes::Bytes;
 
-use crate::error::{NexStreamError, Result};
+use crate::error::{StrandStreamError, Result};
 use crate::frame::Frame;
 use crate::transport::best_effort::{BestEffortReceiver, BestEffortSender};
 use crate::transport::probabilistic::{ProbabilisticReceiver, ProbabilisticSender};
@@ -154,7 +154,7 @@ impl Stream {
                 self.state = StreamState::Open;
                 Ok(())
             }
-            _ => Err(NexStreamError::InvalidStateTransition {
+            _ => Err(StrandStreamError::InvalidStateTransition {
                 from: self.state.to_string(),
                 to: "Open".into(),
             }),
@@ -175,9 +175,9 @@ impl Stream {
                 Ok(())
             }
             StreamState::HalfClosedLocal | StreamState::Closed => {
-                Err(NexStreamError::StreamClosed(self.id))
+                Err(StrandStreamError::StreamClosed(self.id))
             }
-            StreamState::Idle => Err(NexStreamError::InvalidStateTransition {
+            StreamState::Idle => Err(StrandStreamError::InvalidStateTransition {
                 from: "Idle".into(),
                 to: "send".into(),
             }),
@@ -195,12 +195,12 @@ impl Stream {
                 if let Some(data) = self.recv_buf.pop_front() {
                     Ok(Some(data))
                 } else if self.state == StreamState::Closed {
-                    Err(NexStreamError::StreamClosed(self.id))
+                    Err(StrandStreamError::StreamClosed(self.id))
                 } else {
                     Ok(None)
                 }
             }
-            StreamState::Idle => Err(NexStreamError::InvalidStateTransition {
+            StreamState::Idle => Err(StrandStreamError::InvalidStateTransition {
                 from: "Idle".into(),
                 to: "recv".into(),
             }),
@@ -284,7 +284,7 @@ impl Stream {
             StreamState::Closed | StreamState::HalfClosedLocal => {
                 Ok(()) // idempotent
             }
-            StreamState::Idle => Err(NexStreamError::InvalidStateTransition {
+            StreamState::Idle => Err(StrandStreamError::InvalidStateTransition {
                 from: "Idle".into(),
                 to: "Closed".into(),
             }),

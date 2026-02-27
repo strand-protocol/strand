@@ -1,9 +1,9 @@
-// Package model defines the core data types for the Nexus Cloud control plane.
+// Package model defines the core data types for the Strand Cloud control plane.
 package model
 
 import "time"
 
-// Node represents a Nexus-enabled network node registered with the control plane.
+// Node represents a Strand-enabled network node registered with the control plane.
 type Node struct {
 	ID              string      `json:"id"`
 	Address         string      `json:"address"`
@@ -39,7 +39,7 @@ type Endpoint struct {
 }
 
 // MIC is a Machine Identity Certificate used for node authentication within the
-// Nexus trust framework (NexTrust). It binds a node to a set of claims via
+// Strand trust framework (StrandTrust). It binds a node to a set of claims via
 // an Ed25519 signature issued by the control plane CA.
 type MIC struct {
 	ID           string    `json:"id"`
@@ -61,4 +61,48 @@ type FirmwareImage struct {
 	Checksum  string    `json:"checksum"`
 	URL       string    `json:"url"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// Tenant represents a multi-tenant organisation in the platform.
+type Tenant struct {
+	ID               string            `json:"id"`
+	Name             string            `json:"name"`
+	Slug             string            `json:"slug"`
+	Plan             string            `json:"plan"`
+	Status           string            `json:"status"`
+	MaxClusters      int               `json:"max_clusters"`
+	MaxNodes         int               `json:"max_nodes"`
+	MaxMICsMonth     int               `json:"max_mics_month"`
+	TrafficGBIncl    float64           `json:"traffic_gb_included"`
+	Metadata         map[string]string `json:"metadata,omitempty"`
+	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
+}
+
+// Cluster represents a managed cluster owned by a tenant.
+type Cluster struct {
+	ID                   string            `json:"id"`
+	TenantID             string            `json:"tenant_id"`
+	Name                 string            `json:"name"`
+	Region               string            `json:"region"`
+	Status               string            `json:"status"`
+	ControlPlaneEndpoint string            `json:"control_plane_endpoint,omitempty"`
+	NodeCount            int               `json:"node_count"`
+	Config               map[string]string `json:"config,omitempty"`
+	CreatedAt            time.Time         `json:"created_at"`
+	UpdatedAt            time.Time         `json:"updated_at"`
+}
+
+// AuditEntry represents a single audit log event.
+type AuditEntry struct {
+	ID           string            `json:"id"`
+	TenantID     string            `json:"tenant_id"`
+	ActorID      string            `json:"actor_id"`
+	ActorType    string            `json:"actor_type"`
+	Action       string            `json:"action"`
+	ResourceType string            `json:"resource_type"`
+	ResourceID   string            `json:"resource_id"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
+	IPAddress    string            `json:"ip_address,omitempty"`
+	CreatedAt    time.Time         `json:"created_at"`
 }

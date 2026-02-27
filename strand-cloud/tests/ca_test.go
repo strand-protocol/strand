@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/ca"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/ca"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
 )
 
 func newTestCA(t *testing.T) *ca.CA {

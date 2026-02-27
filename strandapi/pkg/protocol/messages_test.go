@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
 )
 
 func TestInferenceRequestRoundTrip(t *testing.T) {
@@ -20,11 +20,11 @@ func TestInferenceRequestRoundTrip(t *testing.T) {
 		},
 	}
 
-	buf := nexbuf.NewBuffer(256)
+	buf := strandbuf.NewBuffer(256)
 	orig.Encode(buf)
 
 	decoded := &InferenceRequest{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
@@ -63,11 +63,11 @@ func TestInferenceResponseRoundTrip(t *testing.T) {
 		CompletionTokens: 7,
 	}
 
-	buf := nexbuf.NewBuffer(128)
+	buf := strandbuf.NewBuffer(128)
 	orig.Encode(buf)
 
 	decoded := &InferenceResponse{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
@@ -97,11 +97,11 @@ func TestTokenStreamChunkRoundTrip(t *testing.T) {
 		Logprob:   -1.5,
 	}
 
-	buf := nexbuf.NewBuffer(64)
+	buf := strandbuf.NewBuffer(64)
 	orig.Encode(buf)
 
 	decoded := &TokenStreamChunk{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
@@ -133,11 +133,11 @@ func TestTensorTransferRoundTrip(t *testing.T) {
 		Data:  data,
 	}
 
-	buf := nexbuf.NewBuffer(512)
+	buf := strandbuf.NewBuffer(512)
 	orig.Encode(buf)
 
 	decoded := &TensorTransfer{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
@@ -207,11 +207,11 @@ func TestInferenceRequestEmptyMetadata(t *testing.T) {
 		Metadata:    map[string]string{},
 	}
 
-	buf := nexbuf.NewBuffer(64)
+	buf := strandbuf.NewBuffer(64)
 	orig.Encode(buf)
 
 	decoded := &InferenceRequest{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
@@ -227,11 +227,11 @@ func TestTensorTransferEmptyShape(t *testing.T) {
 		Data:  []byte{0x42},
 	}
 
-	buf := nexbuf.NewBuffer(64)
+	buf := strandbuf.NewBuffer(64)
 	orig.Encode(buf)
 
 	decoded := &TensorTransfer{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}

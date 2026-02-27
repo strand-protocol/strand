@@ -43,6 +43,27 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/v1/firmware/{id}", s.handleGetFirmware)
 	s.mux.HandleFunc("PUT /api/v1/firmware/{id}", s.handleUpdateFirmware)
 	s.mux.HandleFunc("DELETE /api/v1/firmware/{id}", s.handleDeleteFirmware)
+
+	// Tenants
+	s.mux.HandleFunc("GET /api/v1/tenants", s.handleListTenants)
+	s.mux.HandleFunc("POST /api/v1/tenants", s.handleCreateTenant)
+	s.mux.HandleFunc("GET /api/v1/tenants/{id}", s.handleGetTenant)
+	s.mux.HandleFunc("PUT /api/v1/tenants/{id}", s.handleUpdateTenant)
+	s.mux.HandleFunc("DELETE /api/v1/tenants/{id}", s.handleDeleteTenant)
+
+	// Clusters
+	s.mux.HandleFunc("GET /api/v1/clusters", s.handleListClusters)
+	s.mux.HandleFunc("POST /api/v1/clusters", s.handleCreateCluster)
+	s.mux.HandleFunc("GET /api/v1/clusters/{id}", s.handleGetCluster)
+	s.mux.HandleFunc("PUT /api/v1/clusters/{id}", s.handleUpdateCluster)
+	s.mux.HandleFunc("DELETE /api/v1/clusters/{id}", s.handleDeleteCluster)
+
+	// Audit log
+	s.mux.HandleFunc("GET /api/v1/audit", s.handleListAuditLog)
+
+	// Billing
+	s.mux.HandleFunc("GET /api/v1/billing/plans", s.handleListPlans)
+	s.mux.HandleFunc("GET /api/v1/billing/usage", s.handleGetUsage)
 }
 
 // handleHealthz is a liveness probe.
@@ -59,8 +80,15 @@ func (s *Server) handleReadyz(w http.ResponseWriter, _ *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "ready"})
 }
 
-// handleMetrics exposes internal counters.
-func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
+// handleMetrics exposes internal counters. If the Accept header requests
+// Prometheus text format, delegate to the Prometheus handler; otherwise
+// return JSON.
+func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	accept := r.Header.Get("Accept")
+	if accept == "text/plain" || accept == "text/plain; version=0.0.4" {
+		s.metrics.PrometheusHandler()(w, r)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(s.metrics.GetMetrics())
 }

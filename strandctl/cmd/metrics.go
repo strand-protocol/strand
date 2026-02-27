@@ -9,7 +9,7 @@ import (
 
 var metricsCmd = &cobra.Command{
 	Use:   "metrics",
-	Short: "View and export Nexus metrics",
+	Short: "View and export Strand metrics",
 	Long:  "Show metrics for nodes and export in Prometheus or JSON format.",
 }
 
@@ -50,18 +50,18 @@ var metricsExportCmd = &cobra.Command{
 				if err != nil {
 					continue
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "# HELP nexus_connections Number of active connections\n")
-				fmt.Fprintf(cmd.OutOrStdout(), "# TYPE nexus_connections gauge\n")
-				fmt.Fprintf(cmd.OutOrStdout(), "nexus_connections{node_id=%q} %d\n", m.NodeID, m.Connections)
-				fmt.Fprintf(cmd.OutOrStdout(), "# HELP nexus_bytes_sent Total bytes sent\n")
-				fmt.Fprintf(cmd.OutOrStdout(), "# TYPE nexus_bytes_sent counter\n")
-				fmt.Fprintf(cmd.OutOrStdout(), "nexus_bytes_sent{node_id=%q} %d\n", m.NodeID, m.BytesSent)
-				fmt.Fprintf(cmd.OutOrStdout(), "# HELP nexus_bytes_recv Total bytes received\n")
-				fmt.Fprintf(cmd.OutOrStdout(), "# TYPE nexus_bytes_recv counter\n")
-				fmt.Fprintf(cmd.OutOrStdout(), "nexus_bytes_recv{node_id=%q} %d\n", m.NodeID, m.BytesRecv)
-				fmt.Fprintf(cmd.OutOrStdout(), "# HELP nexus_latency_ms Latency in milliseconds\n")
-				fmt.Fprintf(cmd.OutOrStdout(), "# TYPE nexus_latency_ms gauge\n")
-				fmt.Fprintf(cmd.OutOrStdout(), "nexus_latency_ms{node_id=%q} %.2f\n", m.NodeID, m.Latency)
+				fmt.Fprintf(cmd.OutOrStdout(), "# HELP strand_connections Number of active connections\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "# TYPE strand_connections gauge\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "strand_connections{node_id=%q} %d\n", m.NodeID, m.Connections)
+				fmt.Fprintf(cmd.OutOrStdout(), "# HELP strand_bytes_sent Total bytes sent\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "# TYPE strand_bytes_sent counter\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "strand_bytes_sent{node_id=%q} %d\n", m.NodeID, m.BytesSent)
+				fmt.Fprintf(cmd.OutOrStdout(), "# HELP strand_bytes_recv Total bytes received\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "# TYPE strand_bytes_recv counter\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "strand_bytes_recv{node_id=%q} %d\n", m.NodeID, m.BytesRecv)
+				fmt.Fprintf(cmd.OutOrStdout(), "# HELP strand_latency_ms Latency in milliseconds\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "# TYPE strand_latency_ms gauge\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "strand_latency_ms{node_id=%q} %.2f\n", m.NodeID, m.Latency)
 			}
 		case "json":
 			var allMetrics []any

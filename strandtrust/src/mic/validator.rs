@@ -1,7 +1,7 @@
 // MIC Validator — verify signature, expiry, and (optional) issuer chain.
 
 use crate::crypto::keys::verify_signature;
-use crate::error::{NexTrustError, Result};
+use crate::error::{StrandTrustError, Result};
 use crate::mic::MIC;
 
 /// Outcome of a successful MIC validation.
@@ -23,13 +23,13 @@ pub fn validate(mic: &MIC, now: u64) -> Result<ValidationResult> {
 
     // 2. Check time validity.
     if now < mic.valid_from {
-        return Err(NexTrustError::MicNotYetValid {
+        return Err(StrandTrustError::MicNotYetValid {
             not_before: mic.valid_from,
             now,
         });
     }
     if now > mic.valid_until {
-        return Err(NexTrustError::MicExpired {
+        return Err(StrandTrustError::MicExpired {
             not_after: mic.valid_until,
             now,
         });
@@ -48,7 +48,7 @@ pub fn validate(mic: &MIC, now: u64) -> Result<ValidationResult> {
 /// `chain` is ordered leaf-first: `[leaf, intermediate..., root]`.
 pub fn validate_chain(chain: &[MIC], now: u64) -> Result<()> {
     if chain.is_empty() {
-        return Err(NexTrustError::MicChainValidation("empty chain".into()));
+        return Err(StrandTrustError::MicChainValidation("empty chain".into()));
     }
 
     for (i, mic) in chain.iter().enumerate() {
@@ -59,7 +59,7 @@ pub fn validate_chain(chain: &[MIC], now: u64) -> Result<()> {
         if i + 1 < chain.len() {
             let parent = &chain[i + 1];
             if mic.issuer_public_key != parent.node_id {
-                return Err(NexTrustError::MicChainValidation(format!(
+                return Err(StrandTrustError::MicChainValidation(format!(
                     "MIC at index {i} issuer does not match parent at index {}",
                     i + 1
                 )));
@@ -67,7 +67,7 @@ pub fn validate_chain(chain: &[MIC], now: u64) -> Result<()> {
         } else {
             // Root: must be self-signed (issuer_public_key == node_id)
             if mic.issuer_public_key != mic.node_id {
-                return Err(NexTrustError::MicChainValidation(
+                return Err(StrandTrustError::MicChainValidation(
                     "root MIC is not self-signed".into(),
                 ));
             }
@@ -105,7 +105,7 @@ mod tests {
         let kp = IdentityKeyPair::generate();
         let mic = make_mic(&kp);
         let err = validate(&mic, 6000).unwrap_err();
-        assert!(matches!(err, NexTrustError::MicExpired { .. }));
+        assert!(matches!(err, StrandTrustError::MicExpired { .. }));
     }
 
     #[test]
@@ -113,7 +113,7 @@ mod tests {
         let kp = IdentityKeyPair::generate();
         let mic = make_mic(&kp);
         let err = validate(&mic, 500).unwrap_err();
-        assert!(matches!(err, NexTrustError::MicNotYetValid { .. }));
+        assert!(matches!(err, StrandTrustError::MicNotYetValid { .. }));
     }
 
     #[test]

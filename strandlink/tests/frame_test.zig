@@ -1,23 +1,23 @@
-// tests/frame_test.zig — Integration tests for NexLink frame encode/decode
+// tests/frame_test.zig — Integration tests for StrandLink frame encode/decode
 //
 // Tests roundtrip encoding/decoding, CRC validation, option parsing,
 // and edge cases across all frame types.
 
 const std = @import("std");
 const testing = std.testing;
-const nexlink = @import("nexlink");
+const strandlink = @import("strandlink");
 
-const FrameHeader = nexlink.FrameHeader;
-const FrameType = nexlink.FrameType;
-const QosClass = nexlink.QosClass;
-const TensorDtype = nexlink.TensorDtype;
-const NodeId = nexlink.NodeId;
-const OptionBuilder = nexlink.OptionBuilder;
-const OptionType = nexlink.OptionType;
-const HEADER_SIZE = nexlink.HEADER_SIZE;
-const MIN_FRAME_SIZE = nexlink.MIN_FRAME_SIZE;
-const MAX_FRAME_SIZE = nexlink.MAX_FRAME_SIZE;
-const CRC_SIZE = nexlink.frame.CRC_SIZE;
+const FrameHeader = strandlink.FrameHeader;
+const FrameType = strandlink.FrameType;
+const QosClass = strandlink.QosClass;
+const TensorDtype = strandlink.TensorDtype;
+const NodeId = strandlink.NodeId;
+const OptionBuilder = strandlink.OptionBuilder;
+const OptionType = strandlink.OptionType;
+const HEADER_SIZE = strandlink.HEADER_SIZE;
+const MIN_FRAME_SIZE = strandlink.MIN_FRAME_SIZE;
+const MAX_FRAME_SIZE = strandlink.MAX_FRAME_SIZE;
+const CRC_SIZE = strandlink.frame.CRC_SIZE;
 
 // ── Roundtrip tests ──
 
@@ -25,10 +25,10 @@ test "roundtrip: minimal frame (no options, no payload)" {
     var hdr = FrameHeader.init(.heartbeat);
     var buf: [MIN_FRAME_SIZE]u8 = undefined;
 
-    const n = try nexlink.encode(&hdr, &.{}, &.{}, &buf);
+    const n = try strandlink.encode(&hdr, &.{}, &.{}, &buf);
     try testing.expectEqual(MIN_FRAME_SIZE, n);
 
-    const f = try nexlink.decode(&buf);
+    const f = try strandlink.decode(&buf);
     try testing.expectEqual(FrameType.heartbeat, f.header.frame_type);
     try testing.expectEqual(@as(usize, 0), f.payload.len);
     try testing.expectEqual(@as(usize, 0), f.options.len);
@@ -43,9 +43,9 @@ test "roundtrip: data frame with payload" {
     hdr.qos_class = .reliable_ordered;
 
     var buf: [512]u8 = undefined;
-    const n = try nexlink.encode(&hdr, &.{}, payload, &buf);
+    const n = try strandlink.encode(&hdr, &.{}, payload, &buf);
 
-    const f = try nexlink.decode(buf[0..n]);
+    const f = try strandlink.decode(buf[0..n]);
     try testing.expectEqual(FrameType.data, f.header.frame_type);
     try testing.expectEqual(@as(u32, 0xCAFEBABE), f.header.stream_id);
     try testing.expectEqual(@as(u32, 999), f.header.sequence_number);
@@ -76,9 +76,9 @@ test "roundtrip: tensor_transfer with options" {
     hdr.timestamp = 1700000000_000000000;
 
     var buf: [1024]u8 = undefined;
-    const n = try nexlink.encode(&hdr, builder.slice(), &payload, &buf);
+    const n = try strandlink.encode(&hdr, builder.slice(), &payload, &buf);
 
-    const f = try nexlink.decode(buf[0..n]);
+    const f = try strandlink.decode(buf[0..n]);
     try testing.expectEqual(FrameType.tensor_transfer, f.header.frame_type);
     try testing.expect(f.header.flags.tensor_payload);
     try testing.expectEqual(src_id, f.header.source_node_id);
@@ -91,9 +91,9 @@ test "roundtrip: tensor_transfer with options" {
     var iter = f.optionIterator();
     const opt1 = (try iter.next()).?;
     try testing.expectEqual(OptionType.tensor_shape, opt1.option_type);
-    const shape = try nexlink.options.parseTensorShape(opt1.value);
+    const shape = try strandlink.options.parseTensorShape(opt1.value);
     try testing.expectEqual(@as(u8, 3), shape.ndims);
-    try testing.expectEqual(@as(u32, 8), try nexlink.options.readTensorDim(shape.dims_data, 0));
+    try testing.expectEqual(@as(u32, 8), try strandlink.options.readTensorDim(shape.dims_data, 0));
 
     const opt2 = (try iter.next()).?;
     try testing.expectEqual(OptionType.gpu_hint, opt2.option_type);
@@ -102,7 +102,7 @@ test "roundtrip: tensor_transfer with options" {
     try testing.expectEqual(OptionType.hop_count, opt3.option_type);
     try testing.expectEqual(@as(u8, 4), opt3.value[0]);
 
-    try testing.expectEqual(@as(?nexlink.options.Option, null), try iter.next());
+    try testing.expectEqual(@as(?strandlink.options.Option, null), try iter.next());
 }
 
 // ── CRC validation tests ──
@@ -110,36 +110,36 @@ test "roundtrip: tensor_transfer with options" {
 test "crc: corrupted header detected" {
     var hdr = FrameHeader.init(.control);
     var buf: [256]u8 = undefined;
-    const n = try nexlink.encode(&hdr, &.{}, "payload", &buf);
+    const n = try strandlink.encode(&hdr, &.{}, "payload", &buf);
 
     // Flip a bit in the source_node_id region (byte 20), which does not
     // affect frame_length or version validation, so CRC check is reached.
     buf[20] ^= 0x01;
-    try testing.expectError(error.CrcMismatch, nexlink.decode(buf[0..n]));
+    try testing.expectError(error.CrcMismatch, strandlink.decode(buf[0..n]));
 }
 
 test "crc: corrupted payload detected" {
     var hdr = FrameHeader.init(.data);
     var buf: [256]u8 = undefined;
-    const n = try nexlink.encode(&hdr, &.{}, "important data", &buf);
+    const n = try strandlink.encode(&hdr, &.{}, "important data", &buf);
 
     // Corrupt a payload byte
     buf[HEADER_SIZE + 3] ^= 0xFF;
-    try testing.expectError(error.CrcMismatch, nexlink.decode(buf[0..n]));
+    try testing.expectError(error.CrcMismatch, strandlink.decode(buf[0..n]));
 }
 
 test "crc: corrupted CRC field detected" {
     var hdr = FrameHeader.init(.data);
     var buf: [256]u8 = undefined;
-    const n = try nexlink.encode(&hdr, &.{}, "data", &buf);
+    const n = try strandlink.encode(&hdr, &.{}, "data", &buf);
 
     // Corrupt the CRC bytes directly
     buf[n - 1] ^= 0x01;
-    try testing.expectError(error.CrcMismatch, nexlink.decode(buf[0..n]));
+    try testing.expectError(error.CrcMismatch, strandlink.decode(buf[0..n]));
 }
 
 test "crc: standalone crc32c known vector" {
-    const result = nexlink.crc.compute("123456789");
+    const result = strandlink.crc.compute("123456789");
     try testing.expectEqual(@as(u32, 0xE3069283), result);
 }
 
@@ -159,8 +159,8 @@ test "edge: all frame types roundtrip" {
     for (types) |ft| {
         var hdr = FrameHeader.init(ft);
         var buf: [256]u8 = undefined;
-        const n = try nexlink.encode(&hdr, &.{}, "x", &buf);
-        const f = try nexlink.decode(buf[0..n]);
+        const n = try strandlink.encode(&hdr, &.{}, "x", &buf);
+        const f = try strandlink.decode(buf[0..n]);
         try testing.expectEqual(ft, f.header.frame_type);
     }
 }
@@ -177,8 +177,8 @@ test "edge: all flags set" {
     };
 
     var buf: [256]u8 = undefined;
-    const n = try nexlink.encode(&hdr, &.{}, "", &buf);
-    const f = try nexlink.decode(buf[0..n]);
+    const n = try strandlink.encode(&hdr, &.{}, "", &buf);
+    const f = try strandlink.decode(buf[0..n]);
     try testing.expect(f.header.flags.more_fragments);
     try testing.expect(f.header.flags.compressed);
     try testing.expect(f.header.flags.encrypted);
@@ -193,8 +193,8 @@ test "edge: max priority and qos" {
     hdr.qos_class = .probabilistic;
 
     var buf: [256]u8 = undefined;
-    const n = try nexlink.encode(&hdr, &.{}, "x", &buf);
-    const f = try nexlink.decode(buf[0..n]);
+    const n = try strandlink.encode(&hdr, &.{}, "x", &buf);
+    const f = try strandlink.decode(buf[0..n]);
     try testing.expectEqual(@as(u4, 15), f.header.priority);
     try testing.expectEqual(QosClass.probabilistic, f.header.qos_class);
 }
@@ -204,9 +204,9 @@ test "edge: frame_length field matches actual length" {
     const payload = "variable length payload";
 
     var buf: [512]u8 = undefined;
-    const n = try nexlink.encode(&hdr, &.{}, payload, &buf);
+    const n = try strandlink.encode(&hdr, &.{}, payload, &buf);
 
-    const f = try nexlink.decode(buf[0..n]);
+    const f = try strandlink.decode(buf[0..n]);
     try testing.expectEqual(@as(u32, @intCast(n)), f.header.frame_length);
     try testing.expectEqual(@as(usize, HEADER_SIZE + payload.len + CRC_SIZE), n);
 }
@@ -222,9 +222,9 @@ test "edge: large payload near max" {
     const out_buf = try testing.allocator.alloc(u8, MAX_FRAME_SIZE);
     defer testing.allocator.free(out_buf);
 
-    const n = try nexlink.encode(&hdr, &.{}, payload_buf, out_buf);
+    const n = try strandlink.encode(&hdr, &.{}, payload_buf, out_buf);
     try testing.expectEqual(MAX_FRAME_SIZE, n);
 
-    const f = try nexlink.decode(out_buf[0..n]);
+    const f = try strandlink.decode(out_buf[0..n]);
     try testing.expectEqual(payload_size, f.payload.len);
 }

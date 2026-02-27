@@ -11,7 +11,7 @@ import (
 // similar identifiers: alphanumeric plus dot, underscore, and hyphen.
 var validIDRE = regexp.MustCompile(`^[a-zA-Z0-9._-]{1,253}$`)
 
-// ValidateID checks that id is a well-formed Nexus identifier. Returns a
+// ValidateID checks that id is a well-formed Strand identifier. Returns a
 // non-nil error with a user-readable message if validation fails.
 func ValidateID(id string) error {
 	if id == "" {

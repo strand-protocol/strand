@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --strand: #6C5CE7;
+  --cyan: #00D2FF;
+  --coral: #FF6B6B;
+  --bg: #060609;
+  --surface: #0c0c14;
+  --surface-2: #13131f;
+  --border: #1e1e2e;
+}
+
+/* ── Smooth scroll via Lenis ─────────────────────────────── */
+html.lenis, html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped { overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: #f0f0f5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Film grain overlay ──────────────────────────────────── */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* ── Custom scrollbar ────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1e1e2e; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #2e2e42; }
+
+/* ── Fluid typography ────────────────────────────────────── */
+@layer base {
+  h1 { font-size: clamp(2.5rem, 5vw + 1rem, 5.5rem); }
+  h2 { font-size: clamp(1.75rem, 3vw + 0.5rem, 3.5rem); }
+  h3 { font-size: clamp(1.25rem, 1.5vw + 0.5rem, 1.75rem); }
+}
+
+/* ── Code blocks ─────────────────────────────────────────── */
+pre {
+  @apply rounded-2xl border border-border bg-bg-surface p-5 overflow-x-auto;
+}
+code { @apply font-mono text-sm; }
+:not(pre) > code {
+  @apply rounded-md bg-bg-surface-2 px-1.5 py-0.5 text-strand-300;
+}
+
+/* ── Prose (dark mode docs) ──────────────────────────────── */
+.prose {
+  --tw-prose-body: #94949e;
+  --tw-prose-headings: #f0f0f5;
+  --tw-prose-links: #6C5CE7;
+  --tw-prose-bold: #f0f0f5;
+  --tw-prose-code: #aea1f1;
+  --tw-prose-pre-bg: #0c0c14;
+  --tw-prose-pre-code: #94949e;
+  --tw-prose-hr: #1e1e2e;
+  --tw-prose-quotes: #94949e;
+  --tw-prose-quote-borders: #6C5CE7;
+  --tw-prose-th-borders: #1e1e2e;
+  --tw-prose-td-borders: #1e1e2e;
+}
+
+/* ── Mesh gradient backgrounds ───────────────────────────── */
+.mesh-gradient {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(108,92,231,0.12), transparent),
+    radial-gradient(ellipse 60% 60% at 80% 20%, rgba(0,210,255,0.08), transparent),
+    radial-gradient(ellipse 50% 80% at 50% 100%, rgba(255,107,107,0.04), transparent);
+}
+
+.mesh-gradient-subtle {
+  background:
+    radial-gradient(ellipse 80% 50% at 30% 50%, rgba(108,92,231,0.06), transparent),
+    radial-gradient(ellipse 60% 40% at 70% 30%, rgba(0,210,255,0.04), transparent);
+}
+
+/* ── Glass effect ────────────────────────────────────────── */
+.glass {
+  background: rgba(12, 12, 20, 0.6);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.glass-strong {
+  background: rgba(12, 12, 20, 0.8);
+  backdrop-filter: blur(40px) saturate(1.6);
+  -webkit-backdrop-filter: blur(40px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Glow effects ────────────────────────────────────────── */
+.glow-strand {
+  box-shadow: 0 0 60px rgba(108, 92, 231, 0.12), 0 0 120px rgba(108, 92, 231, 0.04);
+}
+.glow-cyan {
+  box-shadow: 0 0 60px rgba(0, 210, 255, 0.12), 0 0 120px rgba(0, 210, 255, 0.04);
+}
+
+/* ── Marquee ─────────────────────────────────────────────── */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee { animation: marquee 30s linear infinite; }
+
+/* ── Hover underline (Pentagram-style) ───────────────────── */
+.hover-line {
+  position: relative;
+}
+.hover-line::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.4s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.hover-line:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* ── Grid drift ──────────────────────────────────────────── */
+@keyframes grid-drift {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(80px, 80px); }
+}
+.animate-grid { animation: grid-drift 25s linear infinite; }
+
+/* ── Text reveal mask ────────────────────────────────────── */
+@keyframes reveal-up {
+  from { clip-path: inset(100% 0 0 0); transform: translateY(20px); }
+  to { clip-path: inset(0 0 0 0); transform: translateY(0); }
+}
+.reveal-up {
+  animation: reveal-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Gradient text utility ───────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(135deg, #6C5CE7, #00D2FF, #6C5CE7);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Dot grid (replaces solid grid) ──────────────────────── */
+.dot-grid {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
 )
 
 // MemoryStore is an in-memory implementation of Store backed by maps and a
@@ -15,6 +15,9 @@ type MemoryStore struct {
 	routes   *memoryRouteStore
 	mics     *memoryMICStore
 	firmware *memoryFirmwareStore
+	tenants  *memoryTenantStore
+	clusters *memoryClusterStore
+	auditLog *memoryAuditLogStore
 }
 
 // NewMemoryStore returns a fully initialised MemoryStore.
@@ -24,13 +27,19 @@ func NewMemoryStore() *MemoryStore {
 		routes:   &memoryRouteStore{data: make(map[string]model.Route)},
 		mics:     &memoryMICStore{data: make(map[string]model.MIC)},
 		firmware: &memoryFirmwareStore{data: make(map[string]model.FirmwareImage)},
+		tenants:  &memoryTenantStore{data: make(map[string]model.Tenant), slugIdx: make(map[string]string)},
+		clusters: &memoryClusterStore{data: make(map[string]model.Cluster)},
+		auditLog: &memoryAuditLogStore{},
 	}
 }
 
-func (m *MemoryStore) Nodes() NodeStore       { return m.nodes }
-func (m *MemoryStore) Routes() RouteStore     { return m.routes }
-func (m *MemoryStore) MICs() MICStore         { return m.mics }
-func (m *MemoryStore) Firmware() FirmwareStore { return m.firmware }
+func (m *MemoryStore) Nodes() NodeStore         { return m.nodes }
+func (m *MemoryStore) Routes() RouteStore       { return m.routes }
+func (m *MemoryStore) MICs() MICStore           { return m.mics }
+func (m *MemoryStore) Firmware() FirmwareStore   { return m.firmware }
+func (m *MemoryStore) Tenants() TenantStore     { return m.tenants }
+func (m *MemoryStore) Clusters() ClusterStore   { return m.clusters }
+func (m *MemoryStore) AuditLog() AuditLogStore  { return m.auditLog }
 
 // ---------------------------------------------------------------------------
 // Node store
@@ -278,4 +287,179 @@ func (s *memoryFirmwareStore) Delete(id string) error {
 	}
 	delete(s.data, id)
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Tenant store
+// ---------------------------------------------------------------------------
+
+type memoryTenantStore struct {
+	mu      sync.RWMutex
+	data    map[string]model.Tenant
+	slugIdx map[string]string // slug -> id
+}
+
+func (s *memoryTenantStore) List() ([]model.Tenant, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]model.Tenant, 0, len(s.data))
+	for _, t := range s.data {
+		out = append(out, t)
+	}
+	return out, nil
+}
+
+func (s *memoryTenantStore) Get(id string) (*model.Tenant, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	t, ok := s.data[id]
+	if !ok {
+		return nil, fmt.Errorf("tenant %q not found", id)
+	}
+	return &t, nil
+}
+
+func (s *memoryTenantStore) GetBySlug(slug string) (*model.Tenant, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	id, ok := s.slugIdx[slug]
+	if !ok {
+		return nil, fmt.Errorf("tenant with slug %q not found", slug)
+	}
+	t := s.data[id]
+	return &t, nil
+}
+
+func (s *memoryTenantStore) Create(tenant *model.Tenant) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.data[tenant.ID]; exists {
+		return fmt.Errorf("tenant %q already exists", tenant.ID)
+	}
+	if _, exists := s.slugIdx[tenant.Slug]; exists {
+		return fmt.Errorf("tenant slug %q already taken", tenant.Slug)
+	}
+	s.data[tenant.ID] = *tenant
+	s.slugIdx[tenant.Slug] = tenant.ID
+	return nil
+}
+
+func (s *memoryTenantStore) Update(tenant *model.Tenant) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	old, exists := s.data[tenant.ID]
+	if !exists {
+		return fmt.Errorf("tenant %q not found", tenant.ID)
+	}
+	if old.Slug != tenant.Slug {
+		delete(s.slugIdx, old.Slug)
+		s.slugIdx[tenant.Slug] = tenant.ID
+	}
+	s.data[tenant.ID] = *tenant
+	return nil
+}
+
+func (s *memoryTenantStore) Delete(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	t, exists := s.data[id]
+	if !exists {
+		return fmt.Errorf("tenant %q not found", id)
+	}
+	delete(s.slugIdx, t.Slug)
+	delete(s.data, id)
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Cluster store
+// ---------------------------------------------------------------------------
+
+type memoryClusterStore struct {
+	mu   sync.RWMutex
+	data map[string]model.Cluster
+}
+
+func (s *memoryClusterStore) List(tenantID string) ([]model.Cluster, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]model.Cluster, 0)
+	for _, c := range s.data {
+		if tenantID == "" || c.TenantID == tenantID {
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}
+
+func (s *memoryClusterStore) Get(id string) (*model.Cluster, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	c, ok := s.data[id]
+	if !ok {
+		return nil, fmt.Errorf("cluster %q not found", id)
+	}
+	return &c, nil
+}
+
+func (s *memoryClusterStore) Create(cluster *model.Cluster) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.data[cluster.ID]; exists {
+		return fmt.Errorf("cluster %q already exists", cluster.ID)
+	}
+	s.data[cluster.ID] = *cluster
+	return nil
+}
+
+func (s *memoryClusterStore) Update(cluster *model.Cluster) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.data[cluster.ID]; !exists {
+		return fmt.Errorf("cluster %q not found", cluster.ID)
+	}
+	s.data[cluster.ID] = *cluster
+	return nil
+}
+
+func (s *memoryClusterStore) Delete(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.data[id]; !exists {
+		return fmt.Errorf("cluster %q not found", id)
+	}
+	delete(s.data, id)
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Audit log store
+// ---------------------------------------------------------------------------
+
+type memoryAuditLogStore struct {
+	mu      sync.RWMutex
+	entries []model.AuditEntry
+}
+
+func (s *memoryAuditLogStore) Append(entry *model.AuditEntry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.entries = append(s.entries, *entry)
+	return nil
+}
+
+func (s *memoryAuditLogStore) List(tenantID string, limit int) ([]model.AuditEntry, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]model.AuditEntry, 0)
+	// Walk backwards for most-recent-first ordering.
+	for i := len(s.entries) - 1; i >= 0; i-- {
+		if tenantID == "" || s.entries[i].TenantID == tenantID {
+			out = append(out, s.entries[i])
+			if limit > 0 && len(out) >= limit {
+				break
+			}
+		}
+	}
+	return out, nil
 }

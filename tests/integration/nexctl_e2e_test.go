@@ -7,13 +7,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/apiserver"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/ca"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/apiserver"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/ca"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/store"
 )
 
-// setupCloudForCLI creates a Nexus Cloud test server with some seed data,
+// setupCloudForCLI creates a Strand Cloud test server with some seed data,
 // returning the httptest.Server. The caller is responsible for closing it.
 func setupCloudForCLI(t *testing.T) *httptest.Server {
 	t.Helper()
@@ -48,9 +48,9 @@ func setupCloudForCLI(t *testing.T) *httptest.Server {
 	return httptest.NewServer(srv.Handler())
 }
 
-// TestNexCtlNodeListJSON simulates a "nexctl node list --output json" flow
+// TestStrandCtlNodeListJSON simulates a "strandctl node list --output json" flow
 // by fetching /api/v1/nodes and verifying the JSON structure.
-func TestNexCtlNodeListJSON(t *testing.T) {
+func TestStrandCtlNodeListJSON(t *testing.T) {
 	ts := setupCloudForCLI(t)
 	defer ts.Close()
 
@@ -85,8 +85,8 @@ func TestNexCtlNodeListJSON(t *testing.T) {
 	}
 }
 
-// TestNexCtlRouteListJSON simulates a "nexctl route list --output json" flow.
-func TestNexCtlRouteListJSON(t *testing.T) {
+// TestStrandCtlRouteListJSON simulates a "strandctl route list --output json" flow.
+func TestStrandCtlRouteListJSON(t *testing.T) {
 	ts := setupCloudForCLI(t)
 	defer ts.Close()
 
@@ -106,10 +106,10 @@ func TestNexCtlRouteListJSON(t *testing.T) {
 	}
 }
 
-// TestNexCtlOutputFormatTable verifies table-format output using the nexctl
+// TestStrandCtlOutputFormatTable verifies table-format output using the strandctl
 // output formatter directly (without the full CLI binary).
-func TestNexCtlOutputFormatTable(t *testing.T) {
-	// We test the formatting logic directly since building the full nexctl
+func TestStrandCtlOutputFormatTable(t *testing.T) {
+	// We test the formatting logic directly since building the full strandctl
 	// binary in an integration test is expensive and the CLI is already
 	// tested via unit tests. This exercises the same code path.
 	nodes := []model.Node{
@@ -132,10 +132,10 @@ func TestNexCtlOutputFormatTable(t *testing.T) {
 	}
 }
 
-// TestNexCtlOutputFormatYAML verifies YAML-like output by encoding data.
-func TestNexCtlOutputFormatYAML(t *testing.T) {
-	// Minimal YAML verification using JSON roundtrip (since the nexctl
-	// YAML formatter depends on gopkg.in/yaml.v3 which is in the nexctl
+// TestStrandCtlOutputFormatYAML verifies YAML-like output by encoding data.
+func TestStrandCtlOutputFormatYAML(t *testing.T) {
+	// Minimal YAML verification using JSON roundtrip (since the strandctl
+	// YAML formatter depends on gopkg.in/yaml.v3 which is in the strandctl
 	// module, not imported here). We verify JSON round-tripping works.
 	nodes := []model.Node{
 		{ID: "node-yaml-01", Address: "10.0.0.1:9100", Status: "online"},
@@ -156,9 +156,9 @@ func TestNexCtlOutputFormatYAML(t *testing.T) {
 	}
 }
 
-// TestNexCtlMICIssuanceViaAPI simulates issuing a MIC through the API
-// (as nexctl trust issue-mic would do).
-func TestNexCtlMICIssuanceViaAPI(t *testing.T) {
+// TestStrandCtlMICIssuanceViaAPI simulates issuing a MIC through the API
+// (as strandctl trust issue-mic would do).
+func TestStrandCtlMICIssuanceViaAPI(t *testing.T) {
 	ts := setupCloudForCLI(t)
 	defer ts.Close()
 

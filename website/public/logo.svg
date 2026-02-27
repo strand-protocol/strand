@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 48" fill="none">
+  <!-- Pulse waveform icon -->
+  <g transform="translate(0, 4)">
+    <path d="M4 20h8l4-16 6 32 6-32 4 16h8" stroke="#6C5CE7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="20" cy="20" r="19" stroke="#6C5CE7" stroke-width="1.5" opacity="0.3" fill="none"/>
+  </g>
+  <!-- Wordmark -->
+  <text x="52" y="34" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="700" fill="#FFFFFF" letter-spacing="-0.02em">Pulse</text>
+  <text x="148" y="34" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="400" fill="#A0A0B0" letter-spacing="-0.02em">Protocol</text>
+</svg>

@@ -1,4 +1,4 @@
-// options.zig — TLV option parser/encoder for NexLink frame options section
+// options.zig — TLV option parser/encoder for StrandLink frame options section
 //
 // Each option follows Type-Length-Value encoding:
 //   Type:   1 byte  (option type identifier)

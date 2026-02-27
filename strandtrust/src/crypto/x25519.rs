@@ -5,7 +5,7 @@ use rand::rngs::OsRng;
 use sha2::Sha256;
 use x25519_dalek::{PublicKey, StaticSecret};
 
-use crate::error::{NexTrustError, Result};
+use crate::error::{StrandTrustError, Result};
 
 /// An X25519 ephemeral keypair for one handshake.
 pub struct X25519KeyPair {
@@ -54,11 +54,11 @@ pub struct SessionKeys {
     pub server_write_iv: [u8; 12],
 }
 
-/// Derive session keys from a shared secret following the NexTrust spec (section 4.2).
+/// Derive session keys from a shared secret following the StrandTrust spec (section 4.2).
 ///
 /// ```text
 /// early_secret      = HKDF-Extract(salt=0, ikm=shared_secret)
-/// handshake_secret  = HKDF-Expand(early_secret, "nexus handshake", 32)
+/// handshake_secret  = HKDF-Expand(early_secret, "strand handshake", 32)
 /// client_write_key  = HKDF-Expand(handshake_secret, "client write key" || client_id || server_id, 32)
 /// server_write_key  = HKDF-Expand(handshake_secret, "server write key" || client_id || server_id, 32)
 /// client_write_iv   = HKDF-Expand(handshake_secret, "client write iv"  || client_id || server_id, 12)
@@ -75,8 +75,8 @@ pub fn derive_session_keys(
 
     // Step 2: Derive handshake_secret
     let mut handshake_secret = [0u8; 32];
-    hk.expand(b"nexus handshake", &mut handshake_secret)
-        .map_err(|e| NexTrustError::Encryption(format!("HKDF expand error: {e}")))?;
+    hk.expand(b"strand handshake", &mut handshake_secret)
+        .map_err(|e| StrandTrustError::Encryption(format!("HKDF expand error: {e}")))?;
 
     // Prepare HKDF from handshake_secret (extract with no salt)
     let hk2 = Hkdf::<Sha256>::new(None, &handshake_secret);
@@ -93,22 +93,22 @@ pub fn derive_session_keys(
     let mut client_write_key = [0u8; 32];
     let info = make_info(b"client write key");
     hk2.expand(&info, &mut client_write_key)
-        .map_err(|e| NexTrustError::Encryption(format!("HKDF expand error: {e}")))?;
+        .map_err(|e| StrandTrustError::Encryption(format!("HKDF expand error: {e}")))?;
 
     let mut server_write_key = [0u8; 32];
     let info = make_info(b"server write key");
     hk2.expand(&info, &mut server_write_key)
-        .map_err(|e| NexTrustError::Encryption(format!("HKDF expand error: {e}")))?;
+        .map_err(|e| StrandTrustError::Encryption(format!("HKDF expand error: {e}")))?;
 
     let mut client_write_iv = [0u8; 12];
     let info = make_info(b"client write iv");
     hk2.expand(&info, &mut client_write_iv)
-        .map_err(|e| NexTrustError::Encryption(format!("HKDF expand error: {e}")))?;
+        .map_err(|e| StrandTrustError::Encryption(format!("HKDF expand error: {e}")))?;
 
     let mut server_write_iv = [0u8; 12];
     let info = make_info(b"server write iv");
     hk2.expand(&info, &mut server_write_iv)
-        .map_err(|e| NexTrustError::Encryption(format!("HKDF expand error: {e}")))?;
+        .map_err(|e| StrandTrustError::Encryption(format!("HKDF expand error: {e}")))?;
 
     Ok(SessionKeys {
         client_write_key,

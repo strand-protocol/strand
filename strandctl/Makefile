@@ -1,9 +1,9 @@
 # ============================================================
-# nexctl -- Module-Level Makefile
+# strandctl -- Module-Level Makefile
 # ============================================================
 
-MODULE  := github.com/nexus-protocol/nexus/nexctl
-BINARY  := nexctl
+MODULE  := github.com/strand-protocol/strand/strandctl
+BINARY  := strandctl
 LDFLAGS := -s -w
 
 # Cross-compile matrix
@@ -35,7 +35,7 @@ install:
 	@echo "=== $(BINARY) installed to $$(go env GOPATH)/bin ==="
 
 # -----------------------------------------------------------
-# Cross-compile: produces dist/<os>_<arch>/nexctl
+# Cross-compile: produces dist/<os>_<arch>/strandctl
 # -----------------------------------------------------------
 cross-compile:
 	@echo "=== Cross-compiling $(BINARY) ==="
@@ -58,7 +58,7 @@ cross-compile:
 # Test targets
 # -----------------------------------------------------------
 test:
-	@echo "=== Running nexctl tests ==="
+	@echo "=== Running strandctl tests ==="
 	go test ./... -v -race -count=1
 	@echo "=== Tests complete ==="
 

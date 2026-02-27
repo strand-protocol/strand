@@ -1,5 +1,5 @@
 name: Feature Request
-description: Suggest a new feature or enhancement for the Nexus Protocol
+description: Suggest a new feature or enhancement for the Strand Protocol
 title: "[Feature]: "
 labels: ["enhancement"]
 assignees: []
@@ -17,13 +17,13 @@ body:
       description: Which module would this feature affect?
       multiple: true
       options:
-        - nexlink (Zig - L1 Data-Link)
-        - nexroute (C - L2 Routing)
-        - nexstream (Rust - L3 Transport)
-        - nextrust (Rust - L4 Identity/Trust)
-        - nexapi (Go - L5 API Gateway)
-        - nexctl (Go - CLI)
-        - nexus-cloud (Go - Cloud Platform)
+        - strandlink (Zig - L1 Data-Link)
+        - strandroute (C - L2 Routing)
+        - strandstream (Rust - L3 Transport)
+        - strandtrust (Rust - L4 Identity/Trust)
+        - strandapi (Go - L5 API Gateway)
+        - strandctl (Go - CLI)
+        - strand-cloud (Go - Cloud Platform)
         - Cross-module / Architecture
         - Other
     validations:
@@ -104,5 +104,5 @@ body:
       options:
         - label: I have searched existing issues and feature requests to ensure this is not a duplicate.
           required: true
-        - label: I have considered whether this fits within the Nexus Protocol architecture.
+        - label: I have considered whether this fits within the Strand Protocol architecture.
           required: false

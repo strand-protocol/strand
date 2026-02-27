@@ -5,7 +5,7 @@
 
 use bytes::Bytes;
 
-use crate::error::{NexStreamError, Result};
+use crate::error::{StrandStreamError, Result};
 use crate::frame::{DataFlags, Frame};
 use crate::transport::{TransportReceiver, TransportSender};
 
@@ -83,7 +83,7 @@ impl TransportReceiver for ProbabilisticReceiver {
                     Ok(vec![]) // dropped by probability
                 }
             }
-            _ => Err(NexStreamError::Internal(
+            _ => Err(StrandStreamError::Internal(
                 "ProbabilisticReceiver received non-data frame".into(),
             )),
         }

@@ -1,12 +1,12 @@
-// Integration tests for the NexTrust 3-way handshake protocol.
+// Integration tests for the StrandTrust 3-way handshake protocol.
 
-use nextrust::crypto::keys::IdentityKeyPair;
-use nextrust::handshake::protocol::{Initiator, Responder};
-use nextrust::mic::builder::MICBuilder;
-use nextrust::mic::Capability;
+use strandtrust::crypto::keys::IdentityKeyPair;
+use strandtrust::handshake::protocol::{Initiator, Responder};
+use strandtrust::mic::builder::MICBuilder;
+use strandtrust::mic::Capability;
 
 /// Helper: create an identity keypair and a self-signed MIC for testing.
-fn make_identity_and_mic(caps: Vec<Capability>) -> (IdentityKeyPair, nextrust::mic::MIC) {
+fn make_identity_and_mic(caps: Vec<Capability>) -> (IdentityKeyPair, strandtrust::mic::MIC) {
     let kp = IdentityKeyPair::generate();
     let mut builder = MICBuilder::new(&kp)
         .model_hash([0xEE; 32])

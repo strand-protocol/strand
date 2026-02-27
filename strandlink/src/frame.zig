@@ -1,6 +1,6 @@
-// frame.zig — NexLink Frame encoding/decoding
+// frame.zig — StrandLink Frame encoding/decoding
 //
-// A NexLink frame consists of:
+// A StrandLink frame consists of:
 //   [Header (64 bytes)] [Options (0-256 bytes)] [Payload (variable)] [CRC-32C (4 bytes)]
 //
 // The CRC-32C covers the entire frame excluding the CRC field itself.
@@ -23,7 +23,7 @@ pub const HEADER_SIZE = header_mod.HEADER_SIZE;
 pub const MAX_OPTIONS_SIZE = header_mod.MAX_OPTIONS_SIZE;
 pub const MAX_FRAME_SIZE = header_mod.MAX_FRAME_SIZE;
 pub const MIN_FRAME_SIZE = header_mod.MIN_FRAME_SIZE;
-pub const NEXLINK_VERSION = header_mod.NEXLINK_VERSION;
+pub const STRANDLINK_VERSION = header_mod.STRANDLINK_VERSION;
 
 pub const CRC_SIZE: usize = 4;
 
@@ -158,7 +158,7 @@ test "frame encode/decode roundtrip - no options, no payload" {
 }
 
 test "frame encode/decode roundtrip - with payload" {
-    const payload = "Hello, NexLink protocol!";
+    const payload = "Hello, StrandLink protocol!";
     var hdr = FrameHeader.init(.data);
     hdr.stream_id = 42;
     hdr.sequence_number = 1;

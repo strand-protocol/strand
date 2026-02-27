@@ -1,10 +1,10 @@
 # ============================================================
-# Nexus Protocol Monorepo .gitignore
+# Strand Protocol Monorepo .gitignore
 # Covers: Zig, C/CMake, Rust, Go, P4, Docker, IDE, OS files
 # ============================================================
 
 # -----------------------------------------------------------
-# Zig (nexlink)
+# Zig (strandlink)
 # -----------------------------------------------------------
 zig-out/
 zig-cache/
@@ -16,10 +16,10 @@ zig-cache/
 *.dll
 
 # -----------------------------------------------------------
-# C / CMake (nexroute)
+# C / CMake (strandroute)
 # -----------------------------------------------------------
 # CMake build directories
-nexroute/build/
+strandroute/build/
 build/
 CMakeFiles/
 CMakeCache.txt
@@ -49,19 +49,19 @@ Makefile.cmake
 *.d
 
 # -----------------------------------------------------------
-# Rust (nexstream, nextrust)
+# Rust (strandstream, strandtrust)
 # -----------------------------------------------------------
 target/
 **/*.rs.bk
 Cargo.lock
 
 # -----------------------------------------------------------
-# Go (nexapi, nexctl, nexus-cloud)
+# Go (strandapi, strandctl, strand-cloud)
 # -----------------------------------------------------------
 # Go binaries
-nexctl/nexctl
-nexapi/nexapi-bridge
-nexapi/nexbuf-gen
+strandctl/strandctl
+strandapi/strandapi-bridge
+strandapi/strandbuf-gen
 
 # Go build cache (usually in $GOPATH but just in case)
 vendor/
@@ -75,7 +75,7 @@ coverage.html
 coverage.txt
 
 # -----------------------------------------------------------
-# P4 (nexroute/p4)
+# P4 (strandroute/p4)
 # -----------------------------------------------------------
 *.bmv2.json
 *.tofino/
@@ -85,9 +85,9 @@ coverage.txt
 # -----------------------------------------------------------
 # Protocol / Schema generated code
 # -----------------------------------------------------------
-# NexBuf generated files (regenerated from .nexbuf schemas)
+# StrandBuf generated files (regenerated from .strandbuf schemas)
 # Uncomment if generated code should not be committed:
-# nexapi/pkg/protocol/*_generated.go
+# strandapi/pkg/protocol/*_generated.go
 
 # -----------------------------------------------------------
 # IDE and Editor
@@ -174,6 +174,23 @@ result-*
 .direnv/
 
 # -----------------------------------------------------------
+# Node.js / Next.js (website)
+# -----------------------------------------------------------
+node_modules/
+.next/
+.vercel/
+out/
+website/.next/
+website/node_modules/
+website/out/
+*.tsbuildinfo
+next-env.d.ts
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# -----------------------------------------------------------
 # Misc
 # -----------------------------------------------------------
 *.log
@@ -183,3 +200,7 @@ result-*
 *.pid
 .cache/
 dist/
+.codegraph.json
+.codegraph.agent.txt
+.cursor/
+.!7626!tool_use

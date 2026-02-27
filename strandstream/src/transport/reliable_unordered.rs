@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use bytes::Bytes;
 
-use crate::error::{NexStreamError, Result};
+use crate::error::{StrandStreamError, Result};
 use crate::frame::{DataFlags, Frame};
 use crate::transport::{TransportReceiver, TransportSender};
 
@@ -141,7 +141,7 @@ impl TransportReceiver for ReliableUnorderedReceiver {
                     Ok(vec![]) // duplicate, drop silently
                 }
             }
-            _ => Err(NexStreamError::Internal(
+            _ => Err(StrandStreamError::Internal(
                 "ReliableUnorderedReceiver received non-data frame".into(),
             )),
         }

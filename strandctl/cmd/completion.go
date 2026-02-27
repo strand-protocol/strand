@@ -9,18 +9,18 @@ import (
 var completionCmd = &cobra.Command{
 	Use:   "completion [bash|zsh|fish]",
 	Short: "Generate shell completion scripts",
-	Long: `Generate shell completion scripts for nexctl.
+	Long: `Generate shell completion scripts for strandctl.
 
 To load completions:
 
 Bash:
-  $ source <(nexctl completion bash)
+  $ source <(strandctl completion bash)
 
 Zsh:
-  $ nexctl completion zsh > "${fpath[1]}/_nexctl"
+  $ strandctl completion zsh > "${fpath[1]}/_strandctl"
 
 Fish:
-  $ nexctl completion fish | source
+  $ strandctl completion fish | source
 `,
 	ValidArgs:             []string{"bash", "zsh", "fish"},
 	Args:                  cobra.ExactArgs(1),

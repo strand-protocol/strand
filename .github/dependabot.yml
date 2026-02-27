@@ -1,105 +1,105 @@
 version: 2
 
 updates:
-  # Rust: nexstream
+  # Rust: strandstream
   - package-ecosystem: "cargo"
-    directory: "/nexstream"
+    directory: "/strandstream"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
     reviewers:
-      - "nexus-protocol/transport-team"
+      - "strand-protocol/transport-team"
     labels:
       - "dependencies"
       - "rust"
     commit-message:
-      prefix: "deps(nexstream):"
+      prefix: "deps(strandstream):"
 
-  # Rust: nextrust
+  # Rust: strandtrust
   - package-ecosystem: "cargo"
-    directory: "/nextrust"
+    directory: "/strandtrust"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
     reviewers:
-      - "nexus-protocol/transport-team"
+      - "strand-protocol/transport-team"
     labels:
       - "dependencies"
       - "rust"
     commit-message:
-      prefix: "deps(nextrust):"
+      prefix: "deps(strandtrust):"
 
-  # Go: nexapi
+  # Go: strandapi
   - package-ecosystem: "gomod"
-    directory: "/nexapi"
+    directory: "/strandapi"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
     reviewers:
-      - "nexus-protocol/api-team"
+      - "strand-protocol/api-team"
     labels:
       - "dependencies"
       - "go"
     commit-message:
-      prefix: "deps(nexapi):"
+      prefix: "deps(strandapi):"
 
-  # Go: nexctl
+  # Go: strandctl
   - package-ecosystem: "gomod"
-    directory: "/nexctl"
+    directory: "/strandctl"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
     reviewers:
-      - "nexus-protocol/api-team"
+      - "strand-protocol/api-team"
     labels:
       - "dependencies"
       - "go"
     commit-message:
-      prefix: "deps(nexctl):"
+      prefix: "deps(strandctl):"
 
-  # Go: nexus-cloud
+  # Go: strand-cloud
   - package-ecosystem: "gomod"
-    directory: "/nexus-cloud"
+    directory: "/strand-cloud"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
     reviewers:
-      - "nexus-protocol/platform-team"
+      - "strand-protocol/platform-team"
     labels:
       - "dependencies"
       - "go"
     commit-message:
-      prefix: "deps(nexus-cloud):"
+      prefix: "deps(strand-cloud):"
 
-  # Docker: nexapi
+  # Docker: strandapi
   - package-ecosystem: "docker"
-    directory: "/nexapi"
+    directory: "/strandapi"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
     reviewers:
-      - "nexus-protocol/api-team"
+      - "strand-protocol/api-team"
     labels:
       - "dependencies"
       - "docker"
     commit-message:
       prefix: "ci(docker):"
 
-  # Docker: nexus-cloud
+  # Docker: strand-cloud
   - package-ecosystem: "docker"
-    directory: "/nexus-cloud"
+    directory: "/strand-cloud"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
     reviewers:
-      - "nexus-protocol/platform-team"
+      - "strand-protocol/platform-team"
     labels:
       - "dependencies"
       - "docker"
@@ -114,7 +114,7 @@ updates:
       day: "monday"
     open-pull-requests-limit: 5
     reviewers:
-      - "nexus-protocol/platform-team"
+      - "strand-protocol/platform-team"
     labels:
       - "dependencies"
       - "ci"

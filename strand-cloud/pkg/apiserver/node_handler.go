@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
 )
 
 func (s *Server) handleListNodes(w http.ResponseWriter, r *http.Request) {
@@ -44,12 +44,7 @@ func (s *Server) handleCreateNode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
-	if node.ID == "" {
-		s.metrics.IncError()
-		writeError(w, http.StatusBadRequest, "node id is required")
-		return
-	}
-	if err := ValidateID(node.ID); err != nil {
+	if err := ValidateNode(&node); err != nil {
 		s.metrics.IncError()
 		writeError(w, http.StatusBadRequest, err.Error())
 		return

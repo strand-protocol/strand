@@ -1,7 +1,7 @@
 //! CUBIC congestion control tests: slow start and congestion avoidance.
 
-use nexstream::congestion::cubic::Cubic;
-use nexstream::congestion::CongestionController;
+use strandstream::congestion::cubic::Cubic;
+use strandstream::congestion::CongestionController;
 
 const MSS: usize = 1200;
 

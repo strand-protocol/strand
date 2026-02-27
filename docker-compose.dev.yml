@@ -1,5 +1,5 @@
 # ==========================================================
-# Nexus Protocol -- Development Override
+# Strand Protocol -- Development Override
 # ==========================================================
 #
 # Usage:
@@ -12,48 +12,48 @@
 
 services:
   # --------------------------------------------------------
-  # nexus-cloud: development mode with source mount
+  # strand-cloud: development mode with source mount
   # --------------------------------------------------------
-  nexus-cloud:
+  strand-cloud:
     build:
-      context: ./nexus-cloud
+      context: ./strand-cloud
       dockerfile: Dockerfile.dev
     volumes:
-      - ./nexus-cloud:/src
-    command: ["go", "run", "./cmd/nexus-cloud", "-addr", "0.0.0.0:8080"]
+      - ./strand-cloud:/src
+    command: ["go", "run", "./cmd/strand-cloud", "-addr", "0.0.0.0:8080"]
     environment:
-      - NEXUS_ADDR=0.0.0.0:8080
-      - NEXUS_STORE_TYPE=memory
+      - STRAND_ADDR=0.0.0.0:8080
+      - STRAND_STORE_TYPE=memory
 
   # --------------------------------------------------------
-  # nexus-allinone: development mode with source mount
+  # strand-allinone: development mode with source mount
   # --------------------------------------------------------
-  nexus-allinone:
+  strand-allinone:
     build:
-      context: ./nexus-cloud
+      context: ./strand-cloud
       dockerfile: Dockerfile.dev
     volumes:
-      - ./nexus-cloud:/src
-    command: ["go", "run", "./cmd/nexus-allinone", "-addr", "0.0.0.0:8080"]
+      - ./strand-cloud:/src
+    command: ["go", "run", "./cmd/strand-allinone", "-addr", "0.0.0.0:8080"]
 
   # --------------------------------------------------------
-  # nexapi-inference: development mode with source mount
+  # strandapi-inference: development mode with source mount
   # --------------------------------------------------------
-  nexapi-inference:
+  strandapi-inference:
     build:
-      context: ./nexapi
+      context: ./strandapi
       dockerfile: Dockerfile.dev
     volumes:
-      - ./nexapi:/src
+      - ./strandapi:/src
     command: ["go", "run", "./examples/inference", "0.0.0.0:9000"]
 
   # --------------------------------------------------------
-  # nexapi-echo: development mode with source mount
+  # strandapi-echo: development mode with source mount
   # --------------------------------------------------------
-  nexapi-echo:
+  strandapi-echo:
     build:
-      context: ./nexapi
+      context: ./strandapi
       dockerfile: Dockerfile.dev
     volumes:
-      - ./nexapi:/src
+      - ./strandapi:/src
     command: ["go", "run", "./examples/echo", "0.0.0.0:9000"]

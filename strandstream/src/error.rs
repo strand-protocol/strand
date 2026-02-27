@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-/// All errors produced by the NexStream transport layer.
+/// All errors produced by the StrandStream transport layer.
 #[derive(Debug, Error)]
-pub enum NexStreamError {
+pub enum StrandStreamError {
     #[error("frame too short: expected at least {expected} bytes, got {actual}")]
     FrameTooShort { expected: usize, actual: usize },
 
@@ -58,4 +58,4 @@ pub enum NexStreamError {
     Internal(String),
 }
 
-pub type Result<T> = std::result::Result<T, NexStreamError>;
+pub type Result<T> = std::result::Result<T, StrandStreamError>;

@@ -1,4 +1,4 @@
-module github.com/nexus-protocol/nexus/nexctl
+module github.com/strand-protocol/strand/strandctl
 
 go 1.24.0
 

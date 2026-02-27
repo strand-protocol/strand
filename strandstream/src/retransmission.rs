@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 
-use crate::error::{NexStreamError, Result};
+use crate::error::{StrandStreamError, Result};
 
 /// Maximum number of retransmission attempts before giving up.
 const MAX_RETRIES: u32 = 3;
@@ -119,7 +119,7 @@ impl RetransmissionEngine {
             .checked_add(data.len())
             .unwrap_or(usize::MAX);
         if new_inflight > self.max_bytes {
-            return Err(NexStreamError::RetransmitBufferFull {
+            return Err(StrandStreamError::RetransmitBufferFull {
                 inflight: self.inflight_bytes,
                 max: self.max_bytes,
             });
@@ -309,7 +309,7 @@ mod tests {
         assert!(result.is_err());
         matches!(
             result.unwrap_err(),
-            NexStreamError::RetransmitBufferFull { .. }
+            StrandStreamError::RetransmitBufferFull { .. }
         );
 
         // After ACKing the first packet, push succeeds again.

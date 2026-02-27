@@ -1,11 +1,11 @@
-package nexbuf
+package strandbuf
 
 import (
 	"encoding/binary"
 	"math"
 )
 
-// Buffer is a growable byte buffer used for NexBuf binary encoding.
+// Buffer is a growable byte buffer used for StrandBuf binary encoding.
 // All multi-byte integers are written in little-endian byte order.
 type Buffer struct {
 	data []byte

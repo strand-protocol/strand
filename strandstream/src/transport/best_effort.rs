@@ -16,7 +16,7 @@
 
 use bytes::Bytes;
 
-use crate::error::{NexStreamError, Result};
+use crate::error::{StrandStreamError, Result};
 use crate::frame::{DataFlags, Frame};
 use crate::transport::{TransportReceiver, TransportSender};
 
@@ -126,7 +126,7 @@ impl TransportReceiver for BestEffortReceiver {
     fn receive(&mut self, frame: &Frame) -> Result<Vec<Bytes>> {
         match frame {
             Frame::Data { payload, .. } => Ok(vec![payload.clone()]),
-            _ => Err(NexStreamError::Internal(
+            _ => Err(StrandStreamError::Internal(
                 "BestEffortReceiver received non-data frame".into(),
             )),
         }

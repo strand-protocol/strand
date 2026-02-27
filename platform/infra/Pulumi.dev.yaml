@@ -1,0 +1,27 @@
+config:
+  strand-platform:environment: dev
+  strand-platform:region: PHX
+  strand-platform:sshKeyId: ""
+  strand-platform:bmcClientId: ""
+  strand-platform:bmcClientSecret:
+    secure: ""
+  strand-platform:domain: dev.strand-protocol.net
+  strand-platform:controlPlane:
+    count: 1
+    type: s2.c1.medium
+  strand-platform:workers:
+    count: 1
+    type: s2.c1.medium
+  strand-platform:database:
+    count: 0
+    type: s2.c1.medium
+    colocated: true
+  strand-platform:storage:
+    dbDiskSizeGb: 50
+  strand-platform:monitoring:
+    enabled: true
+    grafanaAdminPassword:
+      secure: ""
+  strand-platform:network:
+    cidr: 10.100.0.0/24
+    vlanId: 100

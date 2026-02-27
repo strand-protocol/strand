@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
 )
 
 // TestEtcdStore is an integration test that exercises all four sub-stores of
 // EtcdStore. It requires a running etcd cluster:
 //
-//	NEXUS_TEST_ETCD=http://localhost:2379 go test ./pkg/store/...
+//	STRAND_TEST_ETCD=http://localhost:2379 go test ./pkg/store/...
 func TestEtcdStore(t *testing.T) {
-	addr := os.Getenv("NEXUS_TEST_ETCD")
+	addr := os.Getenv("STRAND_TEST_ETCD")
 	if addr == "" {
-		t.Skip("set NEXUS_TEST_ETCD=http://localhost:2379 to run etcd integration tests")
+		t.Skip("set STRAND_TEST_ETCD=http://localhost:2379 to run etcd integration tests")
 	}
 
 	endpoints := strings.Split(addr, ",")
@@ -250,7 +250,7 @@ func testFirmwareStore(t *testing.T, fs FirmwareStore) {
 		Platform:  "linux-amd64",
 		Size:      1024 * 1024,
 		Checksum:  "sha256:deadbeef",
-		URL:       "https://releases.nexus.example/v2.3.1/nexus-linux-amd64.bin",
+		URL:       "https://releases.strand.example/v2.3.1/strand-linux-amd64.bin",
 		CreatedAt: time.Now().UTC(),
 	}
 

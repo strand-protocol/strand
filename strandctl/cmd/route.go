@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nexus-protocol/nexus/nexctl/pkg/api"
+	"github.com/strand-protocol/strand/strandctl/pkg/api"
 	"github.com/spf13/cobra"
 )
 
 var routeCmd = &cobra.Command{
 	Use:   "route",
-	Short: "Manage NexRoute SAD routing entries",
-	Long:  "List, inspect, and add routes in the Nexus routing table.",
+	Short: "Manage StrandRoute SAD routing entries",
+	Long:  "List, inspect, and add routes in the Strand routing table.",
 }
 
 var routeListCmd = &cobra.Command{

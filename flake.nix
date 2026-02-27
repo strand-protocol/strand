@@ -1,5 +1,5 @@
 {
-  description = "Nexus Protocol -- reproducible development environment";
+  description = "Strand Protocol -- reproducible development environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
@@ -13,22 +13,22 @@
       in
       {
         devShells.default = pkgs.mkShell {
-          name = "nexus-dev";
+          name = "strand-dev";
 
           buildInputs = with pkgs; [
-            # Zig (NexLink, NexRoute FFI)
+            # Zig (StrandLink, StrandRoute FFI)
             zig
 
-            # Rust (NexTrust, NexStream)
+            # Rust (StrandTrust, StrandStream)
             rustc
             cargo
             rustfmt
             clippy
 
-            # Go (NexAPI, NexCtl, Nexus Cloud)
+            # Go (StrandAPI, StrandCtl, Strand Cloud)
             go
 
-            # C/C++ build tools (NexRoute)
+            # C/C++ build tools (StrandRoute)
             cmake
             clang
 
@@ -43,7 +43,7 @@
           ];
 
           shellHook = ''
-            echo "=== Nexus Protocol development shell ==="
+            echo "=== Strand Protocol development shell ==="
             echo "  zig     : $(zig version 2>/dev/null || echo 'N/A')"
             echo "  rustc   : $(rustc --version 2>/dev/null || echo 'N/A')"
             echo "  cargo   : $(cargo --version 2>/dev/null || echo 'N/A')"

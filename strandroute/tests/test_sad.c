@@ -2,8 +2,8 @@
  * test_sad.c - SAD encode/decode roundtrip + matching tests
  */
 
-#include "nexroute/sad.h"
-#include "nexroute/types.h"
+#include "strandroute/sad.h"
+#include "strandroute/types.h"
 
 #include <stdio.h>
 #include <string.h>

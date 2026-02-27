@@ -1,4 +1,4 @@
-// Command echo is a NexAPI echo server. It receives inference requests and
+// Command echo is a StrandAPI echo server. It receives inference requests and
 // returns the prompt text verbatim as the response, useful for testing the
 // protocol round-trip.
 package main
@@ -11,8 +11,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/protocol"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/server"
+	"github.com/strand-protocol/strand/strandapi/pkg/protocol"
+	"github.com/strand-protocol/strand/strandapi/pkg/server"
 )
 
 // echoHandler returns the prompt text back as the inference result.
@@ -45,7 +45,7 @@ func main() {
 		srv.Stop()
 	}()
 
-	log.Printf("NexAPI echo server listening on %s", addr)
+	log.Printf("StrandAPI echo server listening on %s", addr)
 	if err := srv.ListenAndServe(addr); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

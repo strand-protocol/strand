@@ -2,7 +2,7 @@ package api
 
 import "time"
 
-// NodeInfo represents a Nexus network node.
+// NodeInfo represents a Strand network node.
 type NodeInfo struct {
 	ID           string    `json:"id" yaml:"id"`
 	Address      string    `json:"address" yaml:"address"`

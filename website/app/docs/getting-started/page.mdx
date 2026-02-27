@@ -1,0 +1,167 @@
+# Getting Started
+
+Get Strand Protocol running in under 5 minutes using the pure-Go overlay transport, or set up the full production stack with native Zig/Rust/C libraries.
+
+## Prerequisites
+
+| Tool | Version | Required For |
+|------|---------|-------------|
+| Go | 1.22+ | StrandAPI, StrandCtl, Strand Cloud |
+| Rust | 1.75+ | StrandStream, StrandTrust (production path) |
+| Zig | 0.13+ | StrandLink (production path) |
+| CMake | 3.20+ | StrandRoute (production path) |
+| Docker | 24+ | Full stack via docker-compose |
+
+Only **Go** is required for the quick start. Rust, Zig, and CMake are only needed if you want to build the native libraries for the production CGo transport path.
+
+## Quick Start (Pure-Go Overlay)
+
+The fastest way to get started. The pure-Go overlay re-implements StrandLink framing, StrandStream Reliable-Ordered mode, and StrandTrust handshake in pure Go — zero CGo dependencies.
+
+### 1. Install StrandAPI
+
+```bash
+go get github.com/strand-protocol/strand/strandapi
+```
+
+### 2. Run the end-to-end demo
+
+```bash
+git clone https://github.com/strand-protocol/strand
+cd strand
+go run ./strandapi/examples/e2e_demo/
+```
+
+This starts a StrandAPI server on `127.0.0.1:6477` (the StrandLink overlay port), connects a client, sends an inference request with a Semantic Address Descriptor targeting a `transformer-decoder` model with `code-generation` capability, and streams tokens back via Reliable-Unordered transport.
+
+**What happens under the hood:**
+
+1. Server generates an Ed25519 identity keypair and derives a 128-bit Node ID
+2. Client and server perform a 1-RTT StrandTrust handshake (TRUST_HELLO → TRUST_ACCEPT → TRUST_FINISH)
+3. Session keys are derived via X25519 + HKDF-SHA256
+4. Client builds a SAD (Semantic Address Descriptor) and sends an `INFERENCE_REQUEST` (opcode 0x0001)
+5. Server responds with `TOKEN_STREAM_START` → `TOKEN_STREAM_CHUNK` × N → `TOKEN_STREAM_END`
+6. All messages are serialized with StrandBuf and encrypted with AES-256-GCM
+
+### 3. Try the HTTP bridge
+
+The HTTP bridge exposes an OpenAI-compatible `/v1/chat/completions` endpoint that translates REST requests into native StrandAPI messages:
+
+```bash
+go run ./strandapi/examples/httpbridge/
+```
+
+Then send a request:
+
+```bash
+curl -X POST http://localhost:9000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "strand-mock-v1",
+    "messages": [{"role": "user", "content": "Hello from Strand Protocol!"}],
+    "stream": true,
+    "max_tokens": 512
+  }'
+```
+
+### 4. Try more examples
+
+```bash
+# Agent delegation — multi-agent task routing
+go run ./strandapi/examples/agent_delegation/
+
+# Tool use — function calling over StrandAPI
+go run ./strandapi/examples/tool_use/
+
+# Routing — semantic address resolution
+go run ./strandapi/examples/routing/
+
+# Config — runtime configuration management
+go run ./strandapi/examples/config/
+```
+
+### 5. Install StrandCtl
+
+```bash
+go install github.com/strand-protocol/strand/strandctl@latest
+strandctl version
+```
+
+## Full Stack (Docker Compose)
+
+To run the entire Strand Protocol stack including the control plane, etcd, VPP dataplane, and BMv2 P4 switch:
+
+```bash
+docker compose up
+```
+
+This starts:
+
+- **Strand Cloud** — Control plane API server + fleet controller + CA service
+- **StrandAPI nodes** — Inference server instances
+- **HTTP Bridge** — OpenAI-compatible REST translation layer
+- **etcd** — Distributed state store for production mode
+- **VPP** — Vector Packet Processing dataplane
+- **BMv2** — P4 behavioral model switch for semantic routing
+
+## Building the Full Native Stack
+
+If you want the production CGo transport path with native StrandLink, StrandStream, and StrandTrust libraries:
+
+```bash
+# Phase 1: StrandLink (Zig)
+cd strandlink && zig build -Dbackend=overlay && cd ..
+
+# Phase 2: StrandRoute (C + CMake)
+cd strandroute && mkdir -p build && cd build
+cmake .. -DSTRANDLINK_INCLUDE_DIR=../../strandlink/include
+make && cd ../..
+
+# Phase 3a: StrandTrust (Rust)
+cd strandtrust && cargo build --release && cd ..
+
+# Phase 3b: StrandStream (Rust, depends on StrandLink + StrandTrust)
+cd strandstream && cargo build --release && cd ..
+
+# Phase 4: StrandAPI (Go, links native libs via CGo)
+cd strandapi && CGO_ENABLED=1 go build ./... && cd ..
+
+# Phase 5: StrandCtl + Strand Cloud
+cd strandctl && go build -o strandctl . && cd ..
+cd strand-cloud && go build -o strand-cloud ./cmd/strand-cloud/ && cd ..
+```
+
+Or use the top-level Makefile:
+
+```bash
+make all          # Build everything in dependency order
+make test         # Run all tests
+make test-unit    # Unit tests only (fast)
+```
+
+## Project Structure
+
+```
+strand/
+├── strandlink/        L1 — AI-native frame protocol (Zig)
+├── strandroute/       L2 — Semantic routing (C + P4)
+├── strandstream/      L3 — Hybrid transport (Rust)
+├── strandtrust/       L4 — Model identity & crypto (Rust)
+├── strandapi/         L5 — AI application protocol (Go)
+├── strandctl/         CLI tool (Go)
+├── strand-cloud/      Control plane (Go + Rust FFI)
+├── tests/
+│   ├── integration/  Cross-module integration tests
+│   ├── bench/        Performance benchmarks
+│   └── fuzz/         Fuzz testing harnesses
+├── docker-compose.yml
+├── Makefile
+└── Cargo.toml        Workspace root for Rust crates
+```
+
+## Next Steps
+
+- Read the [Architecture Overview](/docs/architecture) to understand the five-layer stack and dependency graph
+- Explore the [StrandAPI module docs](/docs/modules/strandapi) for the client/server SDK reference
+- Browse the [StrandCtl docs](/docs/modules/strandctl) for CLI commands
+- Check out the [examples](https://github.com/strand-protocol/strand/tree/main/strandapi/examples) directory

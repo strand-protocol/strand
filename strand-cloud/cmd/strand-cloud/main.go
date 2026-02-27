@@ -1,4 +1,4 @@
-// nexus-cloud is the Nexus Cloud control plane server.
+// strand-cloud is the Strand Cloud control plane server.
 package main
 
 import (
@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/apiserver"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/ca"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/controller"
-	storepkg "github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/apiserver"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/ca"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/controller"
+	storepkg "github.com/strand-protocol/strand/strand-cloud/pkg/store"
 )
 
 func main() {
@@ -24,11 +24,11 @@ func main() {
 
 	// --- State store ---
 	//
-	// The store backend can also be selected via the NEXUS_STORE_TYPE
+	// The store backend can also be selected via the STRAND_STORE_TYPE
 	// environment variable (takes precedence over the flag). For etcd, set
-	// NEXUS_ETCD_ENDPOINTS to a comma-separated list of endpoints, e.g.:
-	//   NEXUS_STORE_TYPE=etcd NEXUS_ETCD_ENDPOINTS=http://localhost:2379
-	if envType := os.Getenv("NEXUS_STORE_TYPE"); envType != "" {
+	// STRAND_ETCD_ENDPOINTS to a comma-separated list of endpoints, e.g.:
+	//   STRAND_STORE_TYPE=etcd STRAND_ETCD_ENDPOINTS=http://localhost:2379
+	if envType := os.Getenv("STRAND_STORE_TYPE"); envType != "" {
 		*storeType = envType
 	}
 
@@ -38,7 +38,7 @@ func main() {
 		s = storepkg.NewMemoryStore()
 	case "etcd":
 		endpoints := []string{"http://localhost:2379"}
-		if envEndpoints := os.Getenv("NEXUS_ETCD_ENDPOINTS"); envEndpoints != "" {
+		if envEndpoints := os.Getenv("STRAND_ETCD_ENDPOINTS"); envEndpoints != "" {
 			endpoints = strings.Split(envEndpoints, ",")
 		}
 		etcdStore, err := storepkg.NewEtcdStore(endpoints)
@@ -87,7 +87,7 @@ func main() {
 		}
 	}()
 
-	log.Printf("starting nexus-cloud (store=%s)", *storeType)
+	log.Printf("starting strand-cloud (store=%s)", *storeType)
 	if err := srv.ListenAndServe(*addr); err != nil && err.Error() != "http: Server closed" {
 		log.Fatalf("server error: %v", err)
 	}

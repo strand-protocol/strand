@@ -1,6 +1,6 @@
 # ============================================================
-# nexctl -- Multi-stage Docker build
-# Produces the nexctl CLI binary.
+# strandctl -- Multi-stage Docker build
+# Produces the strandctl CLI binary.
 # ============================================================
 
 # -----------------------------------------------------------
@@ -17,10 +17,10 @@ RUN go mod download
 # Copy the full module source.
 COPY . .
 
-# Build the nexctl binary (static, stripped).
+# Build the strandctl binary (static, stripped).
 RUN CGO_ENABLED=0 go build \
     -ldflags "-s -w" \
-    -o /nexctl \
+    -o /strandctl \
     .
 
 # -----------------------------------------------------------
@@ -28,6 +28,6 @@ RUN CGO_ENABLED=0 go build \
 # -----------------------------------------------------------
 FROM gcr.io/distroless/static-debian12
 
-COPY --from=builder /nexctl /nexctl
+COPY --from=builder /strandctl /strandctl
 
-ENTRYPOINT ["/nexctl"]
+ENTRYPOINT ["/strandctl"]

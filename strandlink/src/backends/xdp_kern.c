@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// xdp_kern.c — NexLink eBPF/XDP kernel program
+// xdp_kern.c — StrandLink eBPF/XDP kernel program
 //
 // This program runs inside the Linux kernel at the XDP (eXpress Data Path)
 // hook — the earliest possible point in the packet receive path, before any
 // kernel networking stack processing.
 //
 // Packet flow:
-//   NIC RX → XDP hook → nexlink_xdp_prog()
-//               ├── NexLink frame? → bpf_redirect_map → AF_XDP socket
+//   NIC RX → XDP hook → strandlink_xdp_prog()
+//               ├── StrandLink frame? → bpf_redirect_map → AF_XDP socket
 //               └── Other frame?   → XDP_PASS (hand to kernel stack)
 //
-// The AF_XDP socket lives in the nexlink userspace backend (xdp.zig).
+// The AF_XDP socket lives in the strandlink userspace backend (xdp.zig).
 // The BPF map `xsks_map` is populated by userspace: key = RX queue index,
-// value = AF_XDP socket fd.  When a NexLink frame arrives on queue N, the
+// value = AF_XDP socket fd.  When a StrandLink frame arrives on queue N, the
 // program redirects it directly into the userspace socket, bypassing the
 // full kernel TCP/IP stack for near-zero-copy, sub-microsecond dispatch.
 //
 // Classification strategy:
 //   1. Walk the Ethernet → IPv4/IPv6 → UDP header chain.
-//   2. Check UDP destination port == NEXLINK_UDP_PORT (6477).
-//      This covers the NexLink overlay encapsulation (overlay.zig).
+//   2. Check UDP destination port == STRANDLINK_UDP_PORT (6477).
+//      This covers the StrandLink overlay encapsulation (overlay.zig).
 //   3. Fall through to XDP_PASS for any non-matching frame so normal
 //      traffic (SSH, etc.) continues to work.
 //
@@ -43,9 +43,9 @@
 // Constants
 // ---------------------------------------------------------------------------
 
-/// UDP destination port used by the NexLink overlay transport.
+/// UDP destination port used by the StrandLink overlay transport.
 /// Must match overlay.zig OVERLAY_PORT = 6477.
-#define NEXLINK_UDP_PORT 6477
+#define STRANDLINK_UDP_PORT 6477
 
 /// Maximum number of AF_XDP sockets (one per NIC RX queue).
 /// 64 queues is generous for real-world NICs; increase if needed.
@@ -93,7 +93,7 @@ static __always_inline void count_drop(void)
 // ---------------------------------------------------------------------------
 
 SEC("xdp")
-int nexlink_xdp_prog(struct xdp_md *ctx)
+int strandlink_xdp_prog(struct xdp_md *ctx)
 {
     // data and data_end are pointers into the packet DMA buffer.
     // All pointer arithmetic must stay within [data, data_end) or the
@@ -143,7 +143,7 @@ int nexlink_xdp_prog(struct xdp_md *ctx)
         l4_start = l3_start + ip_hdr_len;
     } else if (inner_proto == ETH_P_IPV6) {
         // IPv6: fixed 40-byte header (we do not chase extension headers here;
-        // NexLink overlay uses UDP directly after the fixed IPv6 header).
+        // StrandLink overlay uses UDP directly after the fixed IPv6 header).
         struct ipv6hdr *ip6 = l3_start;
         if ((void *)(ip6 + 1) > data_end)
             return XDP_PASS;
@@ -164,12 +164,12 @@ int nexlink_xdp_prog(struct xdp_md *ctx)
     if ((void *)(udp + 1) > data_end)
         return XDP_PASS;
 
-    // Check destination port against the NexLink overlay port.
-    if (bpf_ntohs(udp->dest) != NEXLINK_UDP_PORT)
+    // Check destination port against the StrandLink overlay port.
+    if (bpf_ntohs(udp->dest) != STRANDLINK_UDP_PORT)
         return XDP_PASS;
 
     // -----------------------------------------------------------------------
-    // NexLink overlay detected — redirect to AF_XDP socket
+    // StrandLink overlay detected — redirect to AF_XDP socket
     //
     // bpf_redirect_map() atomically looks up ctx->rx_queue_index in xsks_map
     // and steers the frame to the matching AF_XDP socket.  If no socket is

@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nexus-protocol/nexus/nexctl/cmd"
-	"github.com/nexus-protocol/nexus/nexctl/pkg/api"
-	"github.com/nexus-protocol/nexus/nexctl/pkg/output"
+	"github.com/strand-protocol/strand/strandctl/cmd"
+	"github.com/strand-protocol/strand/strandctl/pkg/api"
+	"github.com/strand-protocol/strand/strandctl/pkg/output"
 )
 
 func setupTest() {
@@ -31,8 +31,8 @@ func TestVersionCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("version command failed: %v", err)
 	}
-	if !strings.Contains(out, "nexctl version") {
-		t.Errorf("expected output to contain 'nexctl version', got: %s", out)
+	if !strings.Contains(out, "strandctl version") {
+		t.Errorf("expected output to contain 'strandctl version', got: %s", out)
 	}
 	if !strings.Contains(out, "API server:") {
 		t.Errorf("expected output to contain 'API server:', got: %s", out)
@@ -151,7 +151,7 @@ func TestFirmwareListCommand(t *testing.T) {
 
 func TestFirmwareFlashCommand(t *testing.T) {
 	setupTest()
-	out, err := executeCommand("firmware", "flash", "node-alpha-01", "nexlink-v2.4.1")
+	out, err := executeCommand("firmware", "flash", "node-alpha-01", "strandlink-v2.4.1")
 	if err != nil {
 		t.Fatalf("firmware flash command failed: %v", err)
 	}
@@ -199,8 +199,8 @@ func TestMetricsExportPrometheus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("metrics export prometheus command failed: %v", err)
 	}
-	if !strings.Contains(out, "nexus_connections") {
-		t.Errorf("expected Prometheus output with nexus_connections, got: %s", out)
+	if !strings.Contains(out, "strand_connections") {
+		t.Errorf("expected Prometheus output with strand_connections, got: %s", out)
 	}
 }
 
@@ -221,8 +221,8 @@ func TestTrustListCAs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("trust list-cas command failed: %v", err)
 	}
-	if !strings.Contains(out, "nexus-root-ca") {
-		t.Errorf("expected output to contain 'nexus-root-ca', got: %s", out)
+	if !strings.Contains(out, "strand-root-ca") {
+		t.Errorf("expected output to contain 'strand-root-ca', got: %s", out)
 	}
 }
 

@@ -1,3 +1,3 @@
-module github.com/nexus-protocol/nexus/nexapi
+module github.com/strand-protocol/strand/strandapi
 
 go 1.22

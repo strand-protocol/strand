@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug in the Nexus Protocol
+description: Report a bug in the Strand Protocol
 title: "[Bug]: "
 labels: ["bug", "triage"]
 assignees: []
@@ -17,13 +17,13 @@ body:
       description: Which module is affected by this bug?
       multiple: true
       options:
-        - nexlink (Zig - L1 Data-Link)
-        - nexroute (C - L2 Routing)
-        - nexstream (Rust - L3 Transport)
-        - nextrust (Rust - L4 Identity/Trust)
-        - nexapi (Go - L5 API Gateway)
-        - nexctl (Go - CLI)
-        - nexus-cloud (Go - Cloud Platform)
+        - strandlink (Zig - L1 Data-Link)
+        - strandroute (C - L2 Routing)
+        - strandstream (Rust - L3 Transport)
+        - strandtrust (Rust - L4 Identity/Trust)
+        - strandapi (Go - L5 API Gateway)
+        - strandctl (Go - CLI)
+        - strand-cloud (Go - Cloud Platform)
         - Other / Unknown
     validations:
       required: true
@@ -43,7 +43,7 @@ body:
       label: Steps to Reproduce
       description: Step-by-step instructions to reproduce the behavior.
       placeholder: |
-        1. Run `nexctl ...`
+        1. Run `strandctl ...`
         2. Send a request to ...
         3. Observe error ...
     validations:

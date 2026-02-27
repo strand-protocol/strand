@@ -1,6 +1,6 @@
-# NexTrust — Layer 4: Model Identity, Cryptographic Trust & Attestation
+# StrandTrust — Layer 4: Model Identity, Cryptographic Trust & Attestation
 
-## Module: `nextrust/`
+## Module: `strandtrust/`
 
 ## Language: Rust (Edition 2021, MSRV 1.75+)
 
@@ -10,9 +10,9 @@
 
 ## 1. Overview
 
-NexTrust replaces the web PKI (X.509 certificates, TLS handshake, Certificate Authorities) with a purpose-built identity and trust system for AI systems. Instead of proving "you own this domain name," NexTrust proves "this model has these properties, was trained on this data, achieves these benchmarks, and is endorsed by these organizations" — all cryptographically verifiable, with optional zero-knowledge proofs that attest to properties without revealing proprietary information.
+StrandTrust replaces the web PKI (X.509 certificates, TLS handshake, Certificate Authorities) with a purpose-built identity and trust system for AI systems. Instead of proving "you own this domain name," StrandTrust proves "this model has these properties, was trained on this data, achieves these benchmarks, and is endorsed by these organizations" — all cryptographically verifiable, with optional zero-knowledge proofs that attest to properties without revealing proprietary information.
 
-NexTrust issues **Model Identity Certificates (MICs)** — the AI equivalent of X.509 certificates — and provides a handshake protocol that establishes authenticated, encrypted channels between AI agents with mutual capability attestation.
+StrandTrust issues **Model Identity Certificates (MICs)** — the AI equivalent of X.509 certificates — and provides a handshake protocol that establishes authenticated, encrypted channels between AI agents with mutual capability attestation.
 
 ---
 
@@ -20,25 +20,25 @@ NexTrust issues **Model Identity Certificates (MICs)** — the AI equivalent of 
 
 | Standard | Title | Relevance |
 |----------|-------|-----------|
-| **RFC 8446** | The Transport Layer Security (TLS) Protocol Version 1.3 | NexTrust replaces TLS for AI-to-AI communication. The NexTrust handshake protocol is architecturally inspired by TLS 1.3's 1-RTT design but uses model identity instead of domain certificates |
-| **RFC 5280** | Internet X.509 Public Key Infrastructure Certificate and CRL Profile | NexTrust's Model Identity Certificate (MIC) replaces X.509 certificates. MIC schema designed for AI properties instead of organizational identity |
-| **RFC 6960** | X.509 Internet PKI Online Certificate Status Protocol (OCSP) | Reference for certificate revocation — NexTrust implements a revocation mechanism for compromised or deprecated model identities |
-| **RFC 6962** | Certificate Transparency | Reference for auditability — NexTrust implements a Model Identity Transparency Log for public verifiability of all issued MICs |
+| **RFC 8446** | The Transport Layer Security (TLS) Protocol Version 1.3 | StrandTrust replaces TLS for AI-to-AI communication. The StrandTrust handshake protocol is architecturally inspired by TLS 1.3's 1-RTT design but uses model identity instead of domain certificates |
+| **RFC 5280** | Internet X.509 Public Key Infrastructure Certificate and CRL Profile | StrandTrust's Model Identity Certificate (MIC) replaces X.509 certificates. MIC schema designed for AI properties instead of organizational identity |
+| **RFC 6960** | X.509 Internet PKI Online Certificate Status Protocol (OCSP) | Reference for certificate revocation — StrandTrust implements a revocation mechanism for compromised or deprecated model identities |
+| **RFC 6962** | Certificate Transparency | Reference for auditability — StrandTrust implements a Model Identity Transparency Log for public verifiability of all issued MICs |
 | **RFC 5958** | Asymmetric Key Packages | Reference for key serialization formats |
-| **RFC 7519** | JSON Web Token (JWT) | Reference for token-based attestation claims. NexTrust uses a binary equivalent (not JSON) for efficiency |
-| **RFC 9180** | Hybrid Public Key Encryption (HPKE) | Reference for NexTrust's channel encryption. NexTrust uses HPKE-style KEM+AEAD for session key establishment |
-| **RFC 7748** | Elliptic Curves for Security (X25519, X448) | Key agreement curves used in NexTrust handshake |
+| **RFC 7519** | JSON Web Token (JWT) | Reference for token-based attestation claims. StrandTrust uses a binary equivalent (not JSON) for efficiency |
+| **RFC 9180** | Hybrid Public Key Encryption (HPKE) | Reference for StrandTrust's channel encryption. StrandTrust uses HPKE-style KEM+AEAD for session key establishment |
+| **RFC 7748** | Elliptic Curves for Security (X25519, X448) | Key agreement curves used in StrandTrust handshake |
 | **RFC 8032** | Edwards-Curve Digital Signature Algorithm (EdDSA, Ed25519) | Signature algorithm for MIC signing and handshake authentication |
 | **RFC 5869** | HMAC-based Extract-and-Expand Key Derivation Function (HKDF) | Key derivation for session keys from handshake material |
 
 ### Cryptographic Primitive References
 
-| Primitive | Specification | Purpose in NexTrust |
+| Primitive | Specification | Purpose in StrandTrust |
 |-----------|--------------|---------------------|
 | **Ed25519** | RFC 8032 | Node identity key pair, MIC signatures |
 | **X25519** | RFC 7748 | Ephemeral key exchange in handshake |
 | **HKDF-SHA256** | RFC 5869 | Session key derivation |
-| **AES-256-GCM** | NIST SP 800-38D | Symmetric encryption for NexStream data (post-handshake) |
+| **AES-256-GCM** | NIST SP 800-38D | Symmetric encryption for StrandStream data (post-handshake) |
 | **ChaCha20-Poly1305** | RFC 8439 | Alternative AEAD cipher (for platforms without AES-NI) |
 | **SHA-256 / SHA-3** | FIPS 180-4 / FIPS 202 | Hashing for MIC fingerprints, Merkle trees |
 | **Groth16 zk-SNARK** | Groth, 2016 (via arkworks) | Zero-knowledge proofs of model properties |
@@ -58,7 +58,7 @@ MIC {
   // === Identity ===
   version:            u16,          // MIC format version (current: 1)
   serial_number:      [u8; 32],     // Unique certificate serial (SHA-256 of content)
-  node_id:            [u8; 16],     // NexLink Node ID derived from public key
+  node_id:            [u8; 16],     // StrandLink Node ID derived from public key
   public_key:         [u8; 32],     // Ed25519 public key
   
   // === Issuer ===
@@ -99,7 +99,7 @@ Each claim in a MIC attests to a specific model property:
 
 ### 3.3 Zero-Knowledge Attestation
 
-For claims that involve proprietary information (model weights, training data, internal benchmarks), NexTrust supports **ZK attestation**: a Groth16 zk-SNARK proof that a property holds without revealing the underlying data.
+For claims that involve proprietary information (model weights, training data, internal benchmarks), StrandTrust supports **ZK attestation**: a Groth16 zk-SNARK proof that a property holds without revealing the underlying data.
 
 ZK-provable claims:
 - "This model achieves HumanEval pass@1 > 0.90" (without revealing exact score)
@@ -143,7 +143,7 @@ ProvenanceChain {
 
 ## 4. Handshake Protocol
 
-### 4.1 NexTrust Handshake (1-RTT Mutual Authentication)
+### 4.1 StrandTrust Handshake (1-RTT Mutual Authentication)
 
 ```
 Client                                        Server
@@ -175,7 +175,7 @@ Client                                        Server
 ```
 shared_secret = X25519(client_ephemeral_privkey, server_ephemeral_pubkey)
 early_secret = HKDF-Extract(salt=0, ikm=shared_secret)
-handshake_secret = HKDF-Expand(early_secret, "nexus handshake", 32)
+handshake_secret = HKDF-Expand(early_secret, "strand handshake", 32)
 client_write_key = HKDF-Expand(handshake_secret, "client write key" || client_node_id || server_node_id, 32)
 server_write_key = HKDF-Expand(handshake_secret, "server write key" || client_node_id || server_node_id, 32)
 client_write_iv = HKDF-Expand(handshake_secret, "client write iv" || client_node_id || server_node_id, 12)
@@ -186,8 +186,8 @@ server_write_iv = HKDF-Expand(handshake_secret, "server write iv" || client_node
 
 | ID | Name | Key Exchange | Signature | AEAD | Hash |
 |----|------|-------------|-----------|------|------|
-| `0x0001` | `NEXUS_X25519_ED25519_AES256GCM_SHA256` | X25519 | Ed25519 | AES-256-GCM | SHA-256 |
-| `0x0002` | `NEXUS_X25519_ED25519_CHACHA20POLY1305_SHA256` | X25519 | Ed25519 | ChaCha20-Poly1305 | SHA-256 |
+| `0x0001` | `STRAND_X25519_ED25519_AES256GCM_SHA256` | X25519 | Ed25519 | AES-256-GCM | SHA-256 |
+| `0x0002` | `STRAND_X25519_ED25519_CHACHA20POLY1305_SHA256` | X25519 | Ed25519 | ChaCha20-Poly1305 | SHA-256 |
 
 ---
 
@@ -196,7 +196,7 @@ server_write_iv = HKDF-Expand(handshake_secret, "server write iv" || client_node
 ### 5.1 Source Tree Structure
 
 ```
-nextrust/
+strandtrust/
 ├── Cargo.toml
 ├── src/
 │   ├── lib.rs                       # Crate root, public API
@@ -238,7 +238,7 @@ nextrust/
 │   │   ├── prover.rs               # Groth16 proof generation (arkworks)
 │   │   ├── verifier.rs             # Groth16 proof verification (arkworks)
 │   │   └── setup.rs                # Trusted setup / ceremony for circuit-specific keys
-│   ├── encrypt.rs                   # Post-handshake encryption/decryption of NexStream frames
+│   ├── encrypt.rs                   # Post-handshake encryption/decryption of StrandStream frames
 │   ├── identity.rs                  # Node identity management (keypair, Node ID)
 │   ├── config.rs                    # Configuration
 │   └── error.rs                     # Error types
@@ -308,11 +308,11 @@ nextrust/
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| NT-ENC-001 | Encrypt NexStream frames with AES-256-GCM using session keys from handshake | P0 |
+| NT-ENC-001 | Encrypt StrandStream frames with AES-256-GCM using session keys from handshake | P0 |
 | NT-ENC-002 | Support ChaCha20-Poly1305 as alternative AEAD (selected during handshake) | P0 |
 | NT-ENC-003 | Per-frame nonce: 96-bit nonce derived from frame sequence number + IV (no nonce reuse) | P0 |
 | NT-ENC-004 | Key rotation: derive new traffic keys after configurable number of frames (default: 2^20) or bytes (default: 2^30) | P1 |
-| NT-ENC-005 | Encrypt/decrypt must be zero-copy compatible: operate on NexLink ring buffer slots in-place | P0 |
+| NT-ENC-005 | Encrypt/decrypt must be zero-copy compatible: operate on StrandLink ring buffer slots in-place | P0 |
 | NT-ENC-006 | Support optional encryption bypass for trusted network segments (configurable per-connection) | P1 |
 
 ### 6.5 Zero-Knowledge Proofs

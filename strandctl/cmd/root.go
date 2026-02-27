@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nexus-protocol/nexus/nexctl/pkg/api"
-	"github.com/nexus-protocol/nexus/nexctl/pkg/config"
-	"github.com/nexus-protocol/nexus/nexctl/pkg/output"
+	"github.com/strand-protocol/strand/strandctl/pkg/api"
+	"github.com/strand-protocol/strand/strandctl/pkg/config"
+	"github.com/strand-protocol/strand/strandctl/pkg/output"
 	"github.com/spf13/cobra"
 )
 
@@ -24,13 +24,13 @@ var (
 	formatter output.Formatter
 )
 
-// rootCmd is the base command for nexctl.
+// rootCmd is the base command for strandctl.
 var rootCmd = &cobra.Command{
-	Use:   "nexctl",
-	Short: "Nexus Protocol CLI — manage nodes, routes, trust, firmware, and diagnostics",
-	Long: `NexCtl is the operator-facing CLI tool for the Nexus Protocol stack.
+	Use:   "strandctl",
+	Short: "Strand Protocol CLI — manage nodes, routes, trust, firmware, and diagnostics",
+	Long: `StrandCtl is the operator-facing CLI tool for the Strand Protocol stack.
 It provides a unified interface for deploying, configuring, monitoring,
-diagnosing, and managing all Nexus components across a fleet of switches,
+diagnosing, and managing all Strand components across a fleet of switches,
 NICs, and servers.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -88,9 +88,9 @@ func RootCmd() *cobra.Command {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ~/.nexus/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ~/.strand/config.yaml)")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "", "output format: table, json, yaml (default \"table\")")
-	rootCmd.PersistentFlags().StringVar(&serverURL, "server", "", "Nexus API server URL")
+	rootCmd.PersistentFlags().StringVar(&serverURL, "server", "", "Strand API server URL")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "print actions that would be taken without executing them")
 	rootCmd.PersistentFlags().BoolVar(&yesFlag, "yes", false, "skip confirmation prompts for destructive operations")
 }

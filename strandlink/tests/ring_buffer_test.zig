@@ -1,4 +1,4 @@
-// tests/ring_buffer_test.zig — Integration tests for NexLink SPSC ring buffer
+// tests/ring_buffer_test.zig — Integration tests for StrandLink SPSC ring buffer
 //
 // Tests push/pop semantics, wraparound, full/empty conditions, and
 // multi-threaded SPSC correctness.
@@ -6,9 +6,9 @@
 const std = @import("std");
 const testing = std.testing;
 const mem = std.mem;
-const nexlink = @import("nexlink");
+const strandlink = @import("strandlink");
 
-const RingBuffer = nexlink.RingBuffer;
+const RingBuffer = strandlink.RingBuffer;
 
 test "ring_buffer: basic reserve/commit/peek/release cycle" {
     var rb = try RingBuffer.init(testing.allocator, 8, 128);

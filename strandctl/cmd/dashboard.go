@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/nexus-protocol/nexus/nexctl/pkg/tui"
+	"github.com/strand-protocol/strand/strandctl/pkg/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -11,8 +11,8 @@ var dashboardCmd = &cobra.Command{
 	Use:   "dashboard",
 	Short: "Launch the interactive TUI dashboard",
 	Long: `Launch an interactive terminal dashboard that displays live data
-about nodes, routes, and streams in the Nexus network. Data is
-refreshed every 2 seconds from the Nexus Cloud API server.
+about nodes, routes, and streams in the Strand network. Data is
+refreshed every 2 seconds from the Strand Cloud API server.
 
 Key bindings:
   Tab / Shift+Tab  Navigate between tabs
@@ -43,6 +43,6 @@ Key bindings:
 }
 
 func init() {
-	dashboardCmd.Flags().String("server", "", "Nexus Cloud server URL (default: http://localhost:8080)")
+	dashboardCmd.Flags().String("server", "", "Strand Cloud server URL (default: http://localhost:8080)")
 	rootCmd.AddCommand(dashboardCmd)
 }

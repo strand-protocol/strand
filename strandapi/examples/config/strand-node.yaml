@@ -1,0 +1,61 @@
+# Strand Protocol — Example Node Configuration
+#
+# Copy this file to ~/.strand/config.yaml and adjust for your environment.
+# See CLAUDE.md for full details.
+
+# Node identity
+node:
+  id: "node-01"
+  hostname: "strand-node-01.local"
+  labels:
+    role: "inference"
+    region: "us-west-2"
+    gpu: "a100"
+
+# StrandAPI server
+strandapi:
+  listen_addr: "0.0.0.0:6477"
+  max_concurrent_requests: 1000
+
+# HTTP bridge (OpenAI-compatible REST API)
+http_bridge:
+  enabled: true
+  addr: "0.0.0.0:9000"
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:9000"
+  read_timeout: 30s
+  write_timeout: 120s
+
+# Transport configuration
+transport:
+  mode: overlay  # overlay (UDP, pure-Go) | native (CGo, production)
+  overlay_port: 6477
+
+# StrandTrust security
+trust:
+  enabled: false  # Set true to enable mutual authentication
+  # cipher_suite: "STRAND_X25519_ED25519_AES256GCM_SHA256"
+  # mic_path: "/etc/strand/node.mic"
+  # key_path: "/etc/strand/node.key"
+
+# Model capabilities (advertised via SAD)
+capabilities:
+  model_type: "llm"
+  features:
+    - text_gen
+    - code_gen
+    - tool_use
+  context_window: 128000
+  max_latency_ms: 500
+
+# Control plane
+control_plane:
+  endpoint: "http://localhost:8080"
+  heartbeat_interval: 10s
+  # api_key: "${STRAND_API_KEY}"  # Use environment variable
+
+# Logging
+logging:
+  level: "info"  # debug | info | warn | error
+  format: "json"  # json | text

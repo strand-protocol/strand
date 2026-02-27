@@ -1,6 +1,6 @@
 package api
 
-// APIClient defines the interface for communicating with the Nexus control plane.
+// APIClient defines the interface for communicating with the Strand control plane.
 type APIClient interface {
 	// Node management
 	ListNodes() ([]NodeInfo, error)

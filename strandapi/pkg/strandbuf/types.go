@@ -1,7 +1,7 @@
-// Package nexbuf implements the NexBuf binary serialization format for the
-// NexAPI protocol. It provides a compact, little-endian, length-prefixed wire
+// Package strandbuf implements the StrandBuf binary serialization format for the
+// StrandAPI protocol. It provides a compact, little-endian, length-prefixed wire
 // format inspired by FlatBuffers and CBOR.
-package nexbuf
+package strandbuf
 
 // Wire type constants identify the data type of each encoded field.
 const (

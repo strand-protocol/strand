@@ -10,7 +10,7 @@ use bytes::Bytes;
 use crate::error::Result;
 use crate::frame::Frame;
 
-/// The four delivery modes supported by NexStream.
+/// The four delivery modes supported by StrandStream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum TransportMode {
@@ -28,7 +28,7 @@ impl TransportMode {
             0x02 => Ok(TransportMode::ReliableUnordered),
             0x03 => Ok(TransportMode::BestEffort),
             0x04 => Ok(TransportMode::Probabilistic),
-            other => Err(crate::error::NexStreamError::InvalidTransportMode(other)),
+            other => Err(crate::error::StrandStreamError::InvalidTransportMode(other)),
         }
     }
 }

@@ -1,14 +1,14 @@
 /*
  * forwarding.c - Software dataplane forwarding engine
  *
- * Receive a NexLink frame -> extract SAD from options -> resolve via
+ * Receive a StrandLink frame -> extract SAD from options -> resolve via
  * routing table -> select next hop (weighted random from top matches)
  * -> rewrite dst_node_id -> forward via send callback.
  */
 
-#include "nexroute/types.h"
-#include "nexroute/sad.h"
-#include "nexroute/routing_table.h"
+#include "strandroute/types.h"
+#include "strandroute/sad.h"
+#include "strandroute/routing_table.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -30,9 +30,9 @@ extern int resolver_resolve(const routing_table_t *rt,
 #define FWD_MAX_NEXT_HOPS 8
 
 typedef struct {
-    uint8_t          self_id[NEXLINK_NODE_ID_LEN];
+    uint8_t          self_id[STRANDLINK_NODE_ID_LEN];
     routing_table_t *routing_table;   /* owned externally */
-    nexlink_send_fn  send_fn;
+    strandlink_send_fn  send_fn;
     void            *send_ctx;
     int              max_multipath;   /* top-K results to consider */
 
@@ -48,9 +48,9 @@ typedef struct {
  * -------------------------------------------------------------------------- */
 
 void forwarding_engine_init(forwarding_engine_t *eng,
-                            const uint8_t self_id[NEXLINK_NODE_ID_LEN],
+                            const uint8_t self_id[STRANDLINK_NODE_ID_LEN],
                             routing_table_t *rt,
-                            nexlink_send_fn send_fn,
+                            strandlink_send_fn send_fn,
                             void *send_ctx)
 {
     memset(eng, 0, sizeof(*eng));
@@ -114,15 +114,15 @@ static int select_next_hop(const resolve_result_t *results, int count)
 }
 
 /* --------------------------------------------------------------------------
- * Extract SAD from NexLink frame options area
+ * Extract SAD from StrandLink frame options area
  *
  * The SAD is stored in the frame's options region (pointed to by
  * options_offset and options_length in the header).
  * -------------------------------------------------------------------------- */
 
-static int extract_sad_from_frame(const nexlink_frame_t *frame, sad_t *sad)
+static int extract_sad_from_frame(const strandlink_frame_t *frame, sad_t *sad)
 {
-    const nexlink_frame_header_t *hdr = &frame->header;
+    const strandlink_frame_header_t *hdr = &frame->header;
 
     uint16_t opt_off = hdr->options_offset;
     uint16_t opt_len = hdr->options_length;
@@ -152,8 +152,8 @@ static int extract_sad_from_frame(const nexlink_frame_t *frame, sad_t *sad)
  * -------------------------------------------------------------------------- */
 
 int forwarding_engine_process_frame(forwarding_engine_t *eng,
-                                    nexlink_frame_t *frame,
-                                    nexlink_port_t ingress_port)
+                                    strandlink_frame_t *frame,
+                                    strandlink_port_t ingress_port)
 {
     (void)ingress_port;
 

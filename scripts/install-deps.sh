@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 # install-deps.sh -- Install all build dependencies for the
-# Nexus Protocol monorepo.
+# Strand Protocol monorepo.
 #
 # Supported platforms:
 #   - macOS  (Homebrew)

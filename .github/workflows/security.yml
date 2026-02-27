@@ -28,12 +28,12 @@ jobs:
       - name: Install cargo-audit
         run: cargo install cargo-audit
 
-      - name: "nextrust: audit dependencies"
-        working-directory: nextrust
+      - name: "strandtrust: audit dependencies"
+        working-directory: strandtrust
         run: cargo audit
 
-      - name: "nexstream: audit dependencies"
-        working-directory: nexstream
+      - name: "strandstream: audit dependencies"
+        working-directory: strandstream
         run: cargo audit
 
   # ---------------------------------------------------------------------------
@@ -55,20 +55,20 @@ jobs:
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
-      - name: "nexapi: vulnerability check"
-        working-directory: nexapi
+      - name: "strandapi: vulnerability check"
+        working-directory: strandapi
         run: govulncheck ./...
 
-      - name: "nexctl: vulnerability check"
-        working-directory: nexctl
+      - name: "strandctl: vulnerability check"
+        working-directory: strandctl
         run: govulncheck ./...
 
-      - name: "nexus-cloud: vulnerability check"
-        working-directory: nexus-cloud
+      - name: "strand-cloud: vulnerability check"
+        working-directory: strand-cloud
         run: govulncheck ./...
 
   # ---------------------------------------------------------------------------
-  # CodeQL: static analysis for C code (nexroute)
+  # CodeQL: static analysis for C code (strandroute)
   # ---------------------------------------------------------------------------
   codeql:
     name: CodeQL Analysis (C)
@@ -90,10 +90,10 @@ jobs:
         with:
           languages: c-cpp
           queries: security-and-quality
-          source-root: nexroute
+          source-root: strandroute
 
-      - name: Build nexroute for CodeQL
-        working-directory: nexroute
+      - name: Build strandroute for CodeQL
+        working-directory: strandroute
         run: |
           mkdir -p build && cd build
           cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug

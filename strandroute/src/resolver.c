@@ -6,9 +6,9 @@
  * This is the high-level resolution API that ties sad_match + routing_table.
  */
 
-#include "nexroute/routing_table.h"
-#include "nexroute/sad.h"
-#include "nexroute/types.h"
+#include "strandroute/routing_table.h"
+#include "strandroute/sad.h"
+#include "strandroute/types.h"
 
 #include <stdlib.h>
 #include <string.h>

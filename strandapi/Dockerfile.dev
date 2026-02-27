@@ -1,5 +1,5 @@
 # ============================================================
-# nexapi -- Development Dockerfile
+# strandapi -- Development Dockerfile
 # Uses the full Go toolchain for source-mounted hot reload.
 # ============================================================
 

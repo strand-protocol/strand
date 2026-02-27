@@ -8,13 +8,13 @@ Resolves #
 
 <!-- Check all that apply -->
 
-- [ ] `nexlink` (Zig - L1 Data-Link)
-- [ ] `nexroute` (C - L2 Routing)
-- [ ] `nexstream` (Rust - L3 Transport)
-- [ ] `nextrust` (Rust - L4 Identity/Trust)
-- [ ] `nexapi` (Go - L5 API Gateway)
-- [ ] `nexctl` (Go - CLI)
-- [ ] `nexus-cloud` (Go - Cloud Platform)
+- [ ] `strandlink` (Zig - L1 Data-Link)
+- [ ] `strandroute` (C - L2 Routing)
+- [ ] `strandstream` (Rust - L3 Transport)
+- [ ] `strandtrust` (Rust - L4 Identity/Trust)
+- [ ] `strandapi` (Go - L5 API Gateway)
+- [ ] `strandctl` (Go - CLI)
+- [ ] `strand-cloud` (Go - Cloud Platform)
 - [ ] CI/CD / Infrastructure
 
 ## Test Plan

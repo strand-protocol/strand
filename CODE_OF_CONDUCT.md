@@ -2,7 +2,7 @@
 
 ## Our Standards
 
-Nexus Protocol is a technical project. We expect all participants to:
+Strand Protocol is a technical project. We expect all participants to:
 
 - Be respectful and professional in all interactions.
 - Focus feedback on code and ideas, not individuals.
@@ -27,4 +27,4 @@ Report conduct issues by opening a private GitHub issue or contacting a maintain
 
 ---
 
-This Code of Conduct applies to all project spaces: GitHub issues, pull requests, discussions, and any other venue associated with Nexus Protocol.
+This Code of Conduct applies to all project spaces: GitHub issues, pull requests, discussions, and any other venue associated with Strand Protocol.

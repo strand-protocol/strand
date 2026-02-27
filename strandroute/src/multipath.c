@@ -11,7 +11,7 @@
  * Network Load Balancer", NSDI 2016.
  */
 
-#include "nexroute/types.h"
+#include "strandroute/types.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -32,7 +32,7 @@
  * -------------------------------------------------------------------------- */
 
 typedef struct {
-    uint8_t  node_id[NEXLINK_NODE_ID_LEN];
+    uint8_t  node_id[STRANDLINK_NODE_ID_LEN];
     uint32_t weight;        /* relative weight (higher = more traffic) */
     bool     active;
 } maglev_backend_t;
@@ -91,7 +91,7 @@ void maglev_init(maglev_t *m)
  * -------------------------------------------------------------------------- */
 
 int maglev_add_backend(maglev_t *m,
-                       const uint8_t node_id[NEXLINK_NODE_ID_LEN],
+                       const uint8_t node_id[STRANDLINK_NODE_ID_LEN],
                        uint32_t weight)
 {
     if (!m || m->num_backends >= MAGLEV_MAX_BACKENDS)
@@ -112,7 +112,7 @@ int maglev_add_backend(maglev_t *m,
  * -------------------------------------------------------------------------- */
 
 int maglev_remove_backend(maglev_t *m,
-                          const uint8_t node_id[NEXLINK_NODE_ID_LEN])
+                          const uint8_t node_id[STRANDLINK_NODE_ID_LEN])
 {
     if (!m) return -1;
 
@@ -166,8 +166,8 @@ int maglev_populate(maglev_t *m)
     }
 
     for (int i = 0; i < N; i++) {
-        offset[i] = hash_djb2(m->backends[i].node_id, NEXLINK_NODE_ID_LEN) % (uint32_t)M;
-        skip[i]   = (hash_fnv1a(m->backends[i].node_id, NEXLINK_NODE_ID_LEN) % (uint32_t)(M - 1)) + 1;
+        offset[i] = hash_djb2(m->backends[i].node_id, STRANDLINK_NODE_ID_LEN) % (uint32_t)M;
+        skip[i]   = (hash_fnv1a(m->backends[i].node_id, STRANDLINK_NODE_ID_LEN) % (uint32_t)(M - 1)) + 1;
     }
 
     /* Fill the table */
@@ -228,7 +228,7 @@ int maglev_lookup(const maglev_t *m,
 
 int maglev_lookup_node_id(const maglev_t *m,
                           const uint8_t *flow_key, size_t key_len,
-                          uint8_t out_node_id[NEXLINK_NODE_ID_LEN])
+                          uint8_t out_node_id[STRANDLINK_NODE_ID_LEN])
 {
     int idx = maglev_lookup(m, flow_key, key_len);
     if (idx < 0) return -1;

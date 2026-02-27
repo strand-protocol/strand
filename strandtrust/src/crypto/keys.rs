@@ -4,7 +4,7 @@ use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
 
-use crate::error::{NexTrustError, Result};
+use crate::error::{StrandTrustError, Result};
 
 /// 16-byte Node ID derived from truncated SHA-256 of the public key.
 pub type NodeId = [u8; 16];
@@ -84,7 +84,7 @@ impl IdentityKeyPair {
         let sig = Signature::from_bytes(signature);
         self.verifying_key
             .verify(data, &sig)
-            .map_err(|_| NexTrustError::SignatureVerification)
+            .map_err(|_| StrandTrustError::SignatureVerification)
     }
 }
 
@@ -104,10 +104,10 @@ pub fn verify_signature(
     signature: &[u8; 64],
 ) -> Result<()> {
     let vk = VerifyingKey::from_bytes(pubkey_bytes)
-        .map_err(|e| NexTrustError::InvalidKey(format!("{e}")))?;
+        .map_err(|e| StrandTrustError::InvalidKey(format!("{e}")))?;
     let sig = Signature::from_bytes(signature);
     vk.verify(message, &sig)
-        .map_err(|_| NexTrustError::SignatureVerification)
+        .map_err(|_| StrandTrustError::SignatureVerification)
 }
 
 #[cfg(test)]
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn test_sign_verify() {
         let kp = IdentityKeyPair::generate();
-        let msg = b"hello nextrust";
+        let msg = b"hello strandtrust";
         let sig = kp.sign(msg);
         kp.verify(msg, &sig).expect("signature should be valid");
     }

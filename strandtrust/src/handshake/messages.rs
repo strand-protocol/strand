@@ -1,4 +1,4 @@
-// Handshake messages exchanged during the NexTrust 1-RTT protocol.
+// Handshake messages exchanged during the StrandTrust 1-RTT protocol.
 
 use crate::mic::MIC;
 

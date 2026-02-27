@@ -1,6 +1,6 @@
 package main
 
-import "github.com/nexus-protocol/nexus/nexctl/cmd"
+import "github.com/strand-protocol/strand/strandctl/cmd"
 
 func main() {
 	cmd.Execute()

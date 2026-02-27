@@ -5,11 +5,16 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/protocol"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/transport"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/protocol"
+	"github.com/strand-protocol/strand/strandapi/pkg/transport"
 )
+
+// defaultShutdownTimeout is how long Stop waits for in-flight frames before
+// forcibly closing the transport.
+const defaultShutdownTimeout = 5 * time.Second
 
 // ServerOption configures a Server.
 type ServerOption func(*Server)
@@ -31,30 +36,42 @@ func WithAgentHandler(fn func(ctx context.Context, msg *protocol.AgentDelegate) 
 	}
 }
 
+// WithShutdownTimeout configures how long Stop waits for in-flight frame
+// handlers to finish before forcibly closing the transport.
+func WithShutdownTimeout(d time.Duration) ServerOption {
+	return func(s *Server) {
+		s.shutdownTimeout = d
+	}
+}
+
 // maxConcurrentFrames limits the number of goroutines processing frames
 // simultaneously, preventing goroutine exhaustion under burst traffic.
 const maxConcurrentFrames = 1000
 
-// Server listens for NexAPI frames on an overlay transport, dispatches
+// Server listens for StrandAPI frames on an overlay transport, dispatches
 // requests to registered handlers, and writes responses back.
 type Server struct {
 	handler       Handler
 	streamHandler StreamHandler
 	// agentHandler handles OpAgentDelegate frames (optional).
 	agentHandler func(ctx context.Context, msg *protocol.AgentDelegate) (*protocol.AgentResult, error)
-	transport    *transport.OverlayTransport
-	mu           sync.Mutex
-	done         chan struct{}
+	transport        *transport.OverlayTransport
+	mu               sync.Mutex
+	done             chan struct{}
+	shutdownTimeout  time.Duration
 	// sem bounds the number of in-flight frame handler goroutines.
 	sem chan struct{}
+	// wg tracks in-flight frame handlers so Stop can drain gracefully.
+	wg sync.WaitGroup
 }
 
 // New creates a Server with the given inference handler and options.
 func New(handler Handler, opts ...ServerOption) *Server {
 	s := &Server{
-		handler: handler,
-		done:    make(chan struct{}),
-		sem:     make(chan struct{}, maxConcurrentFrames),
+		handler:         handler,
+		done:            make(chan struct{}),
+		sem:             make(chan struct{}, maxConcurrentFrames),
+		shutdownTimeout: defaultShutdownTimeout,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -62,12 +79,12 @@ func New(handler Handler, opts ...ServerOption) *Server {
 	return s
 }
 
-// ListenAndServe binds to addr and processes incoming NexAPI frames until
+// ListenAndServe binds to addr and processes incoming StrandAPI frames until
 // the server is stopped or a fatal error occurs.
 func (s *Server) ListenAndServe(addr string) error {
 	t, err := transport.ListenOverlay(addr)
 	if err != nil {
-		return fmt.Errorf("nexapi server: listen: %w", err)
+		return fmt.Errorf("strandapi server: listen: %w", err)
 	}
 	s.transport = t
 
@@ -87,7 +104,7 @@ func (s *Server) ListenAndServe(addr string) error {
 			case <-s.done:
 				return nil // graceful shutdown
 			default:
-				log.Printf("nexapi server: recv error: %v", err)
+				log.Printf("strandapi server: recv error: %v", err)
 				return err
 			}
 		}
@@ -95,28 +112,47 @@ func (s *Server) ListenAndServe(addr string) error {
 		// goroutine exhaustion under burst traffic.
 		select {
 		case s.sem <- struct{}{}:
+			s.wg.Add(1)
 			go func(op byte, pl []byte) {
+				defer s.wg.Done()
 				defer func() { <-s.sem }()
 				s.handleFrame(ctx, op, pl)
 			}(opcode, payload)
 		default:
-			log.Printf("nexapi server: overloaded, dropping frame opcode=0x%02x", opcode)
+			log.Printf("strandapi server: overloaded, dropping frame opcode=0x%02x", opcode)
 		}
 	}
 }
 
-// Stop signals the server to shut down gracefully.
+// Stop signals the server to shut down gracefully. It stops accepting new
+// frames and waits up to ShutdownTimeout for in-flight handlers to finish.
 func (s *Server) Stop() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	select {
 	case <-s.done:
+		s.mu.Unlock()
+		return // already stopped
 	default:
 		close(s.done)
 	}
+	s.mu.Unlock()
+
+	// Wait for in-flight frame handlers to complete, bounded by the
+	// configured shutdown timeout so we don't block indefinitely.
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		log.Printf("strandapi server: all in-flight handlers drained")
+	case <-time.After(s.shutdownTimeout):
+		log.Printf("strandapi server: shutdown timeout (%v) exceeded, forcing close", s.shutdownTimeout)
+	}
 }
 
-// handleFrame dispatches a single NexAPI frame to the appropriate handler.
+// handleFrame dispatches a single StrandAPI frame to the appropriate handler.
 func (s *Server) handleFrame(ctx context.Context, opcode byte, payload []byte) {
 	switch opcode {
 	case protocol.OpInferenceRequest:
@@ -128,13 +164,13 @@ func (s *Server) handleFrame(ctx context.Context, opcode byte, payload []byte) {
 	case protocol.OpAgentDelegate:
 		s.handleAgentDelegate(ctx, payload)
 	default:
-		log.Printf("nexapi server: unhandled opcode 0x%02x", opcode)
+		log.Printf("strandapi server: unhandled opcode 0x%02x", opcode)
 	}
 }
 
 func (s *Server) handleInference(ctx context.Context, payload []byte) {
 	req := &protocol.InferenceRequest{}
-	reader := nexbuf.NewReader(payload)
+	reader := strandbuf.NewReader(payload)
 	if err := req.Decode(reader); err != nil {
 		s.sendError(ctx, fmt.Sprintf("decode error: %v", err))
 		return
@@ -158,17 +194,17 @@ func (s *Server) handleInference(ctx context.Context, payload []byte) {
 		return
 	}
 
-	buf := nexbuf.NewBuffer(256)
+	buf := strandbuf.NewBuffer(256)
 	resp.Encode(buf)
 	if err := s.transport.Send(ctx, protocol.OpInferenceResponse, buf.Bytes()); err != nil {
-		log.Printf("nexapi server: send response error: %v", err)
+		log.Printf("strandapi server: send response error: %v", err)
 	}
 }
 
 func (s *Server) handleStreamInference(ctx context.Context, req *protocol.InferenceRequest) {
 	// Send stream start
 	if err := s.transport.Send(ctx, protocol.OpTokenStreamStart, nil); err != nil {
-		log.Printf("nexapi server: send stream start error: %v", err)
+		log.Printf("strandapi server: send stream start error: %v", err)
 		return
 	}
 
@@ -180,7 +216,7 @@ func (s *Server) handleStreamInference(ctx context.Context, req *protocol.Infere
 
 	// Send stream end
 	if err := s.transport.Send(ctx, protocol.OpTokenStreamEnd, nil); err != nil {
-		log.Printf("nexapi server: send stream end error: %v", err)
+		log.Printf("strandapi server: send stream end error: %v", err)
 	}
 }
 
@@ -189,9 +225,9 @@ func (s *Server) handleStreamInference(ctx context.Context, req *protocol.Infere
 // callers may extend this by wrapping the server).
 func (s *Server) handleAgentNegotiate(ctx context.Context, payload []byte) {
 	req := &protocol.AgentNegotiate{}
-	reader := nexbuf.NewReader(payload)
+	reader := strandbuf.NewReader(payload)
 	if err := req.Decode(reader); err != nil {
-		log.Printf("nexapi server: agent negotiate decode error: %v", err)
+		log.Printf("strandapi server: agent negotiate decode error: %v", err)
 		return
 	}
 	// Echo back with the same SessionID so the peer can correlate the reply.
@@ -200,10 +236,10 @@ func (s *Server) handleAgentNegotiate(ctx context.Context, payload []byte) {
 		Capabilities: []string{}, // Extend via higher-level server wrappers.
 		Version:      1,
 	}
-	buf := nexbuf.NewBuffer(64)
+	buf := strandbuf.NewBuffer(64)
 	resp.Encode(buf)
 	if err := s.transport.Send(ctx, protocol.OpAgentNegotiate, buf.Bytes()); err != nil {
-		log.Printf("nexapi server: send agent negotiate response error: %v", err)
+		log.Printf("strandapi server: send agent negotiate response error: %v", err)
 	}
 }
 
@@ -211,7 +247,7 @@ func (s *Server) handleAgentNegotiate(ctx context.Context, payload []byte) {
 // agentHandler. If no handler is registered, it replies with ErrCapabilities.
 func (s *Server) handleAgentDelegate(ctx context.Context, payload []byte) {
 	req := &protocol.AgentDelegate{}
-	reader := nexbuf.NewReader(payload)
+	reader := strandbuf.NewReader(payload)
 	if err := req.Decode(reader); err != nil {
 		s.sendAgentResult(ctx, req.SessionID, nil, protocol.ErrInvalidRequest, fmt.Sprintf("decode error: %v", err))
 		return
@@ -233,10 +269,10 @@ func (s *Server) handleAgentDelegate(ctx context.Context, payload []byte) {
 	if result.SessionID == 0 {
 		result.SessionID = req.SessionID
 	}
-	buf := nexbuf.NewBuffer(256)
+	buf := strandbuf.NewBuffer(256)
 	result.Encode(buf)
 	if err := s.transport.Send(ctx, protocol.OpAgentResult, buf.Bytes()); err != nil {
-		log.Printf("nexapi server: send agent result error: %v", err)
+		log.Printf("strandapi server: send agent result error: %v", err)
 	}
 }
 
@@ -248,10 +284,10 @@ func (s *Server) sendAgentResult(ctx context.Context, sessionID uint32, payload 
 		ErrorCode:     code,
 		ErrorMsg:      msg,
 	}
-	buf := nexbuf.NewBuffer(128)
+	buf := strandbuf.NewBuffer(128)
 	result.Encode(buf)
 	if err := s.transport.Send(ctx, protocol.OpAgentResult, buf.Bytes()); err != nil {
-		log.Printf("nexapi server: send agent result error: %v", err)
+		log.Printf("strandapi server: send agent result error: %v", err)
 	}
 }
 
@@ -271,7 +307,7 @@ type overlayTokenSender struct {
 }
 
 func (s *overlayTokenSender) Send(chunk *protocol.TokenStreamChunk) error {
-	buf := nexbuf.NewBuffer(128)
+	buf := strandbuf.NewBuffer(128)
 	chunk.Encode(buf)
 	return s.transport.Send(s.ctx, protocol.OpTokenStreamChunk, buf.Bytes())
 }

@@ -1,7 +1,7 @@
 /*
- * sad_forward.p4 - NexRoute P4_16 compilation entry point
+ * sad_forward.p4 - StrandRoute P4_16 compilation entry point
  *
- * This file is the top-level include aggregator for the NexRoute P4 pipeline.
+ * This file is the top-level include aggregator for the StrandRoute P4 pipeline.
  * It includes all component files in dependency order and serves as the single
  * target passed to the P4 compiler (p4c / BMv2).
  *
@@ -13,9 +13,9 @@
  *   p4c --target tofino --arch tna sad_forward.p4
  *
  * Pipeline overview:
- *   Parser    : Ethernet -> NexLink (64B) -> SAD header + first 3 fields
- *   Ingress   : SADLookup (ternary + exact TCAM) -> NexRouteForwarding
- *   Egress    : NexRouteEgress (placeholder for QoS / mirroring)
+ *   Parser    : Ethernet -> StrandLink (64B) -> SAD header + first 3 fields
+ *   Ingress   : SADLookup (ternary + exact TCAM) -> StrandRouteForwarding
+ *   Egress    : StrandRouteEgress (placeholder for QoS / mirroring)
  *   Deparser  : Reassemble headers on wire
  *
  * File dependency graph:
@@ -23,9 +23,9 @@
  *     headers.p4         -- all struct/header type definitions
  *     parser.p4          -- includes headers.p4; defines Parser + Deparser
  *     sad_lookup.p4      -- includes headers.p4; defines SADLookup control
- *     forwarding.p4      -- includes headers.p4; defines NexRouteForwarding,
- *                           NexRouteIngress, NexRouteEgress,
- *                           NexRouteVerifyChecksum, NexRouteComputeChecksum,
+ *     forwarding.p4      -- includes headers.p4; defines StrandRouteForwarding,
+ *                           StrandRouteIngress, StrandRouteEgress,
+ *                           StrandRouteVerifyChecksum, StrandRouteComputeChecksum,
  *                           and the V1Switch main instantiation.
  *
  * Note: forwarding.p4 already contains the V1Switch main declaration, so
@@ -52,12 +52,12 @@
  * EOF: forwarding.p4 contains the V1Switch instantiation:
  *
  *   V1Switch(
- *       NexRouteParser(),
- *       NexRouteVerifyChecksum(),
- *       NexRouteIngress(),
- *       NexRouteEgress(),
- *       NexRouteComputeChecksum(),
- *       NexRouteDeparser()
+ *       StrandRouteParser(),
+ *       StrandRouteVerifyChecksum(),
+ *       StrandRouteIngress(),
+ *       StrandRouteEgress(),
+ *       StrandRouteComputeChecksum(),
+ *       StrandRouteDeparser()
  *   ) main;
  *
  * No further declarations are required in this file.

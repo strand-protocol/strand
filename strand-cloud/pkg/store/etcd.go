@@ -8,13 +8,13 @@ import (
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
 )
 
-// Key-space constants. All Nexus keys live under /nexus/v1/ to avoid
+// Key-space constants. All Strand keys live under /strand/v1/ to avoid
 // collisions with other etcd tenants.
 const (
-	keyPrefix = "/nexus/v1"
+	keyPrefix = "/strand/v1"
 	leaseTTL  = 30 // seconds — used for node heartbeat keys
 )
 
@@ -42,6 +42,9 @@ type EtcdStore struct {
 	routes   *EtcdRouteStore
 	mics     *EtcdMICStore
 	firmware *EtcdFirmwareStore
+	tenants  *EtcdTenantStore
+	clusters *EtcdClusterStore
+	auditLog *EtcdAuditLogStore
 }
 
 // NewEtcdStore dials the etcd cluster at endpoints and returns a ready
@@ -60,6 +63,9 @@ func NewEtcdStore(endpoints []string) (*EtcdStore, error) {
 		routes:   &EtcdRouteStore{client: client},
 		mics:     &EtcdMICStore{client: client},
 		firmware: &EtcdFirmwareStore{client: client},
+		tenants:  &EtcdTenantStore{client: client},
+		clusters: &EtcdClusterStore{client: client},
+		auditLog: &EtcdAuditLogStore{client: client},
 	}, nil
 }
 
@@ -74,6 +80,15 @@ func (s *EtcdStore) MICs() MICStore { return s.mics }
 
 // Firmware returns the FirmwareStore sub-store.
 func (s *EtcdStore) Firmware() FirmwareStore { return s.firmware }
+
+// Tenants returns the TenantStore sub-store.
+func (s *EtcdStore) Tenants() TenantStore { return s.tenants }
+
+// Clusters returns the ClusterStore sub-store.
+func (s *EtcdStore) Clusters() ClusterStore { return s.clusters }
+
+// AuditLog returns the AuditLogStore sub-store.
+func (s *EtcdStore) AuditLog() AuditLogStore { return s.auditLog }
 
 // Close releases the underlying etcd client connection.
 func (s *EtcdStore) Close() error {
@@ -389,4 +404,161 @@ func (s *EtcdFirmwareStore) Delete(id string) error {
 		return fmt.Errorf("firmware %q not found", id)
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// EtcdTenantStore
+// ---------------------------------------------------------------------------
+
+// EtcdTenantStore implements TenantStore against etcd.
+type EtcdTenantStore struct {
+	client *clientv3.Client
+}
+
+func (s *EtcdTenantStore) List() ([]model.Tenant, error) {
+	return etcdList[model.Tenant](background(), s.client, prefix("tenants"))
+}
+
+func (s *EtcdTenantStore) Get(id string) (*model.Tenant, error) {
+	var t model.Tenant
+	found, err := etcdGet(background(), s.client, key("tenants", id), &t)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fmt.Errorf("tenant %q not found", id)
+	}
+	return &t, nil
+}
+
+func (s *EtcdTenantStore) GetBySlug(slug string) (*model.Tenant, error) {
+	// Slug lookup requires scanning all tenants (etcd has no secondary index).
+	tenants, err := s.List()
+	if err != nil {
+		return nil, err
+	}
+	for i := range tenants {
+		if tenants[i].Slug == slug {
+			return &tenants[i], nil
+		}
+	}
+	return nil, fmt.Errorf("tenant with slug %q not found", slug)
+}
+
+func (s *EtcdTenantStore) Create(tenant *model.Tenant) error {
+	if err := etcdCreateIfNotExists(background(), s.client, key("tenants", tenant.ID), tenant); err != nil {
+		return fmt.Errorf("tenant %q already exists", tenant.ID)
+	}
+	return nil
+}
+
+func (s *EtcdTenantStore) Update(tenant *model.Tenant) error {
+	_, err := s.Get(tenant.ID)
+	if err != nil {
+		return err
+	}
+	return etcdPut(background(), s.client, key("tenants", tenant.ID), tenant)
+}
+
+func (s *EtcdTenantStore) Delete(id string) error {
+	if err := etcdDelete(background(), s.client, key("tenants", id)); err != nil {
+		return fmt.Errorf("tenant %q not found", id)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// EtcdClusterStore
+// ---------------------------------------------------------------------------
+
+// EtcdClusterStore implements ClusterStore against etcd.
+type EtcdClusterStore struct {
+	client *clientv3.Client
+}
+
+func (s *EtcdClusterStore) List(tenantID string) ([]model.Cluster, error) {
+	all, err := etcdList[model.Cluster](background(), s.client, prefix("clusters"))
+	if err != nil {
+		return nil, err
+	}
+	if tenantID == "" {
+		return all, nil
+	}
+	out := make([]model.Cluster, 0)
+	for _, c := range all {
+		if c.TenantID == tenantID {
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}
+
+func (s *EtcdClusterStore) Get(id string) (*model.Cluster, error) {
+	var c model.Cluster
+	found, err := etcdGet(background(), s.client, key("clusters", id), &c)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fmt.Errorf("cluster %q not found", id)
+	}
+	return &c, nil
+}
+
+func (s *EtcdClusterStore) Create(cluster *model.Cluster) error {
+	if err := etcdCreateIfNotExists(background(), s.client, key("clusters", cluster.ID), cluster); err != nil {
+		return fmt.Errorf("cluster %q already exists", cluster.ID)
+	}
+	return nil
+}
+
+func (s *EtcdClusterStore) Update(cluster *model.Cluster) error {
+	_, err := s.Get(cluster.ID)
+	if err != nil {
+		return err
+	}
+	return etcdPut(background(), s.client, key("clusters", cluster.ID), cluster)
+}
+
+func (s *EtcdClusterStore) Delete(id string) error {
+	if err := etcdDelete(background(), s.client, key("clusters", id)); err != nil {
+		return fmt.Errorf("cluster %q not found", id)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// EtcdAuditLogStore
+// ---------------------------------------------------------------------------
+
+// EtcdAuditLogStore implements AuditLogStore against etcd. Audit entries are
+// stored with monotonically increasing keys so that listing returns them in
+// insertion order.
+type EtcdAuditLogStore struct {
+	client *clientv3.Client
+}
+
+func (s *EtcdAuditLogStore) Append(entry *model.AuditEntry) error {
+	// Use a compound key: tenant/timestamp/id for efficient per-tenant listing.
+	k := fmt.Sprintf("%s/audit/%s/%s/%s", keyPrefix, entry.TenantID, entry.CreatedAt.Format(time.RFC3339Nano), entry.ID)
+	return etcdPut(background(), s.client, k, entry)
+}
+
+func (s *EtcdAuditLogStore) List(tenantID string, limit int) ([]model.AuditEntry, error) {
+	pfx := fmt.Sprintf("%s/audit/", keyPrefix)
+	if tenantID != "" {
+		pfx = fmt.Sprintf("%s/audit/%s/", keyPrefix, tenantID)
+	}
+	all, err := etcdList[model.AuditEntry](background(), s.client, pfx)
+	if err != nil {
+		return nil, err
+	}
+	// Reverse for most-recent-first.
+	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
+		all[i], all[j] = all[j], all[i]
+	}
+	if limit > 0 && len(all) > limit {
+		all = all[:limit]
+	}
+	return all, nil
 }

@@ -1,0 +1,353 @@
+# Strand Cloud — Control Plane
+
+**Language:** Go + Rust FFI | **Dependencies:** StrandAPI client SDK, StrandTrust (CGo)
+
+Strand Cloud is the Kubernetes-style control plane for Strand Protocol. It provides fleet management, MIC issuance and revocation, semantic route management, firmware rollout, multi-tenancy, and a full REST API — deployable as microservices on Kubernetes or a single all-in-one binary.
+
+## Overview
+
+Strand Cloud manages the lifecycle of an entire Strand Protocol deployment:
+
+- **API Server** — REST API (OpenAPI 3.1) with RBAC, rate limiting, and CORS
+- **Fleet Controller** — Reconciliation loop with etcd leader election
+- **CA Service** — MIC issuance, revocation, and transparency log
+- **Config Distributor** — Push-based xDS-like protocol, < 5s latency for 1000 nodes
+- **Metrics Aggregator** — Prometheus-compatible `/metrics` endpoint
+- **Node Agent** — Runs on every node, heartbeat every 10s, auto-registers
+
+## RBAC
+
+Three built-in roles with API key authentication:
+
+| Role | GET | POST/PUT | DELETE |
+|------|-----|----------|--------|
+| `viewer` | yes | no | no |
+| `operator` | yes | yes | no |
+| `admin` | yes | yes | yes |
+
+```go
+type Role int
+const (
+    RoleViewer Role = iota
+    RoleOperator
+    RoleAdmin
+)
+```
+
+## API Routes
+
+### Health & Observability
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/healthz` | Liveness probe |
+| GET | `/readyz` | Readiness probe |
+| GET | `/metrics` | Prometheus metrics |
+
+### Nodes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/nodes` | List all registered nodes |
+| POST | `/api/v1/nodes` | Register a new node |
+| GET | `/api/v1/nodes/{id}` | Get node by ID |
+| PUT | `/api/v1/nodes/{id}` | Update node |
+| DELETE | `/api/v1/nodes/{id}` | Deregister node |
+| POST | `/api/v1/nodes/{id}/heartbeat` | Node heartbeat |
+
+### Routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/routes` | List all routes |
+| POST | `/api/v1/routes` | Create a route |
+| GET | `/api/v1/routes/{id}` | Get route by ID |
+| PUT | `/api/v1/routes/{id}` | Update route |
+| DELETE | `/api/v1/routes/{id}` | Delete route |
+
+### Trust / MICs
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/trust/mics` | List all MICs |
+| POST | `/api/v1/trust/mics` | Issue a new MIC |
+| GET | `/api/v1/trust/mics/{id}` | Get MIC by ID |
+| POST | `/api/v1/trust/mics/{id}/verify` | Verify MIC signature and validity |
+| POST | `/api/v1/trust/mics/{id}/revoke` | Revoke a MIC |
+| DELETE | `/api/v1/trust/mics/{id}` | Delete MIC |
+
+### Firmware
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/firmware` | List firmware images |
+| POST | `/api/v1/firmware` | Upload firmware |
+| GET | `/api/v1/firmware/{id}` | Get firmware by ID |
+| PUT | `/api/v1/firmware/{id}` | Update firmware metadata |
+| DELETE | `/api/v1/firmware/{id}` | Delete firmware |
+
+### Tenants
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/tenants` | List tenants |
+| POST | `/api/v1/tenants` | Create tenant |
+| GET | `/api/v1/tenants/{id}` | Get tenant by ID |
+| PUT | `/api/v1/tenants/{id}` | Update tenant |
+| DELETE | `/api/v1/tenants/{id}` | Delete tenant |
+
+### Clusters
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/clusters` | List clusters |
+| POST | `/api/v1/clusters` | Create cluster |
+| GET | `/api/v1/clusters/{id}` | Get cluster by ID |
+| PUT | `/api/v1/clusters/{id}` | Update cluster |
+| DELETE | `/api/v1/clusters/{id}` | Delete cluster |
+
+### Audit & Billing
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/audit` | Query audit log |
+| GET | `/api/v1/billing/plans` | List available plans |
+| GET | `/api/v1/billing/usage` | Get usage metrics |
+
+## Data Models
+
+### Node
+
+```go
+type Node struct {
+    ID              string
+    Address         string
+    SAD             []byte         // Node's capability descriptor
+    Status          string         // "online", "degraded", "offline"
+    LastSeen        time.Time
+    FirmwareVersion string
+    Metrics         NodeMetrics
+}
+
+type NodeMetrics struct {
+    Connections int
+    BytesSent   uint64
+    BytesRecv   uint64
+    AvgLatency  time.Duration
+}
+```
+
+### Route
+
+```go
+type Route struct {
+    ID        string
+    SAD       []byte          // Semantic Address Descriptor
+    Endpoints []Endpoint
+    TTL       time.Duration
+    CreatedAt time.Time
+}
+
+type Endpoint struct {
+    NodeID  string
+    Address string
+    Weight  float64
+}
+```
+
+### MIC
+
+```go
+type MIC struct {
+    ID           string
+    NodeID       string
+    ModelHash    [32]byte
+    Capabilities []string
+    Signature    []byte
+    ValidFrom    time.Time
+    ValidUntil   time.Time
+    Revoked      bool
+}
+```
+
+### Tenant
+
+```go
+type Tenant struct {
+    ID             string
+    Name           string
+    Slug           string
+    Plan           string             // "free", "starter", "pro", "enterprise"
+    Status         string             // "active", "suspended"
+    MaxClusters    int
+    MaxNodes       int
+    MaxMICsMonth   int
+    TrafficGBIncl  float64
+    Metadata       map[string]string
+    CreatedAt      time.Time
+    UpdatedAt      time.Time
+}
+```
+
+### Cluster
+
+```go
+type Cluster struct {
+    ID                   string
+    TenantID             string
+    Name                 string
+    Region               string
+    Status               string    // "provisioning", "running", "suspended"
+    ControlPlaneEndpoint string
+    NodeCount            int
+    Config               map[string]string
+    CreatedAt            time.Time
+    UpdatedAt            time.Time
+}
+```
+
+### AuditEntry
+
+```go
+type AuditEntry struct {
+    ID           string
+    TenantID     string
+    ActorID      string
+    ActorType    string    // "user", "api-key", "agent"
+    Action       string    // "create", "update", "delete"
+    ResourceType string    // "node", "route", "mic", "firmware"
+    ResourceID   string
+    Metadata     map[string]string
+    IPAddress    string
+    CreatedAt    time.Time
+}
+```
+
+## Store Interface
+
+All persistence is abstracted behind the `Store` interface, with two implementations:
+
+```go
+type Store interface {
+    Nodes() NodeStore
+    Routes() RouteStore
+    MICs() MICStore
+    Firmware() FirmwareStore
+    Tenants() TenantStore
+    Clusters() ClusterStore
+    AuditLog() AuditLogStore
+}
+```
+
+Each sub-store provides full CRUD:
+
+```go
+type NodeStore interface {
+    List() ([]model.Node, error)
+    Get(id string) (*model.Node, error)
+    Create(node *model.Node) error
+    Update(node *model.Node) error
+    Delete(id string) error
+}
+
+// RouteStore, MICStore, FirmwareStore, TenantStore, ClusterStore follow
+// the same pattern. MICStore adds Revoke(id string) error.
+// AuditLogStore provides Append() and List(tenantID, limit).
+```
+
+### Implementations
+
+| Backend | Env Var | Use Case |
+|---------|---------|----------|
+| In-memory | `STRAND_STORE_TYPE=memory` (default) | Development, testing |
+| etcd 3.5+ | `STRAND_STORE_TYPE=etcd` | Production deployments |
+
+## API Server
+
+```go
+type ServerOptions struct {
+    ReadTimeout    time.Duration   // Default: 10s
+    WriteTimeout   time.Duration   // Default: 10s
+    IdleTimeout    time.Duration   // Default: 120s
+    APIKeys        map[string]APIKeyInfo
+    AllowedOrigins []string
+}
+
+func NewServer(s store.Store, authority *ca.CA, opts ServerOptions) *Server
+func (s *Server) ListenAndServe(addr string) error
+func (s *Server) GracefulShutdown(ctx context.Context) error
+func (s *Server) Handler() http.Handler
+```
+
+## Node Agent
+
+Runs on every Strand node, handles auto-registration and heartbeats:
+
+```go
+type NodeAgent struct {
+    NodeID    string
+    ServerURL string
+}
+
+func NewNodeAgent(nodeID, serverURL string) *NodeAgent
+func (a *NodeAgent) Register(address string) error
+func (a *NodeAgent) Heartbeat() error
+func (a *NodeAgent) ReportMetrics(m model.NodeMetrics) error
+func (a *NodeAgent) PollCommands() ([]string, error)
+```
+
+## CA Service
+
+The Certificate Authority service handles MIC lifecycle:
+
+- **Issuance** — Sign new MICs with the CA's Ed25519 key
+- **Revocation** — Revoke compromised or expired MICs
+- **Verification** — Validate MIC signatures and temporal bounds
+
+Uses StrandTrust Rust FFI via CGo for cryptographic operations.
+
+## Deployment
+
+### All-in-one binary
+
+```bash
+go run ./strand-cloud/cmd/strand-allinone/
+```
+
+Starts API server, fleet controller, CA service, and metrics aggregator in a single process with in-memory storage.
+
+### Docker Compose
+
+```bash
+docker compose up
+```
+
+Starts the full stack: Strand Cloud, StrandAPI nodes, HTTP bridge, etcd, VPP, and BMv2.
+
+### Kubernetes
+
+Deploy as separate microservices (API server, controller, CA) or a single all-in-one pod. Each component is a separate binary under `strand-cloud/cmd/`.
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STRAND_STORE_TYPE` | `memory` | Store backend: `memory` or `etcd` |
+| `STRAND_ETCD_ENDPOINTS` | `localhost:2379` | etcd endpoints (comma-separated) |
+| `STRAND_API_ADDR` | `:8080` | API server listen address |
+| `STRAND_LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
+
+## Build
+
+```bash
+cd strand-cloud
+
+# All-in-one binary
+go build -o strand-allinone ./cmd/strand-allinone/
+
+# API server only
+go build -o strand-cloud ./cmd/strand-cloud/
+
+# Run tests
+go test ./...
+```

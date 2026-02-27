@@ -6,10 +6,10 @@
  * then TLV fields each with type(1B), length(2B), value(variable).
  */
 
-#ifndef NEXROUTE_SAD_H
-#define NEXROUTE_SAD_H
+#ifndef STRANDROUTE_SAD_H
+#define STRANDROUTE_SAD_H
 
-#include "nexroute/types.h"
+#include "strandroute/types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -114,4 +114,4 @@ int sad_validate(const uint8_t *buf, size_t buf_len);
 }
 #endif
 
-#endif /* NEXROUTE_SAD_H */
+#endif /* STRANDROUTE_SAD_H */

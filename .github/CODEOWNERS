@@ -1,33 +1,33 @@
-# Nexus Protocol - Code Ownership
+# Strand Protocol - Code Ownership
 #
 # Each line is a file pattern followed by one or more owners.
 # Order matters: later rules override earlier ones.
 # See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # ---- Default (catch-all) ----
-* @nexus-protocol/platform-team
+* @strand-protocol/platform-team
 
-# ---- NexLink: L1 Data-Link Layer (Zig) ----
-/nexlink/ @nexus-protocol/firmware-team
+# ---- StrandLink: L1 Data-Link Layer (Zig) ----
+/strandlink/ @strand-protocol/firmware-team
 
-# ---- NexRoute: L2 Routing Layer (C) ----
-/nexroute/ @nexus-protocol/firmware-team
+# ---- StrandRoute: L2 Routing Layer (C) ----
+/strandroute/ @strand-protocol/firmware-team
 
-# ---- NexStream: L3 Transport Layer (Rust) ----
-/nexstream/ @nexus-protocol/transport-team
+# ---- StrandStream: L3 Transport Layer (Rust) ----
+/strandstream/ @strand-protocol/transport-team
 
-# ---- NexTrust: L4 Identity & Trust (Rust) ----
-/nextrust/ @nexus-protocol/transport-team
+# ---- StrandTrust: L4 Identity & Trust (Rust) ----
+/strandtrust/ @strand-protocol/transport-team
 
-# ---- NexAPI: L5 API Gateway (Go) ----
-/nexapi/ @nexus-protocol/api-team
+# ---- StrandAPI: L5 API Gateway (Go) ----
+/strandapi/ @strand-protocol/api-team
 
-# ---- NexCtl: CLI Tool (Go) ----
-/nexctl/ @nexus-protocol/api-team
+# ---- StrandCtl: CLI Tool (Go) ----
+/strandctl/ @strand-protocol/api-team
 
-# ---- Nexus Cloud: Platform Services (Go) ----
-/nexus-cloud/ @nexus-protocol/platform-team
+# ---- Strand Cloud: Platform Services (Go) ----
+/strand-cloud/ @strand-protocol/platform-team
 
 # ---- CI/CD and infrastructure ----
-/.github/ @nexus-protocol/platform-team
-/Makefile @nexus-protocol/platform-team
+/.github/ @strand-protocol/platform-team
+/Makefile @strand-protocol/platform-team

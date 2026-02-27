@@ -6,10 +6,10 @@
  * reclaimed after an epoch-based grace period.
  */
 
-#ifndef NEXROUTE_ROUTING_TABLE_H
-#define NEXROUTE_ROUTING_TABLE_H
+#ifndef STRANDROUTE_ROUTING_TABLE_H
+#define STRANDROUTE_ROUTING_TABLE_H
 
-#include "nexroute/types.h"
+#include "strandroute/types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -100,4 +100,4 @@ int routing_table_gc(routing_table_t *rt, uint64_t now_ns);
 }
 #endif
 
-#endif /* NEXROUTE_ROUTING_TABLE_H */
+#endif /* STRANDROUTE_ROUTING_TABLE_H */

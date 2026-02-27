@@ -14,7 +14,7 @@
 // Provenance encoding (when flag == 1):
 //   [desc_len:2B][desc_bytes:desc_lenB][dataset_hash:32B][timestamp:8B]
 
-use crate::error::{NexTrustError, Result};
+use crate::error::{StrandTrustError, Result};
 use crate::mic::{Capability, Provenance, MIC};
 
 /// Serialize a [`MIC`] into its compact binary form.
@@ -73,7 +73,7 @@ pub fn deserialize(data: &[u8]) -> Result<MIC> {
 
     let read_u8 = |pos: &mut usize, data: &[u8]| -> Result<u8> {
         if *pos >= data.len() {
-            return Err(NexTrustError::MicDeserialization("unexpected end of data".into()));
+            return Err(StrandTrustError::MicDeserialization("unexpected end of data".into()));
         }
         let v = data[*pos];
         *pos += 1;
@@ -82,7 +82,7 @@ pub fn deserialize(data: &[u8]) -> Result<MIC> {
 
     let read_u16 = |pos: &mut usize, data: &[u8]| -> Result<u16> {
         if *pos + 2 > data.len() {
-            return Err(NexTrustError::MicDeserialization("unexpected end of data".into()));
+            return Err(StrandTrustError::MicDeserialization("unexpected end of data".into()));
         }
         let v = u16::from_be_bytes([data[*pos], data[*pos + 1]]);
         *pos += 2;
@@ -91,7 +91,7 @@ pub fn deserialize(data: &[u8]) -> Result<MIC> {
 
     let read_u64 = |pos: &mut usize, data: &[u8]| -> Result<u64> {
         if *pos + 8 > data.len() {
-            return Err(NexTrustError::MicDeserialization("unexpected end of data".into()));
+            return Err(StrandTrustError::MicDeserialization("unexpected end of data".into()));
         }
         let mut arr = [0u8; 8];
         arr.copy_from_slice(&data[*pos..*pos + 8]);
@@ -101,7 +101,7 @@ pub fn deserialize(data: &[u8]) -> Result<MIC> {
 
     let read_bytes_fixed = |pos: &mut usize, data: &[u8], n: usize| -> Result<Vec<u8>> {
         if *pos + n > data.len() {
-            return Err(NexTrustError::MicDeserialization("unexpected end of data".into()));
+            return Err(StrandTrustError::MicDeserialization("unexpected end of data".into()));
         }
         let v = data[*pos..*pos + n].to_vec();
         *pos += n;
@@ -111,7 +111,7 @@ pub fn deserialize(data: &[u8]) -> Result<MIC> {
     // Version
     let version = read_u8(&mut pos, data)?;
     if version != MIC::VERSION {
-        return Err(NexTrustError::MicVersionUnsupported(version as u16));
+        return Err(StrandTrustError::MicVersionUnsupported(version as u16));
     }
 
     // node_id
@@ -134,12 +134,12 @@ pub fn deserialize(data: &[u8]) -> Result<MIC> {
             let len = read_u16(&mut pos, data)? as usize;
             let payload = read_bytes_fixed(&mut pos, data, len)?;
             let cap = Capability::from_tag_and_payload(tag, &payload).ok_or_else(|| {
-                NexTrustError::MicDeserialization("invalid custom capability".into())
+                StrandTrustError::MicDeserialization("invalid custom capability".into())
             })?;
             capabilities.push(cap);
         } else {
             let cap = Capability::from_tag_and_payload(tag, &[]).ok_or_else(|| {
-                NexTrustError::MicDeserialization(format!("unknown capability tag: 0x{tag:02x}"))
+                StrandTrustError::MicDeserialization(format!("unknown capability tag: 0x{tag:02x}"))
             })?;
             capabilities.push(cap);
         }
@@ -151,7 +151,7 @@ pub fn deserialize(data: &[u8]) -> Result<MIC> {
         let desc_len = read_u16(&mut pos, data)? as usize;
         let desc_bytes = read_bytes_fixed(&mut pos, data, desc_len)?;
         let description = String::from_utf8(desc_bytes)
-            .map_err(|e| NexTrustError::MicDeserialization(format!("invalid utf8: {e}")))?;
+            .map_err(|e| StrandTrustError::MicDeserialization(format!("invalid utf8: {e}")))?;
         let dh_bytes = read_bytes_fixed(&mut pos, data, 32)?;
         let mut dataset_hash = [0u8; 32];
         dataset_hash.copy_from_slice(&dh_bytes);

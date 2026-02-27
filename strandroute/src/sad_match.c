@@ -2,11 +2,11 @@
  * sad_match.c - SAD matching engine
  *
  * Scores a candidate route_entry against a SAD query using weighted
- * multi-constraint scoring per the NexRoute spec (Section 4.3).
+ * multi-constraint scoring per the StrandRoute spec (Section 4.3).
  */
 
-#include "nexroute/sad.h"
-#include "nexroute/types.h"
+#include "strandroute/sad.h"
+#include "strandroute/types.h"
 
 #include <math.h>
 #include <string.h>

@@ -1,4 +1,4 @@
-// Package agent implements the node-side agent that communicates with the Nexus
+// Package agent implements the node-side agent that communicates with the Strand
 // Cloud control plane via its REST API.
 package agent
 
@@ -11,10 +11,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
 )
 
-// NodeAgent runs on every Nexus node. It registers with the control plane,
+// NodeAgent runs on every Strand node. It registers with the control plane,
 // sends periodic heartbeats, and reports metrics.
 type NodeAgent struct {
 	NodeID    string

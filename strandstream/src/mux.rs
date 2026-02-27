@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use bytes::Bytes;
 
-use crate::error::{NexStreamError, Result};
+use crate::error::{StrandStreamError, Result};
 use crate::frame::Frame;
 use crate::stream::{Stream, StreamState};
 use crate::transport::TransportMode;
@@ -39,7 +39,7 @@ impl Multiplexer {
     /// Returns the stream ID.
     pub fn create_stream(&mut self, mode: TransportMode) -> Result<StreamId> {
         if self.streams.len() as u32 >= self.max_streams {
-            return Err(NexStreamError::MaxStreamsExceeded(self.max_streams));
+            return Err(StrandStreamError::MaxStreamsExceeded(self.max_streams));
         }
 
         let id = self.next_client_stream_id;
@@ -60,7 +60,7 @@ impl Multiplexer {
         let stream = self
             .streams
             .get_mut(&stream_id)
-            .ok_or(NexStreamError::StreamNotFound(stream_id))?;
+            .ok_or(StrandStreamError::StreamNotFound(stream_id))?;
         stream.send(data)
     }
 
@@ -69,7 +69,7 @@ impl Multiplexer {
         let stream = self
             .streams
             .get_mut(&stream_id)
-            .ok_or(NexStreamError::StreamNotFound(stream_id))?;
+            .ok_or(StrandStreamError::StreamNotFound(stream_id))?;
         stream.recv()
     }
 
@@ -92,7 +92,7 @@ impl Multiplexer {
         let stream = self
             .streams
             .get_mut(&stream_id)
-            .ok_or(NexStreamError::StreamNotFound(stream_id))?;
+            .ok_or(StrandStreamError::StreamNotFound(stream_id))?;
         stream.close()
     }
 
@@ -113,7 +113,7 @@ impl Multiplexer {
                 let stream = self
                     .streams
                     .get_mut(stream_id)
-                    .ok_or(NexStreamError::StreamNotFound(*stream_id))?;
+                    .ok_or(StrandStreamError::StreamNotFound(*stream_id))?;
                 // Delegate to the mode-specific receiver for ordering / dedup.
                 stream.transport_receive(frame)?;
                 Ok(())
@@ -123,7 +123,7 @@ impl Multiplexer {
                 let stream = self
                     .streams
                     .get_mut(stream_id)
-                    .ok_or(NexStreamError::StreamNotFound(*stream_id))?;
+                    .ok_or(StrandStreamError::StreamNotFound(*stream_id))?;
                 stream.remote_close();
                 Ok(())
             }
@@ -132,7 +132,7 @@ impl Multiplexer {
                 let stream = self
                     .streams
                     .get_mut(stream_id)
-                    .ok_or(NexStreamError::StreamNotFound(*stream_id))?;
+                    .ok_or(StrandStreamError::StreamNotFound(*stream_id))?;
                 stream.reset();
                 // Remove immediately: RST terminates the stream in both directions.
                 self.streams.remove(stream_id);
@@ -153,7 +153,7 @@ impl Multiplexer {
     /// IDs and enforces the spec.
     fn validate_stream_id(id: StreamId) -> Result<()> {
         if id == 0x0000_0000 || id == 0xFFFF_FFFF {
-            return Err(NexStreamError::InvalidStreamId(id));
+            return Err(StrandStreamError::InvalidStreamId(id));
         }
         Ok(())
     }

@@ -1,7 +1,7 @@
 /*
- * p4_runtime.c - P4Runtime / BMv2 Thrift control-plane client for NexRoute
+ * p4_runtime.c - P4Runtime / BMv2 Thrift control-plane client for StrandRoute
  *
- * Provides table entry management for the NexRoute P4 pipeline running on
+ * Provides table entry management for the StrandRoute P4 pipeline running on
  * BMv2 simple_switch.  Two compilation modes:
  *
  *   Default (stub mode, no Thrift dependency):
@@ -19,14 +19,14 @@
  *       -I <bmv2_src>/targets/simple_switch/thrift/gen-cpp
  *       -I <thrift_install>/include
  *
- * Table mapping (see nexroute/p4/*.p4):
+ * Table mapping (see strandroute/p4/*.p4):
  *   sad_ternary_match  : (model_arch, capability_flags, context_window) -> node_id
  *   node_id_forward    : (dst_node_id)                                  -> egress_port
  */
 
-#include "nexroute/p4_runtime.h"
-#include "nexroute/sad.h"
-#include "nexroute/types.h"
+#include "strandroute/p4_runtime.h"
+#include "strandroute/sad.h"
+#include "strandroute/types.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -117,7 +117,7 @@ static void format_node_id(const uint8_t id[16], char buf[33])
  *
  * Returns 0 on success, -1 if the SAD pointer is NULL.
  */
-static int extract_sad_keys(const nexroute_sad_t *sad,
+static int extract_sad_keys(const strandroute_sad_t *sad,
                              uint32_t *model_arch,
                              uint32_t *capability,
                              uint32_t *context_window)
@@ -223,7 +223,7 @@ void p4rt_close(void)
  * SAD table management
  * -------------------------------------------------------------------------- */
 
-int p4rt_sad_table_add(const nexroute_sad_t *sad, const uint8_t node_id[16])
+int p4rt_sad_table_add(const strandroute_sad_t *sad, const uint8_t node_id[16])
 {
     uint32_t model_arch = 0, capability = 0, context_window = 0;
     char node_hex[33];
@@ -321,7 +321,7 @@ int p4rt_sad_table_add(const nexroute_sad_t *sad, const uint8_t node_id[16])
     return rc;
 }
 
-int p4rt_sad_table_delete(const nexroute_sad_t *sad)
+int p4rt_sad_table_delete(const strandroute_sad_t *sad)
 {
     uint32_t model_arch = 0, capability = 0, context_window = 0;
     int rc = P4RT_OK;
@@ -425,7 +425,7 @@ int p4rt_node_forward_add(const uint8_t node_id[16], int egress_port)
      * Action:   MyIngress.forward_to_port
      *
      * Key field (exact):
-     *   hdr.nexlink.dst_node_id : 16 bytes
+     *   hdr.strandlink.dst_node_id : 16 bytes
      *
      * Action parameter:
      *   port : 9 bits packed into 2 bytes (big-endian)

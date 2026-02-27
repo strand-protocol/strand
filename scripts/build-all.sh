@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # ============================================================
-# build-all.sh -- Build every Nexus Protocol module in the
+# build-all.sh -- Build every Strand Protocol module in the
 # correct dependency order.
 #
 # Dependency graph:
-#   Phase 1:  nexlink        (Zig, standalone)
-#   Phase 2:  nexroute       (C/CMake, depends on nexlink)
-#   Phase 3a: nextrust       (Rust, standalone)
-#   Phase 3b: nexstream      (Rust, depends on nexlink + nextrust)
-#   Phase 4:  nexapi         (Go, depends on nexstream + nextrust)
-#   Phase 5:  nexctl         (Go, depends on nexapi)
-#             nexus-cloud    (Go, depends on nexapi)
+#   Phase 1:  strandlink        (Zig, standalone)
+#   Phase 2:  strandroute       (C/CMake, depends on strandlink)
+#   Phase 3a: strandtrust       (Rust, standalone)
+#   Phase 3b: strandstream      (Rust, depends on strandlink + strandtrust)
+#   Phase 4:  strandapi         (Go, depends on strandstream + strandtrust)
+#   Phase 5:  strandctl         (Go, depends on strandapi)
+#             strand-cloud      (Go, depends on strandapi)
 # ============================================================
 
 set -euo pipefail
@@ -38,80 +38,80 @@ fail() {
 }
 
 # -----------------------------------------------------------
-# Phase 1: NexLink (Zig)
+# Phase 1: StrandLink (Zig)
 # -----------------------------------------------------------
-step "1/7" "Building nexlink (Zig)"
-if (cd "$REPO_ROOT/nexlink" && zig build -Dbackend=mock -Doptimize=ReleaseSafe); then
-    ok "nexlink"
+step "1/7" "Building strandlink (Zig)"
+if (cd "$REPO_ROOT/strandlink" && zig build -Dbackend=mock -Doptimize=ReleaseSafe); then
+    ok "strandlink"
 else
-    fail "nexlink"
-    echo "FATAL: nexlink is a root dependency; aborting." >&2
+    fail "strandlink"
+    echo "FATAL: strandlink is a root dependency; aborting." >&2
     exit 1
 fi
 
 # -----------------------------------------------------------
-# Phase 2: NexRoute (C / CMake)
+# Phase 2: StrandRoute (C / CMake)
 # -----------------------------------------------------------
-step "2/7" "Building nexroute (C)"
-if (cd "$REPO_ROOT/nexroute" && mkdir -p build && cd build && \
+step "2/7" "Building strandroute (C)"
+if (cd "$REPO_ROOT/strandroute" && mkdir -p build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release \
-             -DNEXLINK_INCLUDE_DIR="$REPO_ROOT/nexlink/include" \
-             -DNEXLINK_LIB_DIR="$REPO_ROOT/nexlink/zig-out/lib" && \
+             -DSTRANDLINK_INCLUDE_DIR="$REPO_ROOT/strandlink/include" \
+             -DSTRANDLINK_LIB_DIR="$REPO_ROOT/strandlink/zig-out/lib" && \
     make); then
-    ok "nexroute"
+    ok "strandroute"
 else
-    fail "nexroute"
+    fail "strandroute"
 fi
 
 # -----------------------------------------------------------
-# Phase 3a: NexTrust (Rust, standalone)
+# Phase 3a: StrandTrust (Rust, standalone)
 # -----------------------------------------------------------
-step "3/7" "Building nextrust (Rust)"
-if (cd "$REPO_ROOT/nextrust" && cargo build --release); then
-    ok "nextrust"
+step "3/7" "Building strandtrust (Rust)"
+if (cd "$REPO_ROOT/strandtrust" && cargo build --release); then
+    ok "strandtrust"
 else
-    fail "nextrust"
+    fail "strandtrust"
 fi
 
 # -----------------------------------------------------------
-# Phase 3b: NexStream (Rust, depends on nexlink + nextrust)
+# Phase 3b: StrandStream (Rust, depends on strandlink + strandtrust)
 # -----------------------------------------------------------
-step "4/7" "Building nexstream (Rust)"
-if (cd "$REPO_ROOT/nexstream" && cargo build --release); then
-    ok "nexstream"
+step "4/7" "Building strandstream (Rust)"
+if (cd "$REPO_ROOT/strandstream" && cargo build --release); then
+    ok "strandstream"
 else
-    fail "nexstream"
+    fail "strandstream"
 fi
 
 # -----------------------------------------------------------
-# Phase 4: NexAPI (Go)
+# Phase 4: StrandAPI (Go)
 # -----------------------------------------------------------
-step "5/7" "Building nexapi (Go)"
-if (cd "$REPO_ROOT/nexapi" && go build ./...); then
-    ok "nexapi"
+step "5/7" "Building strandapi (Go)"
+if (cd "$REPO_ROOT/strandapi" && go build ./...); then
+    ok "strandapi"
 else
-    fail "nexapi"
+    fail "strandapi"
 fi
 
 # -----------------------------------------------------------
-# Phase 5a: NexCtl (Go)
+# Phase 5a: StrandCtl (Go)
 # -----------------------------------------------------------
-step "6/7" "Building nexctl (Go)"
-if (cd "$REPO_ROOT/nexctl" && CGO_ENABLED=0 go build -ldflags "-s -w" -o nexctl .); then
-    ok "nexctl"
+step "6/7" "Building strandctl (Go)"
+if (cd "$REPO_ROOT/strandctl" && CGO_ENABLED=0 go build -ldflags "-s -w" -o strandctl .); then
+    ok "strandctl"
 else
-    fail "nexctl"
+    fail "strandctl"
 fi
 
 # -----------------------------------------------------------
-# Phase 5b: Nexus Cloud (Go)
+# Phase 5b: Strand Cloud (Go)
 # -----------------------------------------------------------
-step "7/7" "Building nexus-cloud (Go)"
-if (cd "$REPO_ROOT/nexus-cloud" && CGO_ENABLED=0 go build -ldflags "-s -w" -o nexus-cloud ./cmd/nexus-cloud && \
-    CGO_ENABLED=0 go build -ldflags "-s -w" -o nexus-allinone ./cmd/nexus-allinone); then
-    ok "nexus-cloud"
+step "7/7" "Building strand-cloud (Go)"
+if (cd "$REPO_ROOT/strand-cloud" && CGO_ENABLED=0 go build -ldflags "-s -w" -o strand-cloud ./cmd/strand-cloud && \
+    CGO_ENABLED=0 go build -ldflags "-s -w" -o strand-allinone ./cmd/strand-allinone); then
+    ok "strand-cloud"
 else
-    fail "nexus-cloud"
+    fail "strand-cloud"
 fi
 
 # -----------------------------------------------------------

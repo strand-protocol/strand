@@ -1,7 +1,7 @@
 //! Frame encode/decode round-trip tests.
 
 use bytes::Bytes;
-use nexstream::frame::{DataFlags, Frame, FrameType, SeqRange};
+use strandstream::frame::{DataFlags, Frame, FrameType, SeqRange};
 
 #[test]
 fn data_frame_roundtrip() {

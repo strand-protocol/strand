@@ -1,6 +1,6 @@
-# Nexus Cloud — Control Plane & Managed Infrastructure
+# Strand Cloud — Control Plane & Managed Infrastructure
 
-## Module: `nexus-cloud/`
+## Module: `strand-cloud/`
 
 ## Language: Go (1.22+) + Rust (for performance-critical data plane components)
 
@@ -8,9 +8,9 @@
 
 ## 1. Overview
 
-Nexus Cloud is the managed control plane and orchestration layer for Nexus Protocol deployments. It provides fleet management, centralized configuration, multi-tenant isolation, observability, and a management API for enterprise and cloud deployments. Nexus Cloud is to the Nexus Protocol what a Kubernetes control plane is to container workloads — it turns a collection of Nexus-enabled nodes into a managed, observable, policy-driven network.
+Strand Cloud is the managed control plane and orchestration layer for Strand Protocol deployments. It provides fleet management, centralized configuration, multi-tenant isolation, observability, and a management API for enterprise and cloud deployments. Strand Cloud is to the Strand Protocol what a Kubernetes control plane is to container workloads — it turns a collection of Strand-enabled nodes into a managed, observable, policy-driven network.
 
-Nexus Cloud runs as a set of microservices deployable on Kubernetes or as a standalone binary for single-node development.
+Strand Cloud runs as a set of microservices deployable on Kubernetes or as a standalone binary for single-node development.
 
 ---
 
@@ -18,7 +18,7 @@ Nexus Cloud runs as a set of microservices deployable on Kubernetes or as a stan
 
 | Reference | Relevance |
 |-----------|-----------|
-| **Kubernetes Control Plane Architecture** | Primary architectural reference. Nexus Cloud follows the API server + controller + etcd pattern |
+| **Kubernetes Control Plane Architecture** | Primary architectural reference. Strand Cloud follows the API server + controller + etcd pattern |
 | **Istio Control Plane (istiod)** | Reference for service mesh control plane design, config distribution, and policy enforcement |
 | **Envoy xDS Protocol** | Reference for dynamic configuration distribution to data plane nodes |
 | **Cilium / eBPF Networking** | Reference for cloud-native network policy enforcement |
@@ -35,48 +35,49 @@ Nexus Cloud runs as a set of microservices deployable on Kubernetes or as a stan
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                       Nexus Cloud Control Plane                  │
-│                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │  API Server   │  │  Config Dist │  │  Fleet Controller    │  │
-│  │  (REST/gRPC)  │  │  (xDS-like)  │  │  (reconciliation)    │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘  │
-│         │                 │                      │               │
-│  ┌──────▼─────────────────▼──────────────────────▼───────────┐  │
-│  │                     State Store (etcd)                      │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │  CA Service   │  │  Metrics     │  │  Tenant Manager      │  │
-│  │  (NexTrust)   │  │  Aggregator  │  │  (isolation/billing)  │  │
-│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
-│                                                                  │
+│                       Strand Cloud Control Plane                   │
+│                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │  API Server   │  │  Config Dist │  │  Fleet Controller    │   │
+│  │  (REST/gRPC)  │  │  (xDS-like)  │  │  (reconciliation)    │   │
+│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘   │
+│         │                 │                      │                │
+│  ┌──────▼─────────────────▼──────────────────────▼───────────┐   │
+│  │                     State Store (etcd)                      │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │  CA Service   │  │  Metrics     │  │  Tenant Manager      │   │
+│  │  (StrandTrust) │  │  Aggregator  │  │  (isolation/billing)  │   │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘   │
+│                                                                   │
 └──────────────────────────────┬──────────────────────────────────┘
                                │  Config push / Metrics pull
                                ▼
               ┌────────────────────────────────┐
-              │      Nexus Data Plane Nodes     │
-              │  (NexLink + NexRoute + NexStream │
-              │   + NexTrust + NexAPI)           │
+              │      Strand Data Plane Nodes     │
+              │  (StrandLink + StrandRoute +       │
+              │   StrandStream + StrandTrust +     │
+              │   StrandAPI)                      │
               └────────────────────────────────┘
 ```
 
 ### 3.2 Source Tree Structure
 
 ```
-nexus-cloud/
+strand-cloud/
 ├── go.mod
 ├── go.sum
 ├── cmd/
-│   ├── nexus-apiserver/
+│   ├── strand-apiserver/
 │   │   └── main.go                    # API server binary
-│   ├── nexus-controller/
+│   ├── strand-controller/
 │   │   └── main.go                    # Fleet controller binary
-│   ├── nexus-ca/
-│   │   └── main.go                    # NexTrust CA service binary
-│   ├── nexus-metrics/
+│   ├── strand-ca/
+│   │   └── main.go                    # StrandTrust CA service binary
+│   ├── strand-metrics/
 │   │   └── main.go                    # Metrics aggregator binary
-│   └── nexus-allinone/
+│   └── strand-allinone/
 │       └── main.go                    # All-in-one binary for dev/single-node
 ├── pkg/
 │   ├── apiserver/
@@ -108,7 +109,7 @@ nexus-cloud/
 │   │   ├── snapshot.go                # Configuration snapshots
 │   │   └── versioning.go              # Config version management
 │   ├── ca/
-│   │   ├── service.go                 # NexTrust CA as a service
+│   │   ├── service.go                 # StrandTrust CA as a service
 │   │   ├── issuer.go                  # MIC issuance workflow
 │   │   ├── revocation.go              # Revocation management
 │   │   ├── transparency.go            # Transparency log service
@@ -134,7 +135,7 @@ nexus-cloud/
 │   │       ├── mic.go                 # MIC data model
 │   │       └── firmware.go            # Firmware version data model
 │   └── agent/
-│       ├── agent.go                   # Node-side agent (runs on each Nexus node)
+│       ├── agent.go                   # Node-side agent (runs on each Strand node)
 │       ├── reporter.go                # Metrics/health reporting to control plane
 │       ├── config_receiver.go         # Config distribution receiver
 │       └── firmware_agent.go          # Firmware update agent
@@ -154,7 +155,7 @@ nexus-cloud/
 │   │   ├── Dockerfile.metrics
 │   │   └── Dockerfile.allinone
 │   └── helm/
-│       └── nexus-cloud/
+│       └── strand-cloud/
 │           ├── Chart.yaml
 │           ├── values.yaml
 │           └── templates/
@@ -186,8 +187,8 @@ nexus-cloud/
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | NCC-API-001 | REST API with OpenAPI 3.1 specification for all management operations | P0 |
-| NCC-API-002 | gRPC API for programmatic access (used by nexctl and node agents) | P0 |
-| NCC-API-003 | Authentication: API key, mTLS (using NexTrust MICs), and OIDC/OAuth2 | P0 |
+| NCC-API-002 | gRPC API for programmatic access (used by strandctl and node agents) | P0 |
+| NCC-API-003 | Authentication: API key, mTLS (using StrandTrust MICs), and OIDC/OAuth2 | P0 |
 | NCC-API-004 | Role-based access control (RBAC): admin, operator, viewer roles per tenant | P0 |
 | NCC-API-005 | Audit logging: all API calls logged with caller identity, action, and result | P0 |
 | NCC-API-006 | Rate limiting: configurable per-tenant API rate limits | P1 |
@@ -201,7 +202,7 @@ nexus-cloud/
 |----|-------------|----------|
 | NCC-FC-001 | Reconciliation loop: continuously reconcile desired state (in etcd) with actual state (on nodes) | P0 |
 | NCC-FC-002 | Node lifecycle: detect new nodes, mark unhealthy nodes, remove decommissioned nodes | P0 |
-| NCC-FC-003 | Route policy enforcement: distribute routing policies to NexRoute instances on all nodes | P0 |
+| NCC-FC-003 | Route policy enforcement: distribute routing policies to StrandRoute instances on all nodes | P0 |
 | NCC-FC-004 | Firmware rollout: orchestrate rolling firmware upgrades with configurable batch size, health checks, and automatic rollback on failure | P1 |
 | NCC-FC-005 | Leader election: only one controller active at a time in HA deployments (etcd-based lease) | P0 |
 | NCC-FC-006 | Garbage collection: clean up expired MICs, stale route entries, orphaned config | P1 |
@@ -243,15 +244,15 @@ nexus-cloud/
 | NCC-OB-002 | Prometheus exposition endpoint at `/metrics` | P0 |
 | NCC-OB-003 | Pre-built Grafana dashboards for fleet-level and node-level monitoring | P1 |
 | NCC-OB-004 | Alerting rules: configurable alerts for node down, high latency, firmware mismatch, MIC expiry | P1 |
-| NCC-OB-005 | Distributed tracing: propagate trace IDs through NexAPI → NexStream → NexLink, export to OpenTelemetry | P1 |
+| NCC-OB-005 | Distributed tracing: propagate trace IDs through StrandAPI -> StrandStream -> StrandLink, export to OpenTelemetry | P1 |
 | NCC-OB-006 | Log aggregation: collect structured logs from all nodes via agent reporting | P1 |
 
 ### 4.7 Node Agent
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| NCC-AG-001 | Runs on every Nexus node. Reports health, metrics, and config version to control plane | P0 |
-| NCC-AG-002 | Receives config updates from Config Distribution service and applies them to local NexRoute/NexStream | P0 |
+| NCC-AG-001 | Runs on every Strand node. Reports health, metrics, and config version to control plane | P0 |
+| NCC-AG-002 | Receives config updates from Config Distribution service and applies them to local StrandRoute/StrandStream | P0 |
 | NCC-AG-003 | Receives firmware update instructions and executes local firmware flash | P1 |
 | NCC-AG-004 | Auto-registers with control plane on first boot using bootstrap token | P0 |
 | NCC-AG-005 | Heartbeat: periodic health report (default: every 10 seconds). Node marked unhealthy after 3 missed heartbeats | P0 |
@@ -264,22 +265,22 @@ nexus-cloud/
 
 ```go
 type Node struct {
-    NodeID          [16]byte          `json:"node_id"`
-    Hostname        string            `json:"hostname"`
-    Labels          map[string]string `json:"labels"`
-    Addresses       []string          `json:"addresses"`
-    Status          NodeStatus        `json:"status"`        // Online, Offline, Degraded, Draining
-    NexLinkVersion  string            `json:"nexlink_version"`
-    NexRouteVersion string            `json:"nexroute_version"`
-    NICModel        string            `json:"nic_model"`
-    FirmwareVersion string            `json:"firmware_version"`
-    Capabilities    SAD               `json:"capabilities"`
-    TrustLevel      uint8             `json:"trust_level"`
-    TenantID        string            `json:"tenant_id"`
-    ConfigVersion   uint64            `json:"config_version"`
-    LastHeartbeat   time.Time         `json:"last_heartbeat"`
-    CreatedAt       time.Time         `json:"created_at"`
-    UpdatedAt       time.Time         `json:"updated_at"`
+    NodeID            [16]byte          `json:"node_id"`
+    Hostname          string            `json:"hostname"`
+    Labels            map[string]string `json:"labels"`
+    Addresses         []string          `json:"addresses"`
+    Status            NodeStatus        `json:"status"`          // Online, Offline, Degraded, Draining
+    StrandLinkVersion  string            `json:"strandlink_version"`
+    StrandRouteVersion string            `json:"strandroute_version"`
+    NICModel          string            `json:"nic_model"`
+    FirmwareVersion   string            `json:"firmware_version"`
+    Capabilities      SAD               `json:"capabilities"`
+    TrustLevel        uint8             `json:"trust_level"`
+    TenantID          string            `json:"tenant_id"`
+    ConfigVersion     uint64            `json:"config_version"`
+    LastHeartbeat     time.Time         `json:"last_heartbeat"`
+    CreatedAt         time.Time         `json:"created_at"`
+    UpdatedAt         time.Time         `json:"updated_at"`
 }
 ```
 
@@ -319,7 +320,7 @@ type RoutePolicyAction struct {
 | ID | Requirement | Target |
 |----|-------------|--------|
 | NCC-NF-001 | API server request latency (CRUD operations) | p99 < 50ms |
-| NCC-NF-002 | Config distribution latency (change → node receives) | < 5 seconds for 1000 nodes |
+| NCC-NF-002 | Config distribution latency (change -> node receives) | < 5 seconds for 1000 nodes |
 | NCC-NF-003 | Fleet size | Support 10,000+ nodes per control plane instance |
 | NCC-NF-004 | API availability | 99.99% (HA deployment with 3+ replicas) |
 | NCC-NF-005 | State store size | Support 100K+ objects (nodes + routes + MICs + policies) |
@@ -341,10 +342,10 @@ make docker-build
 kubectl apply -k deploy/kubernetes/
 
 # Deploy via Helm
-helm install nexus-cloud deploy/helm/nexus-cloud/ -f values.yaml
+helm install strand-cloud deploy/helm/strand-cloud/ -f values.yaml
 
 # Run all-in-one for development
-go run ./cmd/nexus-allinone/ --store=memory --port=8080
+go run ./cmd/strand-allinone/ --store=memory --port=8080
 
 # Run tests
 go test ./... -v
@@ -371,5 +372,5 @@ go test ./tests/e2e/ -v -tags=e2e
 | `go.uber.org/zap` | 1.27+ | Structured logging |
 | `github.com/spf13/viper` | 1.18+ | Configuration |
 | `k8s.io/client-go` | 0.29+ | Kubernetes client (for leader election, CRDs) |
-| NexAPI client SDK | — | Communication with nodes |
-| NexTrust Rust FFI | — | MIC signing/verification (via CGo to Rust) |
+| StrandAPI client SDK | — | Communication with nodes |
+| StrandTrust Rust FFI | — | MIC signing/verification (via CGo to Rust) |

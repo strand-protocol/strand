@@ -1,4 +1,4 @@
-// Package controller implements control-loop controllers for the Nexus Cloud
+// Package controller implements control-loop controllers for the Strand Cloud
 // control plane.
 package controller
 
@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/store"
 )
 
 // Event describes a fleet-level event emitted by controllers.

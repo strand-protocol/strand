@@ -1,4 +1,4 @@
-module github.com/nexus-protocol/nexus/nexus-cloud
+module github.com/strand-protocol/strand/strand-cloud
 
 go 1.24.0
 

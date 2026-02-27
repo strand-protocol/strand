@@ -1,15 +1,15 @@
 /**
- * nexlink.h — C FFI header for NexLink L1 Frame Protocol
+ * strandlink.h — C FFI header for StrandLink L1 Frame Protocol
  *
- * Provides C-compatible function declarations for NexLink frame encoding/decoding,
- * ring buffer operations, and CRC-32C computation. Link against the nexlink
+ * Provides C-compatible function declarations for StrandLink frame encoding/decoding,
+ * ring buffer operations, and CRC-32C computation. Link against the strandlink
  * static/shared library built by the Zig build system.
  *
  * All multi-byte fields use big-endian (network byte order) on the wire.
  */
 
-#ifndef NEXLINK_H
-#define NEXLINK_H
+#ifndef STRANDLINK_H
+#define STRANDLINK_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -20,46 +20,46 @@ extern "C" {
 
 /* ── Constants ── */
 
-#define NEXLINK_HEADER_SIZE      64
-#define NEXLINK_MAX_OPTIONS_SIZE 256
-#define NEXLINK_MAX_FRAME_SIZE   65535
-#define NEXLINK_MIN_FRAME_SIZE   68   /* header(64) + CRC(4) */
-#define NEXLINK_CRC_SIZE         4
-#define NEXLINK_VERSION          1
+#define STRANDLINK_HEADER_SIZE      64
+#define STRANDLINK_MAX_OPTIONS_SIZE 256
+#define STRANDLINK_MAX_FRAME_SIZE   65535
+#define STRANDLINK_MIN_FRAME_SIZE   68   /* header(64) + CRC(4) */
+#define STRANDLINK_CRC_SIZE         4
+#define STRANDLINK_VERSION          1
 
-#define NEXLINK_OVERLAY_MAGIC    0x4E58
-#define NEXLINK_OVERLAY_PORT     6477
-#define NEXLINK_OVERLAY_HDR_SIZE 8
+#define STRANDLINK_OVERLAY_MAGIC    0x504C
+#define STRANDLINK_OVERLAY_PORT     6477
+#define STRANDLINK_OVERLAY_HDR_SIZE 8
 
 /* ── Frame types ── */
 
-#define NEXLINK_FRAME_DATA               0x0001
-#define NEXLINK_FRAME_CONTROL            0x0002
-#define NEXLINK_FRAME_HEARTBEAT          0x0003
-#define NEXLINK_FRAME_ROUTE_ADVERTISEMENT 0x0004
-#define NEXLINK_FRAME_TRUST_HANDSHAKE    0x0005
-#define NEXLINK_FRAME_TENSOR_TRANSFER    0x0006
-#define NEXLINK_FRAME_STREAM_CONTROL     0x0007
+#define STRANDLINK_FRAME_DATA               0x0001
+#define STRANDLINK_FRAME_CONTROL            0x0002
+#define STRANDLINK_FRAME_HEARTBEAT          0x0003
+#define STRANDLINK_FRAME_ROUTE_ADVERTISEMENT 0x0004
+#define STRANDLINK_FRAME_TRUST_HANDSHAKE    0x0005
+#define STRANDLINK_FRAME_TENSOR_TRANSFER    0x0006
+#define STRANDLINK_FRAME_STREAM_CONTROL     0x0007
 
 /* ── Option types ── */
 
-#define NEXLINK_OPT_FRAGMENT_INFO  0x01
-#define NEXLINK_OPT_COMPRESSION_ALG 0x02
-#define NEXLINK_OPT_ENCRYPTION_TAG 0x03
-#define NEXLINK_OPT_TENSOR_SHAPE   0x04
-#define NEXLINK_OPT_TRACE_ID       0x05
-#define NEXLINK_OPT_HOP_COUNT      0x06
-#define NEXLINK_OPT_SEMANTIC_ADDR  0x07
-#define NEXLINK_OPT_GPU_HINT       0x08
+#define STRANDLINK_OPT_FRAGMENT_INFO  0x01
+#define STRANDLINK_OPT_COMPRESSION_ALG 0x02
+#define STRANDLINK_OPT_ENCRYPTION_TAG 0x03
+#define STRANDLINK_OPT_TENSOR_SHAPE   0x04
+#define STRANDLINK_OPT_TRACE_ID       0x05
+#define STRANDLINK_OPT_HOP_COUNT      0x06
+#define STRANDLINK_OPT_SEMANTIC_ADDR  0x07
+#define STRANDLINK_OPT_GPU_HINT       0x08
 
 /* ── Opaque types ── */
 
-typedef struct nexlink_ring_buffer nexlink_ring_buffer_t;
+typedef struct strandlink_ring_buffer strandlink_ring_buffer_t;
 
 /* ── Frame operations ── */
 
 /**
- * Encode a NexLink frame.
+ * Encode a StrandLink frame.
  *
  * @param hdr_buf        Pointer to a serialized 64-byte frame header
  * @param options        Pointer to TLV-encoded options (may be NULL)
@@ -72,7 +72,7 @@ typedef struct nexlink_ring_buffer nexlink_ring_buffer_t;
  *
  * @return 0 on success, negative on error (-1 = invalid header, -2 = buffer too small)
  */
-int nexlink_frame_encode(
+int strandlink_frame_encode(
     const uint8_t *hdr_buf,
     const uint8_t *options,
     uint16_t options_len,
@@ -84,7 +84,7 @@ int nexlink_frame_encode(
 );
 
 /**
- * Decode a NexLink frame.
+ * Decode a StrandLink frame.
  *
  * @param buf             Input buffer containing the encoded frame
  * @param buf_len         Length of the input buffer
@@ -94,7 +94,7 @@ int nexlink_frame_encode(
  *
  * @return 0 on success, negative on error (-1 = decode error, -2 = header serialize error)
  */
-int nexlink_frame_decode(
+int strandlink_frame_decode(
     const uint8_t *buf,
     uint32_t buf_len,
     uint8_t *out_header_buf,
@@ -111,34 +111,34 @@ int nexlink_frame_decode(
  * @param slot_size  Size of each slot in bytes
  * @return Opaque ring buffer pointer, or NULL on failure
  */
-nexlink_ring_buffer_t *nexlink_ring_buffer_create(uint32_t num_slots, uint32_t slot_size);
+strandlink_ring_buffer_t *strandlink_ring_buffer_create(uint32_t num_slots, uint32_t slot_size);
 
 /**
  * Destroy a ring buffer and free its resources.
  */
-void nexlink_ring_buffer_destroy(nexlink_ring_buffer_t *rb);
+void strandlink_ring_buffer_destroy(strandlink_ring_buffer_t *rb);
 
 /**
  * Reserve a slot for writing.
  * @return Pointer to the slot buffer, or NULL if the ring is full
  */
-uint8_t *nexlink_ring_buffer_reserve(nexlink_ring_buffer_t *rb);
+uint8_t *strandlink_ring_buffer_reserve(strandlink_ring_buffer_t *rb);
 
 /**
  * Commit a previously reserved slot, making it visible to the consumer.
  */
-void nexlink_ring_buffer_commit(nexlink_ring_buffer_t *rb);
+void strandlink_ring_buffer_commit(strandlink_ring_buffer_t *rb);
 
 /**
  * Peek at the next readable slot.
  * @return Pointer to the slot buffer, or NULL if the ring is empty
  */
-const uint8_t *nexlink_ring_buffer_peek(nexlink_ring_buffer_t *rb);
+const uint8_t *strandlink_ring_buffer_peek(strandlink_ring_buffer_t *rb);
 
 /**
  * Release a consumed slot back to the ring.
  */
-void nexlink_ring_buffer_release(nexlink_ring_buffer_t *rb);
+void strandlink_ring_buffer_release(strandlink_ring_buffer_t *rb);
 
 /* ── Utility ── */
 
@@ -149,10 +149,10 @@ void nexlink_ring_buffer_release(nexlink_ring_buffer_t *rb);
  * @param len   Length of data in bytes
  * @return CRC-32C checksum
  */
-uint32_t nexlink_crc32c(const uint8_t *data, uint32_t len);
+uint32_t strandlink_crc32c(const uint8_t *data, uint32_t len);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* NEXLINK_H */
+#endif /* STRANDLINK_H */

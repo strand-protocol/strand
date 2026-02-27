@@ -1,4 +1,4 @@
-// Package ca implements the Nexus Trust CA service. It uses Ed25519 keys to
+// Package ca implements the Strand Trust CA service. It uses Ed25519 keys to
 // issue and verify Machine Identity Certificates (MICs).
 package ca
 
@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
 )
 
-const rootKeyID = "nexus-root-ca"
+const rootKeyID = "strand-root-ca"
 
-// CA is the central certificate authority for the Nexus control plane.
+// CA is the central certificate authority for the Strand control plane.
 type CA struct {
 	mu       sync.RWMutex
 	keyStore KeyStore

@@ -1,7 +1,7 @@
-// Package tui provides the interactive terminal dashboard for nexctl.
+// Package tui provides the interactive terminal dashboard for strandctl.
 // It is built on the bubbletea/lipgloss stack and renders three tabs:
 // Nodes, Routes, and Streams. Data is refreshed every 2 seconds by calling
-// the Nexus Cloud REST API.
+// the Strand Cloud REST API.
 package tui
 
 import (
@@ -210,7 +210,7 @@ func (m Model) View() string {
 	var sb strings.Builder
 
 	// --- Title bar ---
-	title := titleStyle.Render("  Nexus Protocol Dashboard  ")
+	title := titleStyle.Render("  Strand Protocol Dashboard  ")
 	sb.WriteString(title)
 	sb.WriteString("\n")
 
@@ -296,7 +296,7 @@ func clipLines(s string, maxLines int) string {
 // Data fetching
 // ---------------------------------------------------------------------------
 
-// fetchData issues HTTP requests to the Nexus Cloud REST API and returns a
+// fetchData issues HTTP requests to the Strand Cloud REST API and returns a
 // dataMsg (or errMsg on failure). Missing endpoints (404) are handled
 // gracefully by returning empty slices.
 func fetchData(serverURL string) tea.Cmd {
@@ -337,7 +337,7 @@ type routeAPIResponse struct {
 
 // fetchNodes calls GET <serverURL>/v1/nodes and converts the result.
 func fetchNodes(serverURL string) ([]NodeRow, error) {
-	url := strings.TrimRight(serverURL, "/") + "/v1/nodes"
+	url := strings.TrimRight(serverURL, "/") + "/api/v1/nodes"
 	resp, err := http.Get(url) //nolint:gosec // URL comes from operator config
 	if err != nil {
 		return nil, fmt.Errorf("GET %s: %w", url, err)
@@ -376,7 +376,7 @@ func fetchNodes(serverURL string) ([]NodeRow, error) {
 
 // fetchRoutes calls GET <serverURL>/v1/routes and converts the result.
 func fetchRoutes(serverURL string) ([]RouteRow, error) {
-	url := strings.TrimRight(serverURL, "/") + "/v1/routes"
+	url := strings.TrimRight(serverURL, "/") + "/api/v1/routes"
 	resp, err := http.Get(url) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("GET %s: %w", url, err)

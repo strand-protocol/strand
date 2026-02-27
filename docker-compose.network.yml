@@ -1,22 +1,22 @@
 ##############################################################################
-# docker-compose.network.yml - Nexus Protocol Multi-Node Topology
+# docker-compose.network.yml - Strand Protocol Multi-Node Topology
 #
-# Brings up the full Nexus Protocol stack for integration testing and demos:
+# Brings up the full Strand Protocol stack for integration testing and demos:
 #
 #   Management plane (mgmt-net: 172.20.0.0/24)
 #     etcd          172.20.0.10   -- distributed state store
-#     nexus-cloud   172.20.0.20   -- control plane API server
-#     nexus-node-1  172.20.0.11   -- AI inference node
-#     nexus-node-2  172.20.0.12   -- AI inference node
-#     nexus-node-3  172.20.0.13   -- AI inference node
-#     nexctl-init   (ephemeral)   -- one-shot registration job
+#     strand-cloud   172.20.0.20   -- control plane API server
+#     strand-node-1  172.20.0.11   -- AI inference node
+#     strand-node-2  172.20.0.12   -- AI inference node
+#     strand-node-3  172.20.0.13   -- AI inference node
+#     strandctl-init (ephemeral)   -- one-shot registration job
 #
 #   Data plane (data-net: 172.21.0.0/24)
 #     vpp           172.21.0.254  -- FD.io VPP gateway / TAP forwarder
 #     bmv2          172.21.0.253  -- BMv2 P4 programmable switch
-#     nexus-node-1  172.21.0.11
-#     nexus-node-2  172.21.0.12
-#     nexus-node-3  172.21.0.13
+#     strand-node-1  172.21.0.11
+#     strand-node-2  172.21.0.12
+#     strand-node-3  172.21.0.13
 #
 #   P4 control plane (p4-net: 172.22.0.0/24)
 #     bmv2          172.22.0.10   -- Thrift RPC port 9090
@@ -26,19 +26,19 @@
 #   docker compose -f docker-compose.network.yml down -v
 #
 # To scale nodes (e.g. 5 instead of 3):
-#   docker compose -f docker-compose.network.yml up --scale nexus-node-1=1 ...
+#   docker compose -f docker-compose.network.yml up --scale strand-node-1=1 ...
 ##############################################################################
 
 networks:
-  # Management network: control-plane communication between nexus-cloud,
-  # nexctl, and node agents.
+  # Management network: control-plane communication between strand-cloud,
+  # strandctl, and node agents.
   mgmt-net:
     driver: bridge
     ipam:
       config:
         - subnet: 172.20.0.0/24
 
-  # Data network: NexLink/NexStream traffic between nodes and the VPP / BMv2
+  # Data network: StrandLink/StrandStream traffic between nodes and the VPP / BMv2
   # forwarding planes.
   data-net:
     driver: bridge
@@ -46,7 +46,7 @@ networks:
       config:
         - subnet: 172.21.0.0/24
 
-  # P4 control network: Thrift RPC between NexRoute control plane and BMv2.
+  # P4 control network: Thrift RPC between StrandRoute control plane and BMv2.
   p4-net:
     driver: bridge
     ipam:
@@ -58,7 +58,7 @@ services:
   # --------------------------------------------------------------------------
   # etcd - Distributed State Store
   #
-  # Used by nexus-cloud for routing entries, node registrations, and leader
+  # Used by strand-cloud for routing entries, node registrations, and leader
   # election.  In dev mode ALLOW_NONE_AUTHENTICATION=yes skips TLS.
   # --------------------------------------------------------------------------
   etcd:
@@ -85,7 +85,7 @@ services:
   # VPP - FD.io Vector Packet Processor
   #
   # Runs in container mode (no-pci DPDK).  Creates TAP interfaces, configures
-  # an L2 bridge domain for NexLink EtherType 0x9100, and routes 172.21.0.0/24.
+  # an L2 bridge domain for StrandLink EtherType 0x9100, and routes 172.21.0.0/24.
   #
   # Requires: NET_ADMIN + SYS_PTRACE capabilities, hugepages volume.
   # --------------------------------------------------------------------------
@@ -109,11 +109,11 @@ services:
   # --------------------------------------------------------------------------
   # BMv2 - P4 Behavioral Model Switch
   #
-  # Compiles nexroute/p4/sad_forward.p4 at image build time (or uses a stub
+  # Compiles strandroute/p4/sad_forward.p4 at image build time (or uses a stub
   # JSON if p4c is unavailable).  Exposes port 9090 for Thrift RPC so that
-  # the NexRoute p4_runtime.c client can install SAD and forwarding entries.
+  # the StrandRoute p4_runtime.c client can install SAD and forwarding entries.
   #
-  # Build context is the repo root so Dockerfile can COPY nexroute/p4/.
+  # Build context is the repo root so Dockerfile can COPY strandroute/p4/.
   # --------------------------------------------------------------------------
   bmv2:
     build:
@@ -130,19 +130,19 @@ services:
     restart: unless-stopped
 
   # --------------------------------------------------------------------------
-  # nexus-cloud - Control Plane API Server
+  # strand-cloud - Control Plane API Server
   #
   # All-in-one binary (cmd/allinone) with in-memory store (dev) or etcd
   # (production).  Exposes REST + gRPC on port 8080.
   # --------------------------------------------------------------------------
-  nexus-cloud:
+  strand-cloud:
     build:
-      context: ./nexus-cloud
+      context: ./strand-cloud
       dockerfile: Dockerfile
     environment:
-      - NEXUS_ADDR=0.0.0.0:8080
-      - NEXUS_STORE_TYPE=etcd
-      - NEXUS_ETCD_ENDPOINTS=http://etcd:2379
+      - STRAND_ADDR=0.0.0.0:8080
+      - STRAND_STORE_TYPE=etcd
+      - STRAND_ETCD_ENDPOINTS=http://etcd:2379
     ports:
       - "8080:8080"
     networks:
@@ -159,19 +159,19 @@ services:
     restart: unless-stopped
 
   # --------------------------------------------------------------------------
-  # nexus-node-1 - AI Inference Node (text_generation, code_generation)
+  # strand-node-1 - AI Inference Node (text_generation, code_generation)
   #
-  # Runs nexapi-httpbridge: the OpenAI-compatible HTTP bridge that translates
-  # REST requests to NexAPI protocol messages.
+  # Runs strandapi-httpbridge: the OpenAI-compatible HTTP bridge that translates
+  # REST requests to StrandAPI protocol messages.
   # --------------------------------------------------------------------------
-  nexus-node-1:
+  strand-node-1:
     build:
-      context: ./nexapi
+      context: ./strandapi
       dockerfile: Dockerfile
-    entrypoint: ["/nexapi-httpbridge", "0.0.0.0:9000"]
+    entrypoint: ["/strandapi-httpbridge", "0.0.0.0:9000"]
     environment:
-      - NEXAPI_ADDR=0.0.0.0:9000
-      - NEXUS_CLOUD_ADDR=http://nexus-cloud:8080
+      - STRANDAPI_ADDR=0.0.0.0:9000
+      - STRAND_CLOUD_ADDR=http://strand-cloud:8080
       - NODE_CAPABILITIES=text_generation,code_generation
     ports:
       - "9010:9000"
@@ -181,21 +181,21 @@ services:
       data-net:
         ipv4_address: 172.21.0.11
     depends_on:
-      nexus-cloud:
+      strand-cloud:
         condition: service_healthy
     restart: unless-stopped
 
   # --------------------------------------------------------------------------
-  # nexus-node-2 - AI Inference Node (reasoning, vision)
+  # strand-node-2 - AI Inference Node (reasoning, vision)
   # --------------------------------------------------------------------------
-  nexus-node-2:
+  strand-node-2:
     build:
-      context: ./nexapi
+      context: ./strandapi
       dockerfile: Dockerfile
-    entrypoint: ["/nexapi-httpbridge", "0.0.0.0:9000"]
+    entrypoint: ["/strandapi-httpbridge", "0.0.0.0:9000"]
     environment:
-      - NEXAPI_ADDR=0.0.0.0:9000
-      - NEXUS_CLOUD_ADDR=http://nexus-cloud:8080
+      - STRANDAPI_ADDR=0.0.0.0:9000
+      - STRAND_CLOUD_ADDR=http://strand-cloud:8080
       - NODE_CAPABILITIES=reasoning,vision
     ports:
       - "9011:9000"
@@ -205,21 +205,21 @@ services:
       data-net:
         ipv4_address: 172.21.0.12
     depends_on:
-      nexus-cloud:
+      strand-cloud:
         condition: service_healthy
     restart: unless-stopped
 
   # --------------------------------------------------------------------------
-  # nexus-node-3 - AI Inference Node (multimodal, tools)
+  # strand-node-3 - AI Inference Node (multimodal, tools)
   # --------------------------------------------------------------------------
-  nexus-node-3:
+  strand-node-3:
     build:
-      context: ./nexapi
+      context: ./strandapi
       dockerfile: Dockerfile
-    entrypoint: ["/nexapi-httpbridge", "0.0.0.0:9000"]
+    entrypoint: ["/strandapi-httpbridge", "0.0.0.0:9000"]
     environment:
-      - NEXAPI_ADDR=0.0.0.0:9000
-      - NEXUS_CLOUD_ADDR=http://nexus-cloud:8080
+      - STRANDAPI_ADDR=0.0.0.0:9000
+      - STRAND_CLOUD_ADDR=http://strand-cloud:8080
       - NODE_CAPABILITIES=multimodal,tools
     ports:
       - "9012:9000"
@@ -229,25 +229,25 @@ services:
       data-net:
         ipv4_address: 172.21.0.13
     depends_on:
-      nexus-cloud:
+      strand-cloud:
         condition: service_healthy
     restart: unless-stopped
 
   # --------------------------------------------------------------------------
-  # nexctl-init - One-Shot Node Registration Job
+  # strandctl-init - One-Shot Node Registration Job
   #
-  # Waits for nexus-cloud to be healthy, then uses nexctl to register all
+  # Waits for strand-cloud to be healthy, then uses strandctl to register all
   # nodes.  restart: "no" ensures it runs exactly once.
   # --------------------------------------------------------------------------
-  nexctl-init:
+  strandctl-init:
     build:
-      context: ./nexctl
+      context: ./strandctl
       dockerfile: Dockerfile
-    command: ["sh", "-c", "sleep 5 && nexctl node register --all --server http://nexus-cloud:8080"]
+    command: ["sh", "-c", "sleep 5 && strandctl node register --all --server http://strand-cloud:8080"]
     networks:
       - mgmt-net
     depends_on:
-      nexus-cloud:
+      strand-cloud:
         condition: service_healthy
     restart: "no"
 

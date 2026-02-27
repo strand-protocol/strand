@@ -1,4 +1,4 @@
-// NexTrust handshake protocol: 3-message exchange with X25519 DH + HKDF session keys.
+// StrandTrust handshake protocol: 3-message exchange with X25519 DH + HKDF session keys.
 //
 //   Initiator                         Responder
 //     |--- HandshakeInit ------->|
@@ -9,7 +9,7 @@
 use crate::crypto::aead::AeadCipher;
 use crate::crypto::keys::{derive_node_id, IdentityKeyPair};
 use crate::crypto::x25519::{derive_session_keys, X25519KeyPair};
-use crate::error::{NexTrustError, Result};
+use crate::error::{StrandTrustError, Result};
 use crate::handshake::messages::{HandshakeComplete, HandshakeInit, HandshakeResponse};
 use crate::handshake::state::HandshakeState;
 use crate::mic::validator::validate;
@@ -40,11 +40,11 @@ fn handshake_nonce(msg_num: u8) -> [u8; 12] {
 }
 
 /// The confirmation message encrypted inside TRUST_ACCEPT and TRUST_FINISH.
-const FINISHED_MSG: &[u8] = b"nexus handshake finished";
+const FINISHED_MSG: &[u8] = b"strand handshake finished";
 
 // ── Initiator ────────────────────────────────────────────────────────────
 
-/// Client-side (initiator) of the NexTrust handshake.
+/// Client-side (initiator) of the StrandTrust handshake.
 pub struct Initiator {
     #[allow(dead_code)]
     identity: IdentityKeyPair,
@@ -65,7 +65,7 @@ impl Initiator {
     /// Step 1: Generate TRUST_HELLO (HandshakeInit).
     pub fn create_init(&mut self) -> Result<HandshakeInit> {
         if !matches!(self.state, HandshakeState::Idle) {
-            return Err(NexTrustError::InvalidStateTransition {
+            return Err(StrandTrustError::InvalidStateTransition {
                 from: self.state.label().into(),
                 to: "InitSent".into(),
             });
@@ -109,7 +109,7 @@ impl Initiator {
                 ephemeral_public,
             } => (*ephemeral_secret, *ephemeral_public),
             _ => {
-                return Err(NexTrustError::InvalidStateTransition {
+                return Err(StrandTrustError::InvalidStateTransition {
                     from: self.state.label().into(),
                     to: "ResponseReceived".into(),
                 });
@@ -136,7 +136,7 @@ impl Initiator {
             b"",
         )?;
         if decrypted != FINISHED_MSG {
-            return Err(NexTrustError::Handshake(
+            return Err(StrandTrustError::Handshake(
                 "invalid server finished message".into(),
             ));
         }
@@ -174,7 +174,7 @@ impl Initiator {
 
 // ── Responder ────────────────────────────────────────────────────────────
 
-/// Server-side (responder) of the NexTrust handshake.
+/// Server-side (responder) of the StrandTrust handshake.
 pub struct Responder {
     #[allow(dead_code)]
     identity: IdentityKeyPair,
@@ -202,7 +202,7 @@ impl Responder {
         now: u64,
     ) -> Result<HandshakeResponse> {
         if !matches!(self.state, HandshakeState::Idle) {
-            return Err(NexTrustError::InvalidStateTransition {
+            return Err(StrandTrustError::InvalidStateTransition {
                 from: self.state.label().into(),
                 to: "ResponseSent".into(),
             });
@@ -257,7 +257,7 @@ impl Responder {
         let peer_mic = match &self.state {
             HandshakeState::ResponseReceived { peer_mic, .. } => peer_mic.clone(),
             _ => {
-                return Err(NexTrustError::InvalidStateTransition {
+                return Err(StrandTrustError::InvalidStateTransition {
                     from: self.state.label().into(),
                     to: "Complete".into(),
                 });
@@ -266,7 +266,7 @@ impl Responder {
 
         let (client_write_key, server_write_key) = self
             .session_keys_cache
-            .ok_or_else(|| NexTrustError::Handshake("no cached session keys".into()))?;
+            .ok_or_else(|| StrandTrustError::Handshake("no cached session keys".into()))?;
 
         // Decrypt and verify client finished message
         let client_cipher = AeadCipher::new(client_write_key);
@@ -276,7 +276,7 @@ impl Responder {
             b"",
         )?;
         if decrypted != FINISHED_MSG {
-            return Err(NexTrustError::Handshake(
+            return Err(StrandTrustError::Handshake(
                 "invalid client finished message".into(),
             ));
         }

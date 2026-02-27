@@ -1,14 +1,14 @@
 //! Tests for each transport mode's delivery guarantees.
 
 use bytes::Bytes;
-use nexstream::frame::Frame;
-use nexstream::transport::best_effort::{BestEffortReceiver, BestEffortSender};
-use nexstream::transport::probabilistic::{ProbabilisticReceiver, ProbabilisticSender};
-use nexstream::transport::reliable_ordered::{ReliableOrderedReceiver, ReliableOrderedSender};
-use nexstream::transport::reliable_unordered::{
+use strandstream::frame::Frame;
+use strandstream::transport::best_effort::{BestEffortReceiver, BestEffortSender};
+use strandstream::transport::probabilistic::{ProbabilisticReceiver, ProbabilisticSender};
+use strandstream::transport::reliable_ordered::{ReliableOrderedReceiver, ReliableOrderedSender};
+use strandstream::transport::reliable_unordered::{
     ReliableUnorderedReceiver, ReliableUnorderedSender,
 };
-use nexstream::transport::{TransportReceiver, TransportSender};
+use strandstream::transport::{TransportReceiver, TransportSender};
 
 // ---------------------------------------------------------------------------
 // Reliable-Ordered

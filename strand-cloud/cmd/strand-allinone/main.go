@@ -1,4 +1,4 @@
-// nexus-allinone starts the Nexus Cloud API server, fleet controller,
+// strand-allinone starts the Strand Cloud API server, fleet controller,
 // reconciler, CA, and a local node agent all in a single process. Intended for
 // development and demonstration.
 package main
@@ -12,11 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/agent"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/apiserver"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/ca"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/controller"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/agent"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/apiserver"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/ca"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/controller"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/store"
 )
 
 func main() {

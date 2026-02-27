@@ -1,0 +1,191 @@
+#cloud-config
+# Strand Protocol -- Database Node First-Boot Configuration
+# Variables: ${HOSTNAME}, ${ENVIRONMENT}, ${NODE_INDEX}, ${ROLE}
+
+hostname: ${HOSTNAME}
+manage_etc_hosts: true
+fqdn: ${HOSTNAME}.strand-protocol.local
+
+users:
+  - name: strand
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys: []
+    lock_passwd: true
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - curl
+  - wget
+  - jq
+  - htop
+  - iotop
+  - net-tools
+  - fail2ban
+  - ufw
+  - unzip
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - apt-transport-https
+  - software-properties-common
+  - prometheus-node-exporter
+  - ntp
+  - logrotate
+  - xfsprogs
+
+write_files:
+  - path: /etc/strand/node.conf
+    permissions: "0644"
+    content: |
+      # Strand Protocol Node Configuration
+      NODE_ROLE=${ROLE}
+      NODE_INDEX=${NODE_INDEX}
+      ENVIRONMENT=${ENVIRONMENT}
+      HOSTNAME=${HOSTNAME}
+
+  - path: /etc/sysctl.d/99-strand-db-tuning.conf
+    permissions: "0644"
+    content: |
+      # Database-optimized kernel tuning
+      # Memory -- favor disk cache for DB reads
+      vm.swappiness=1
+      vm.dirty_ratio=80
+      vm.dirty_background_ratio=5
+      vm.dirty_expire_centisecs=6000
+      vm.dirty_writeback_centisecs=500
+      vm.overcommit_memory=2
+      vm.overcommit_ratio=90
+      # File descriptors
+      fs.file-max=2097152
+      # Network -- moderate tuning for DB traffic
+      net.core.rmem_max=16777216
+      net.core.wmem_max=16777216
+      net.ipv4.tcp_rmem=4096 1048576 16777216
+      net.ipv4.tcp_wmem=4096 1048576 16777216
+      # Shared memory for PostgreSQL
+      kernel.shmmax=17179869184
+      kernel.shmall=4194304
+      # Semaphores for PostgreSQL
+      kernel.sem=250 32000 100 128
+      # Hugepages for PostgreSQL (adjust based on shared_buffers)
+      vm.nr_hugepages=512
+
+  - path: /etc/security/limits.d/99-strand-db.conf
+    permissions: "0644"
+    content: |
+      postgres soft nofile 65536
+      postgres hard nofile 65536
+      clickhouse soft nofile 262144
+      clickhouse hard nofile 262144
+      strand soft nofile 65536
+      strand hard nofile 65536
+      root soft nofile 1048576
+      root hard nofile 1048576
+
+  - path: /etc/fail2ban/jail.local
+    permissions: "0644"
+    content: |
+      [DEFAULT]
+      bantime = 3600
+      findtime = 600
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+      port = ssh
+      filter = sshd
+      logpath = /var/log/auth.log
+
+runcmd:
+  # Apply sysctl tuning
+  - sysctl --system
+
+  # Configure UFW firewall -- database nodes are tightly locked down
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow ssh
+  - ufw allow from 10.0.0.0/8 to any port 5432 proto tcp comment "PostgreSQL from private net"
+  - ufw allow from 10.0.0.0/8 to any port 8123 proto tcp comment "ClickHouse HTTP from private net"
+  - ufw allow from 10.0.0.0/8 to any port 9000 proto tcp comment "ClickHouse native from private net"
+  - ufw allow from 10.0.0.0/8 to any port 4433 proto tcp comment "Ory Kratos from private net"
+  - ufw allow from 10.0.0.0/8 to any port 4434 proto tcp comment "Ory Kratos admin from private net"
+  - ufw allow 9100/tcp comment "node_exporter"
+  - ufw allow from 10.0.0.0/8 to any port 9187 proto tcp comment "postgres_exporter"
+  - ufw allow from 10.0.0.0/8 to any port 9363 proto tcp comment "clickhouse_exporter"
+  - ufw --force enable
+
+  # Enable services
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+  - systemctl enable ntp
+  - systemctl start ntp
+  - systemctl enable prometheus-node-exporter
+  - systemctl start prometheus-node-exporter
+
+  # Prepare data volume mount point
+  - mkdir -p /data/strand
+  - chown strand:strand /data/strand
+
+  # Format and mount the block storage volume when it appears
+  # The volume is attached by Pulumi after server creation
+  - |
+    cat > /usr/local/bin/mount-strand-data.sh <<'SCRIPT'
+    #!/usr/bin/env bash
+    set -euo pipefail
+    DEVICE="/dev/sdb"
+    MOUNT="/data/strand"
+    # Wait up to 5 minutes for the block device
+    for i in $(seq 1 60); do
+      if [ -b "$DEVICE" ]; then
+        break
+      fi
+      sleep 5
+    done
+    if [ -b "$DEVICE" ]; then
+      # Only format if no filesystem detected
+      if ! blkid "$DEVICE" > /dev/null 2>&1; then
+        mkfs.xfs -f "$DEVICE"
+      fi
+      mount -o noatime,nodiratime "$DEVICE" "$MOUNT"
+      echo "${DEVICE} ${MOUNT} xfs noatime,nodiratime 0 2" >> /etc/fstab
+      chown strand:strand "$MOUNT"
+      mkdir -p "$MOUNT/postgresql" "$MOUNT/clickhouse"
+      chown postgres:postgres "$MOUNT/postgresql" 2>/dev/null || true
+      chown clickhouse:clickhouse "$MOUNT/clickhouse" 2>/dev/null || true
+    fi
+    SCRIPT
+  - chmod +x /usr/local/bin/mount-strand-data.sh
+  - /usr/local/bin/mount-strand-data.sh &
+
+  # Create Strand directories
+  - mkdir -p /opt/strand/bin
+  - mkdir -p /opt/strand/config
+  - mkdir -p /var/log/strand
+  - chown -R strand:strand /opt/strand /var/log/strand
+
+  # Disable THP (Transparent Huge Pages) -- bad for database workloads
+  - echo never > /sys/kernel/mm/transparent_hugepage/enabled
+  - echo never > /sys/kernel/mm/transparent_hugepage/defrag
+  - |
+    cat > /etc/systemd/system/disable-thp.service <<'EOF'
+    [Unit]
+    Description=Disable Transparent Huge Pages
+    DefaultDependencies=no
+    After=sysinit.target local-fs.target
+    Before=basic.target
+
+    [Service]
+    Type=oneshot
+    ExecStart=/bin/sh -c "echo never > /sys/kernel/mm/transparent_hugepage/enabled && echo never > /sys/kernel/mm/transparent_hugepage/defrag"
+
+    [Install]
+    WantedBy=basic.target
+    EOF
+  - systemctl daemon-reload
+  - systemctl enable disable-thp
+
+final_message: "Strand database node ${HOSTNAME} ready after $UPTIME seconds"

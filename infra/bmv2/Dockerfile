@@ -1,18 +1,18 @@
 ##############################################################################
-# BMv2 Behavioral Model Container for Nexus Protocol NexRoute P4 Dataplane
+# BMv2 Behavioral Model Container for Strand Protocol StrandRoute P4 Dataplane
 #
 # Base: p4lang/behavioral-model (official P4.org BMv2 image).
 #
 # This Dockerfile MUST be built with the repository root as the build context:
 #
-#   docker build -f infra/bmv2/Dockerfile -t nexus-bmv2 .
+#   docker build -f infra/bmv2/Dockerfile -t strand-bmv2 .
 #
 # This is reflected in docker-compose.network.yml:
 #   build:
 #     context: .                         <-- repo root
 #     dockerfile: infra/bmv2/Dockerfile
 #
-# The build context at repo root gives access to nexroute/p4/ so we can
+# The build context at repo root gives access to strandroute/p4/ so we can
 # COPY the P4 source files and attempt compilation inside the image.
 ##############################################################################
 
@@ -37,13 +37,13 @@ WORKDIR /p4
 # Copy P4 source files from the repository root build context.
 #
 # Source layout (relative to repo root):
-#   nexroute/p4/headers.p4
-#   nexroute/p4/parser.p4
-#   nexroute/p4/sad_lookup.p4
-#   nexroute/p4/forwarding.p4
-#   nexroute/p4/sad_forward.p4   <-- compilation entry point
+#   strandroute/p4/headers.p4
+#   strandroute/p4/parser.p4
+#   strandroute/p4/sad_lookup.p4
+#   strandroute/p4/forwarding.p4
+#   strandroute/p4/sad_forward.p4   <-- compilation entry point
 ##############################################################################
-COPY nexroute/p4/ /p4/
+COPY strandroute/p4/ /p4/
 
 ##############################################################################
 # Compile the P4 program to a BMv2 JSON artifact.
@@ -68,7 +68,7 @@ RUN p4c --target bmv2 \
 # Expose Thrift control-plane port.
 #
 # simple_switch listens on TCP 9090 (default) for P4Runtime / Thrift RPC.
-# NexRoute's p4_runtime.c connects to this port.
+# StrandRoute's p4_runtime.c connects to this port.
 ##############################################################################
 EXPOSE 9090
 

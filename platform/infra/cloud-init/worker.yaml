@@ -1,0 +1,171 @@
+#cloud-config
+# Strand Protocol -- Worker Node First-Boot Configuration
+# Variables: ${HOSTNAME}, ${ENVIRONMENT}, ${NODE_INDEX}, ${ROLE}
+
+hostname: ${HOSTNAME}
+manage_etc_hosts: true
+fqdn: ${HOSTNAME}.strand-protocol.local
+
+users:
+  - name: strand
+    groups: sudo, docker
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys: []
+    lock_passwd: true
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - curl
+  - wget
+  - jq
+  - htop
+  - iotop
+  - net-tools
+  - fail2ban
+  - ufw
+  - unzip
+  - git
+  - build-essential
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - apt-transport-https
+  - software-properties-common
+  - prometheus-node-exporter
+  - ntp
+  - logrotate
+  - linux-tools-common
+  - linux-tools-generic
+  - numactl
+
+write_files:
+  - path: /etc/strand/node.conf
+    permissions: "0644"
+    content: |
+      # Strand Protocol Node Configuration
+      NODE_ROLE=${ROLE}
+      NODE_INDEX=${NODE_INDEX}
+      ENVIRONMENT=${ENVIRONMENT}
+      HOSTNAME=${HOSTNAME}
+      STRAND_OVERLAY_PORT=6477
+      STRAND_API_PORT=8080
+
+  - path: /etc/sysctl.d/99-strand-tuning.conf
+    permissions: "0644"
+    content: |
+      # Network performance tuning for Strand Protocol workers
+      net.core.rmem_max=33554432
+      net.core.wmem_max=33554432
+      net.core.rmem_default=2097152
+      net.core.wmem_default=2097152
+      net.core.netdev_max_backlog=10000
+      net.ipv4.tcp_rmem=4096 2097152 33554432
+      net.ipv4.tcp_wmem=4096 2097152 33554432
+      net.ipv4.tcp_congestion_control=cubic
+      net.ipv4.tcp_fastopen=3
+      net.ipv4.udp_rmem_min=16384
+      net.ipv4.udp_wmem_min=16384
+      net.core.optmem_max=131072
+      # Workers handle more concurrent connections
+      net.ipv4.tcp_max_syn_backlog=8192
+      net.core.somaxconn=4096
+      # File descriptor limits
+      fs.file-max=4194304
+      # VM tuning -- workers are compute-heavy
+      vm.swappiness=5
+      vm.dirty_ratio=40
+      vm.dirty_background_ratio=5
+      # Hugepages for XDP/DPDK if needed
+      vm.nr_hugepages=1024
+
+  - path: /etc/security/limits.d/99-strand.conf
+    permissions: "0644"
+    content: |
+      strand soft nofile 1048576
+      strand hard nofile 1048576
+      strand soft nproc 65535
+      strand hard nproc 65535
+      strand soft memlock unlimited
+      strand hard memlock unlimited
+      root soft nofile 1048576
+      root hard nofile 1048576
+
+  - path: /etc/fail2ban/jail.local
+    permissions: "0644"
+    content: |
+      [DEFAULT]
+      bantime = 3600
+      findtime = 600
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+      port = ssh
+      filter = sshd
+      logpath = /var/log/auth.log
+
+runcmd:
+  # Apply sysctl tuning
+  - sysctl --system
+
+  # Configure UFW firewall -- workers are more restrictive
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow ssh
+  - ufw allow 6477/udp comment "StrandLink overlay"
+  - ufw allow 8080/tcp comment "Strand API"
+  - ufw allow 9100/tcp comment "node_exporter"
+  - ufw allow from 10.0.0.0/8 comment "Private network"
+  - ufw --force enable
+
+  # Enable and start fail2ban
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+
+  # Enable NTP
+  - systemctl enable ntp
+  - systemctl start ntp
+
+  # Enable node_exporter
+  - systemctl enable prometheus-node-exporter
+  - systemctl start prometheus-node-exporter
+
+  # Create Strand directories
+  - mkdir -p /opt/strand/bin
+  - mkdir -p /opt/strand/config
+  - mkdir -p /opt/strand/data
+  - mkdir -p /var/log/strand
+  - chown -R strand:strand /opt/strand /var/log/strand
+
+  # Set up CPU governor for performance
+  - |
+    for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+      echo performance > "$cpu" 2>/dev/null || true
+    done
+
+  # Set up hugepages mount for XDP/DPDK
+  - mkdir -p /dev/hugepages
+  - mount -t hugetlbfs none /dev/hugepages 2>/dev/null || true
+  - echo "hugetlbfs /dev/hugepages hugetlbfs defaults 0 0" >> /etc/fstab
+
+  # Set up log rotation for Strand
+  - |
+    cat > /etc/logrotate.d/strand <<'EOF'
+    /var/log/strand/*.log {
+        daily
+        rotate 14
+        compress
+        delaycompress
+        missingok
+        notifempty
+        create 0640 strand strand
+        postrotate
+            systemctl reload strand-agent 2>/dev/null || true
+        endscript
+    }
+    EOF
+
+final_message: "Strand worker node ${HOSTNAME} ready after $UPTIME seconds"

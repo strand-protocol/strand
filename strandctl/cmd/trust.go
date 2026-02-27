@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nexus-protocol/nexus/nexctl/pkg/api"
+	"github.com/strand-protocol/strand/strandctl/pkg/api"
 	"github.com/spf13/cobra"
 )
 
 var trustCmd = &cobra.Command{
 	Use:   "trust",
-	Short: "Manage NexTrust certificates and CAs",
+	Short: "Manage StrandTrust certificates and CAs",
 	Long:  "Issue, verify, and manage Model Identity Certificates (MICs) and Certificate Authorities.",
 }
 

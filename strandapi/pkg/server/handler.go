@@ -1,12 +1,12 @@
-// Package server provides the NexAPI server SDK. It listens for incoming
-// NexAPI frames, dispatches them to registered handlers, and manages
+// Package server provides the StrandAPI server SDK. It listens for incoming
+// StrandAPI frames, dispatches them to registered handlers, and manages
 // connection lifecycles.
 package server
 
 import (
 	"context"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/protocol"
+	"github.com/strand-protocol/strand/strandapi/pkg/protocol"
 )
 
 // Handler is implemented by types that handle non-streaming inference

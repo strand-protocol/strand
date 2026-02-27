@@ -3,7 +3,7 @@ package protocol
 import (
 	"fmt"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
 )
 
 // Allocation-bomb guards: cap collection sizes read from the wire so a
@@ -18,15 +18,15 @@ const (
 // selector, the prompt text, generation parameters, and arbitrary metadata.
 type InferenceRequest struct {
 	ID          [16]byte          // Unique 128-bit request identifier
-	ModelSAD    []byte            // Semantic Address Descriptor (NexRoute binary)
+	ModelSAD    []byte            // Semantic Address Descriptor (StrandRoute binary)
 	Prompt      string            // User prompt / input text
 	MaxTokens   uint32            // Maximum tokens to generate
 	Temperature float32           // Sampling temperature
 	Metadata    map[string]string // Custom key-value metadata
 }
 
-// Encode serialises the InferenceRequest into buf using NexBuf wire format.
-func (m *InferenceRequest) Encode(buf *nexbuf.Buffer) {
+// Encode serialises the InferenceRequest into buf using StrandBuf wire format.
+func (m *InferenceRequest) Encode(buf *strandbuf.Buffer) {
 	off := buf.Len()
 	_ = off
 	// ID: 16 raw bytes
@@ -51,7 +51,7 @@ func (m *InferenceRequest) Encode(buf *nexbuf.Buffer) {
 
 // Decode reads an InferenceRequest from r. Returns an error if the data is
 // incomplete or malformed.
-func (m *InferenceRequest) Decode(r *nexbuf.Reader) error {
+func (m *InferenceRequest) Decode(r *strandbuf.Reader) error {
 	// ID
 	for i := 0; i < 16; i++ {
 		b, err := r.ReadUint8()
@@ -88,7 +88,7 @@ func (m *InferenceRequest) Decode(r *nexbuf.Reader) error {
 		return err
 	}
 	if count > maxMetadataEntries {
-		return fmt.Errorf("nexapi: metadata count %d exceeds max %d", count, maxMetadataEntries)
+		return fmt.Errorf("strandapi: metadata count %d exceeds max %d", count, maxMetadataEntries)
 	}
 	m.Metadata = make(map[string]string, count)
 	for i := uint32(0); i < count; i++ {
@@ -116,7 +116,7 @@ type InferenceResponse struct {
 }
 
 // Encode serialises the InferenceResponse into buf.
-func (m *InferenceResponse) Encode(buf *nexbuf.Buffer) {
+func (m *InferenceResponse) Encode(buf *strandbuf.Buffer) {
 	for i := 0; i < 16; i++ {
 		buf.WriteUint8(m.ID[i])
 	}
@@ -127,7 +127,7 @@ func (m *InferenceResponse) Encode(buf *nexbuf.Buffer) {
 }
 
 // Decode reads an InferenceResponse from r.
-func (m *InferenceResponse) Decode(r *nexbuf.Reader) error {
+func (m *InferenceResponse) Decode(r *strandbuf.Reader) error {
 	for i := 0; i < 16; i++ {
 		b, err := r.ReadUint8()
 		if err != nil {
@@ -165,7 +165,7 @@ type TokenStreamChunk struct {
 }
 
 // Encode serialises the TokenStreamChunk into buf.
-func (m *TokenStreamChunk) Encode(buf *nexbuf.Buffer) {
+func (m *TokenStreamChunk) Encode(buf *strandbuf.Buffer) {
 	for i := 0; i < 16; i++ {
 		buf.WriteUint8(m.RequestID[i])
 	}
@@ -175,7 +175,7 @@ func (m *TokenStreamChunk) Encode(buf *nexbuf.Buffer) {
 }
 
 // Decode reads a TokenStreamChunk from r.
-func (m *TokenStreamChunk) Decode(r *nexbuf.Reader) error {
+func (m *TokenStreamChunk) Decode(r *strandbuf.Reader) error {
 	for i := 0; i < 16; i++ {
 		b, err := r.ReadUint8()
 		if err != nil {
@@ -203,13 +203,13 @@ func (m *TokenStreamChunk) Decode(r *nexbuf.Reader) error {
 // gradients, embeddings) between endpoints.
 type TensorTransfer struct {
 	ID    [16]byte // Unique tensor transfer identifier
-	DType uint8    // Data type code (maps to NexLink tensor_dtype)
+	DType uint8    // Data type code (maps to StrandLink tensor_dtype)
 	Shape []uint32 // Tensor dimensions
 	Data  []byte   // Raw tensor data
 }
 
 // Encode serialises the TensorTransfer into buf.
-func (m *TensorTransfer) Encode(buf *nexbuf.Buffer) {
+func (m *TensorTransfer) Encode(buf *strandbuf.Buffer) {
 	for i := 0; i < 16; i++ {
 		buf.WriteUint8(m.ID[i])
 	}
@@ -222,7 +222,7 @@ func (m *TensorTransfer) Encode(buf *nexbuf.Buffer) {
 }
 
 // Decode reads a TensorTransfer from r.
-func (m *TensorTransfer) Decode(r *nexbuf.Reader) error {
+func (m *TensorTransfer) Decode(r *strandbuf.Reader) error {
 	for i := 0; i < 16; i++ {
 		b, err := r.ReadUint8()
 		if err != nil {
@@ -241,7 +241,7 @@ func (m *TensorTransfer) Decode(r *nexbuf.Reader) error {
 	}
 	// Cap to prevent allocation-bomb DoS.
 	if count > maxShapeDimensions {
-		return fmt.Errorf("nexapi: shape dimension count %d exceeds max %d", count, maxShapeDimensions)
+		return fmt.Errorf("strandapi: shape dimension count %d exceeds max %d", count, maxShapeDimensions)
 	}
 	m.Shape = make([]uint32, count)
 	for i := uint32(0); i < count; i++ {

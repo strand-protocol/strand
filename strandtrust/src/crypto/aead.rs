@@ -1,8 +1,8 @@
 // AEAD cipher suites: ChaCha20-Poly1305 (RFC 8439) and AES-256-GCM.
 //
-// Suite IDs match the NexTrust cipher suite negotiation spec:
-//   0x0001 NEXUS_X25519_ED25519_AES256GCM_SHA256
-//   0x0002 NEXUS_X25519_ED25519_CHACHA20POLY1305_SHA256
+// Suite IDs match the StrandTrust cipher suite negotiation spec:
+//   0x0001 STRAND_X25519_ED25519_AES256GCM_SHA256
+//   0x0002 STRAND_X25519_ED25519_CHACHA20POLY1305_SHA256
 
 // Both aes-gcm and chacha20poly1305 re-export the same `aead` traits.
 // Import once from aes_gcm to avoid redundant imports.
@@ -10,7 +10,7 @@ use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Nonce as AesNonce};
 use chacha20poly1305::{ChaCha20Poly1305, Nonce};
 
-use crate::error::{NexTrustError, Result};
+use crate::error::{StrandTrustError, Result};
 
 /// Cipher suite identifier (wire value).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,19 +56,19 @@ impl AeadCipher {
     /// Returns ciphertext || 16-byte Poly1305 tag.
     pub fn encrypt(&self, nonce: &[u8; 12], plaintext: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
         let cipher = ChaCha20Poly1305::new_from_slice(&self.key)
-            .map_err(|e| NexTrustError::Encryption(format!("cipher init: {e}")))?;
+            .map_err(|e| StrandTrustError::Encryption(format!("cipher init: {e}")))?;
         let nonce = Nonce::from_slice(nonce);
         let payload = Payload { msg: plaintext, aad };
         cipher
             .encrypt(nonce, payload)
-            .map_err(|e| NexTrustError::Encryption(format!("{e}")))
+            .map_err(|e| StrandTrustError::Encryption(format!("{e}")))
     }
 
     /// Decrypt `ciphertext` (which includes the appended 16-byte tag) with the given
     /// 12-byte `nonce` and the same `aad` used during encryption.
     pub fn decrypt(&self, nonce: &[u8; 12], ciphertext: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
         let cipher = ChaCha20Poly1305::new_from_slice(&self.key)
-            .map_err(|e| NexTrustError::Decryption(format!("cipher init: {e}")))?;
+            .map_err(|e| StrandTrustError::Decryption(format!("cipher init: {e}")))?;
         let nonce = Nonce::from_slice(nonce);
         let payload = Payload {
             msg: ciphertext,
@@ -76,7 +76,7 @@ impl AeadCipher {
         };
         cipher
             .decrypt(nonce, payload)
-            .map_err(|e| NexTrustError::Decryption(format!("{e}")))
+            .map_err(|e| StrandTrustError::Decryption(format!("{e}")))
     }
 
     /// Return the key bytes (useful for session key export).
@@ -101,19 +101,19 @@ impl Aes256GcmCipher {
     /// Returns ciphertext || 16-byte GCM tag.
     pub fn encrypt(&self, nonce: &[u8; 12], plaintext: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
         let cipher = Aes256Gcm::new_from_slice(&self.key)
-            .map_err(|e| NexTrustError::Encryption(format!("aes-gcm init: {e}")))?;
+            .map_err(|e| StrandTrustError::Encryption(format!("aes-gcm init: {e}")))?;
         let nonce = AesNonce::from_slice(nonce);
         let payload = Payload { msg: plaintext, aad };
         cipher
             .encrypt(nonce, payload)
-            .map_err(|e| NexTrustError::Encryption(format!("{e}")))
+            .map_err(|e| StrandTrustError::Encryption(format!("{e}")))
     }
 
     /// Decrypt `ciphertext` (which includes the appended 16-byte tag) with the given
     /// 12-byte `nonce` and the same `aad` used during encryption.
     pub fn decrypt(&self, nonce: &[u8; 12], ciphertext: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
         let cipher = Aes256Gcm::new_from_slice(&self.key)
-            .map_err(|e| NexTrustError::Decryption(format!("aes-gcm init: {e}")))?;
+            .map_err(|e| StrandTrustError::Decryption(format!("aes-gcm init: {e}")))?;
         let nonce = AesNonce::from_slice(nonce);
         let payload = Payload {
             msg: ciphertext,
@@ -121,7 +121,7 @@ impl Aes256GcmCipher {
         };
         cipher
             .decrypt(nonce, payload)
-            .map_err(|e| NexTrustError::Decryption(format!("{e}")))
+            .map_err(|e| StrandTrustError::Decryption(format!("{e}")))
     }
 
     /// Return the key bytes.
@@ -171,7 +171,7 @@ mod tests {
         let key = [0x42u8; 32];
         let nonce = [0u8; 12];
         let cipher = AeadCipher::new(key);
-        let plaintext = b"hello nextrust aead";
+        let plaintext = b"hello strandtrust aead";
         let ct = cipher.encrypt(&nonce, plaintext, b"").unwrap();
         let pt = cipher.decrypt(&nonce, &ct, b"").unwrap();
         assert_eq!(&pt, plaintext);

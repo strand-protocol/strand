@@ -1,4 +1,4 @@
-// crc.zig — CRC-32C (Castagnoli) implementation for NexLink frame integrity
+// crc.zig — CRC-32C (Castagnoli) implementation for StrandLink frame integrity
 //
 // Uses the Castagnoli polynomial 0x1EDC6F41, which is the standard for iSCSI,
 // SCTP, and modern storage/networking protocols. Table-based software implementation
@@ -86,7 +86,7 @@ test "crc32c all ones" {
 }
 
 test "crc32c incremental update matches single-shot" {
-    const data = "Hello, NexLink!";
+    const data = "Hello, StrandLink!";
     const single = compute(data);
 
     // Split into two parts and compute incrementally

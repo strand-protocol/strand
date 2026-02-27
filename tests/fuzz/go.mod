@@ -1,11 +1,11 @@
-module github.com/nexus-protocol/nexus/tests/fuzz
+module github.com/strand-protocol/strand/tests/fuzz
 
 go 1.22
 
 require (
-	github.com/nexus-protocol/nexus/nexapi v0.0.0
+	github.com/strand-protocol/strand/strandapi v0.0.0
 )
 
 replace (
-	github.com/nexus-protocol/nexus/nexapi => ../../nexapi
+	github.com/strand-protocol/strand/strandapi => ../../strandapi
 )

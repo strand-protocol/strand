@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use crate::crypto::keys::IdentityKeyPair;
-use crate::error::{NexTrustError, Result};
+use crate::error::{StrandTrustError, Result};
 use crate::mic::{Capability, Provenance, MIC};
 
 /// Builder for constructing a [`MIC`] with a fluent API.
@@ -84,17 +84,17 @@ impl<'a> MICBuilder<'a> {
     pub fn build(self) -> Result<MIC> {
         let model_hash = self
             .model_hash
-            .ok_or_else(|| NexTrustError::MicBuild("model_hash is required".into()))?;
+            .ok_or_else(|| StrandTrustError::MicBuild("model_hash is required".into()))?;
 
         let valid_from = self
             .valid_from
-            .ok_or_else(|| NexTrustError::MicBuild("validity window is required".into()))?;
+            .ok_or_else(|| StrandTrustError::MicBuild("validity window is required".into()))?;
         let valid_until = self
             .valid_until
-            .ok_or_else(|| NexTrustError::MicBuild("validity window is required".into()))?;
+            .ok_or_else(|| StrandTrustError::MicBuild("validity window is required".into()))?;
 
         if valid_until <= valid_from {
-            return Err(NexTrustError::MicBuild(
+            return Err(StrandTrustError::MicBuild(
                 "valid_until must be after valid_from".into(),
             ));
         }

@@ -14,8 +14,8 @@
  * CPU via digest for software resolution.
  */
 
-#ifndef __NEXROUTE_SAD_LOOKUP_P4__
-#define __NEXROUTE_SAD_LOOKUP_P4__
+#ifndef __STRANDROUTE_SAD_LOOKUP_P4__
+#define __STRANDROUTE_SAD_LOOKUP_P4__
 
 #include "headers.p4"
 
@@ -24,7 +24,7 @@
  * -------------------------------------------------------------------------- */
 
 control SADLookup(inout headers_t hdr,
-                  inout nexroute_metadata_t meta,
+                  inout strandroute_metadata_t meta,
                   inout standard_metadata_t standard_metadata) {
 
     /* ---- Actions ---- */
@@ -95,4 +95,4 @@ control SADLookup(inout headers_t hdr,
     }
 }
 
-#endif /* __NEXROUTE_SAD_LOOKUP_P4__ */
+#endif /* __STRANDROUTE_SAD_LOOKUP_P4__ */

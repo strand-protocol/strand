@@ -3,7 +3,7 @@ package protocol
 import (
 	"fmt"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
 )
 
 // maxCapabilities caps the number of capability strings in an AgentNegotiate
@@ -14,7 +14,7 @@ const maxCapabilities = 128
 // Both sides send this message at the start of a delegation session so each
 // knows what the other can do before any work is delegated.
 //
-// Wire layout (NexBuf):
+// Wire layout (StrandBuf):
 //
 //	[uint32] SessionID
 //	[uint32] capability count
@@ -26,8 +26,8 @@ type AgentNegotiate struct {
 	Version      uint8    // Protocol version spoken by the sender (currently 1)
 }
 
-// Encode serialises AgentNegotiate into buf using NexBuf wire format.
-func (m *AgentNegotiate) Encode(buf *nexbuf.Buffer) {
+// Encode serialises AgentNegotiate into buf using StrandBuf wire format.
+func (m *AgentNegotiate) Encode(buf *strandbuf.Buffer) {
 	buf.WriteUint32(m.SessionID)
 	buf.WriteList(uint32(len(m.Capabilities)))
 	for _, c := range m.Capabilities {
@@ -38,7 +38,7 @@ func (m *AgentNegotiate) Encode(buf *nexbuf.Buffer) {
 
 // Decode reads an AgentNegotiate from r. Returns an error if the data is
 // incomplete or malformed.
-func (m *AgentNegotiate) Decode(r *nexbuf.Reader) error {
+func (m *AgentNegotiate) Decode(r *strandbuf.Reader) error {
 	var err error
 	m.SessionID, err = r.ReadUint32()
 	if err != nil {
@@ -50,7 +50,7 @@ func (m *AgentNegotiate) Decode(r *nexbuf.Reader) error {
 	}
 	// Cap to prevent allocation-bomb DoS.
 	if count > maxCapabilities {
-		return fmt.Errorf("nexapi: capability count %d exceeds max %d", count, maxCapabilities)
+		return fmt.Errorf("strandapi: capability count %d exceeds max %d", count, maxCapabilities)
 	}
 	m.Capabilities = make([]string, count)
 	for i := uint32(0); i < count; i++ {
@@ -67,7 +67,7 @@ func (m *AgentNegotiate) Decode(r *nexbuf.Reader) error {
 // transfers ownership of the described work to the node identified by
 // TargetNodeID.
 //
-// Wire layout (NexBuf):
+// Wire layout (StrandBuf):
 //
 //	[uint32]   SessionID
 //	[16 bytes] TargetNodeID  (raw 128-bit node identifier)
@@ -75,13 +75,13 @@ func (m *AgentNegotiate) Decode(r *nexbuf.Reader) error {
 //	[uint32]   TimeoutMS     (0 = no timeout)
 type AgentDelegate struct {
 	SessionID    uint32   // Delegation session identifier
-	TargetNodeID [16]byte // 128-bit NexLink node ID of the target agent
+	TargetNodeID [16]byte // 128-bit StrandLink node ID of the target agent
 	TaskPayload  []byte   // Opaque task encoding (caller-defined serialisation)
 	TimeoutMS    uint32   // Deadline in milliseconds; 0 means no deadline
 }
 
-// Encode serialises AgentDelegate into buf using NexBuf wire format.
-func (m *AgentDelegate) Encode(buf *nexbuf.Buffer) {
+// Encode serialises AgentDelegate into buf using StrandBuf wire format.
+func (m *AgentDelegate) Encode(buf *strandbuf.Buffer) {
 	buf.WriteUint32(m.SessionID)
 	for i := 0; i < 16; i++ {
 		buf.WriteUint8(m.TargetNodeID[i])
@@ -91,7 +91,7 @@ func (m *AgentDelegate) Encode(buf *nexbuf.Buffer) {
 }
 
 // Decode reads an AgentDelegate from r.
-func (m *AgentDelegate) Decode(r *nexbuf.Reader) error {
+func (m *AgentDelegate) Decode(r *strandbuf.Reader) error {
 	var err error
 	m.SessionID, err = r.ReadUint32()
 	if err != nil {
@@ -117,7 +117,7 @@ func (m *AgentDelegate) Decode(r *nexbuf.Reader) error {
 // AgentResult carries the result of a delegated task back to the originating
 // agent. ErrorCode is zero on success.
 //
-// Wire layout (NexBuf):
+// Wire layout (StrandBuf):
 //
 //	[uint32] SessionID
 //	[bytes]  ResultPayload  (length-prefixed opaque result data; may be empty)
@@ -130,8 +130,8 @@ type AgentResult struct {
 	ErrorMsg      string // Human-readable error detail; empty on success
 }
 
-// Encode serialises AgentResult into buf using NexBuf wire format.
-func (m *AgentResult) Encode(buf *nexbuf.Buffer) {
+// Encode serialises AgentResult into buf using StrandBuf wire format.
+func (m *AgentResult) Encode(buf *strandbuf.Buffer) {
 	buf.WriteUint32(m.SessionID)
 	buf.WriteBytes(m.ResultPayload)
 	buf.WriteUint16(m.ErrorCode)
@@ -139,7 +139,7 @@ func (m *AgentResult) Encode(buf *nexbuf.Buffer) {
 }
 
 // Decode reads an AgentResult from r.
-func (m *AgentResult) Decode(r *nexbuf.Reader) error {
+func (m *AgentResult) Decode(r *strandbuf.Reader) error {
 	var err error
 	m.SessionID, err = r.ReadUint32()
 	if err != nil {

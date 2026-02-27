@@ -1,13 +1,13 @@
 [package]
-name = "nextrust"
+name = "strandtrust"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.75"
-description = "NexTrust L4 - Model Identity, Cryptographic Trust & Attestation"
+description = "StrandTrust L4 - Model Identity, Cryptographic Trust & Attestation"
 license = "MIT OR Apache-2.0"
 
 [lib]
-name = "nextrust"
+name = "strandtrust"
 crate-type = ["lib", "cdylib"]
 
 [features]

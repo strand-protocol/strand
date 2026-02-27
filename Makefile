@@ -1,91 +1,91 @@
-# Nexus Protocol -- Top-Level Makefile
+# Strand Protocol -- Top-Level Makefile
 #
 # Build order enforces the dependency graph:
-#   Phase 1: nexlink (Zig, standalone)
-#   Phase 2: nexroute (C, depends on nexlink)
-#   Phase 3a: nextrust (Rust, standalone)
-#   Phase 3b: nexstream (Rust, depends on nexlink + nextrust)
-#   Phase 4: nexapi (Go, depends on nexstream + nextrust via CGo, or pure-Go overlay)
-#   Phase 5: nexctl (Go), nexus-cloud (Go), both depend on nexapi
+#   Phase 1: strandlink (Zig, standalone)
+#   Phase 2: strandroute (C, depends on strandlink)
+#   Phase 3a: strandtrust (Rust, standalone)
+#   Phase 3b: strandstream (Rust, depends on strandlink + strandtrust)
+#   Phase 4: strandapi (Go, depends on strandstream + strandtrust via CGo, or pure-Go overlay)
+#   Phase 5: strandctl (Go), strand-cloud (Go), both depend on strandapi
 #
 
 .PHONY: all clean test test-unit test-integration test-fuzz \
-        nexlink nexroute nextrust nexstream nexapi nexctl nexus-cloud \
+        strandlink strandroute strandtrust strandstream strandapi strandctl strand-cloud \
         fmt lint check \
         docker-up docker-down docker-logs docker-allinone docker-dev docker-clean
 
 # -------------------------------------------------------------------
 # Default target: build everything in dependency order
 # -------------------------------------------------------------------
-all: nexlink nexroute nextrust nexstream nexapi nexctl nexus-cloud
+all: strandlink strandroute strandtrust strandstream strandapi strandctl strand-cloud
 	@echo "=== All modules built successfully ==="
 
 # -------------------------------------------------------------------
-# Phase 1: NexLink (Zig)
+# Phase 1: StrandLink (Zig)
 # -------------------------------------------------------------------
-nexlink:
-	@echo "=== Building nexlink (Zig) ==="
-	cd nexlink && zig build -Dbackend=mock -Doptimize=ReleaseSafe
-	@echo "=== nexlink complete ==="
+strandlink:
+	@echo "=== Building strandlink (Zig) ==="
+	cd strandlink && zig build -Dbackend=mock -Doptimize=ReleaseSafe
+	@echo "=== strandlink complete ==="
 
 # -------------------------------------------------------------------
-# Phase 2: NexRoute (C + P4, depends on nexlink)
+# Phase 2: StrandRoute (C + P4, depends on strandlink)
 # -------------------------------------------------------------------
-nexroute: nexlink
-	@echo "=== Building nexroute (C) ==="
-	cd nexroute && mkdir -p build && cd build && \
+strandroute: strandlink
+	@echo "=== Building strandroute (C) ==="
+	cd strandroute && mkdir -p build && cd build && \
 		cmake .. -DCMAKE_BUILD_TYPE=Release \
-		         -DNEXLINK_INCLUDE_DIR=../../nexlink/include \
-		         -DNEXLINK_LIB_DIR=../../nexlink/zig-out/lib && \
+		         -DSTRANDLINK_INCLUDE_DIR=../../strandlink/include \
+		         -DSTRANDLINK_LIB_DIR=../../strandlink/zig-out/lib && \
 		$(MAKE)
-	@echo "=== nexroute complete ==="
+	@echo "=== strandroute complete ==="
 
 # -------------------------------------------------------------------
-# Phase 3a: NexTrust (Rust, standalone -- no FFI dependencies)
+# Phase 3a: StrandTrust (Rust, standalone -- no FFI dependencies)
 # -------------------------------------------------------------------
-nextrust:
-	@echo "=== Building nextrust (Rust) ==="
-	cd nextrust && cargo build --release
-	@echo "=== nextrust complete ==="
+strandtrust:
+	@echo "=== Building strandtrust (Rust) ==="
+	cd strandtrust && cargo build --release
+	@echo "=== strandtrust complete ==="
 
 # -------------------------------------------------------------------
-# Phase 3b: NexStream (Rust, depends on nexlink C FFI + nextrust)
+# Phase 3b: StrandStream (Rust, depends on strandlink C FFI + strandtrust)
 # -------------------------------------------------------------------
-nexstream: nexlink nextrust
-	@echo "=== Building nexstream (Rust) ==="
-	cd nexstream && cargo build --release
-	@echo "=== nexstream complete ==="
+strandstream: strandlink strandtrust
+	@echo "=== Building strandstream (Rust) ==="
+	cd strandstream && cargo build --release
+	@echo "=== strandstream complete ==="
 
 # -------------------------------------------------------------------
-# Phase 4: NexAPI (Go, depends on nexstream + nextrust via CGo)
+# Phase 4: StrandAPI (Go, depends on strandstream + strandtrust via CGo)
 # -------------------------------------------------------------------
-nexapi: nexstream nextrust
-	@echo "=== Building nexapi (Go) ==="
-	cd nexapi && go build ./...
-	@echo "=== nexapi complete ==="
+strandapi: strandstream strandtrust
+	@echo "=== Building strandapi (Go) ==="
+	cd strandapi && go build ./...
+	@echo "=== strandapi complete ==="
 
-# Build nexapi in pure-Go overlay mode (no CGo, no native dependencies)
-.PHONY: nexapi-overlay
-nexapi-overlay:
-	@echo "=== Building nexapi (Go, pure overlay, no CGo) ==="
-	cd nexapi && CGO_ENABLED=0 go build ./...
-	@echo "=== nexapi (overlay) complete ==="
-
-# -------------------------------------------------------------------
-# Phase 5a: NexCtl (Go, depends on nexapi)
-# -------------------------------------------------------------------
-nexctl: nexapi
-	@echo "=== Building nexctl (Go) ==="
-	cd nexctl && go build -o nexctl .
-	@echo "=== nexctl complete ==="
+# Build strandapi in pure-Go overlay mode (no CGo, no native dependencies)
+.PHONY: strandapi-overlay
+strandapi-overlay:
+	@echo "=== Building strandapi (Go, pure overlay, no CGo) ==="
+	cd strandapi && CGO_ENABLED=0 go build ./...
+	@echo "=== strandapi (overlay) complete ==="
 
 # -------------------------------------------------------------------
-# Phase 5b: Nexus Cloud (Go, depends on nexapi)
+# Phase 5a: StrandCtl (Go, depends on strandapi)
 # -------------------------------------------------------------------
-nexus-cloud: nexapi
-	@echo "=== Building nexus-cloud (Go) ==="
-	cd nexus-cloud && go build ./cmd/...
-	@echo "=== nexus-cloud complete ==="
+strandctl: strandapi
+	@echo "=== Building strandctl (Go) ==="
+	cd strandctl && go build -o strandctl .
+	@echo "=== strandctl complete ==="
+
+# -------------------------------------------------------------------
+# Phase 5b: Strand Cloud (Go, depends on strandapi)
+# -------------------------------------------------------------------
+strand-cloud: strandapi
+	@echo "=== Building strand-cloud (Go) ==="
+	cd strand-cloud && go build ./cmd/...
+	@echo "=== strand-cloud complete ==="
 
 # -------------------------------------------------------------------
 # Test targets
@@ -95,72 +95,78 @@ test: test-unit test-integration
 
 test-unit:
 	@echo "=== Running unit tests ==="
-	cd nexlink && zig build test || true
-	cd nexroute && cd build && ctest --output-on-failure || true
-	cd nextrust && cargo test || true
-	cd nexstream && cargo test || true
-	cd nexapi && go test ./... || true
-	cd nexctl && go test ./... || true
-	cd nexus-cloud && go test ./... || true
+	cd strandlink && zig build test || true
+	cd strandroute && cd build && ctest --output-on-failure || true
+	cd strandtrust && cargo test || true
+	cd strandstream && cargo test || true
+	cd strandapi && go test ./... || true
+	cd strandctl && go test ./... || true
+	cd strand-cloud && go test ./... || true
 	@echo "=== Unit tests complete ==="
 
 test-integration:
 	@echo "=== Running integration tests ==="
-	cd nexstream && cargo test --test integration_test || true
-	cd nextrust && cargo test --test integration_test || true
-	cd nexapi && go test ./tests/ -tags=integration -v || true
-	cd nexus-cloud && go test ./tests/integration/ -tags=integration -v || true
+	cd strandstream && cargo test --test integration_test || true
+	cd strandtrust && cargo test --test integration_test || true
+	cd strandapi && go test ./tests/ -tags=integration -v || true
+	cd strand-cloud && go test ./tests/integration/ -tags=integration -v || true
 	@echo "=== Integration tests complete ==="
 
 test-fuzz:
 	@echo "=== Running fuzz tests (long-running) ==="
-	cd nexstream && cargo fuzz run fuzz_frame_decode -- -max_total_time=300 || true
-	cd nextrust && cargo fuzz run fuzz_mic_parse -- -max_total_time=300 || true
+	cd strandstream && cargo fuzz run fuzz_frame_decode -- -max_total_time=300 || true
+	cd strandtrust && cargo fuzz run fuzz_mic_parse -- -max_total_time=300 || true
+	cd tests/fuzz && go test -fuzz=FuzzStrandBufRoundtrip -fuzztime=60s || true
+	cd tests/fuzz && go test -fuzz=FuzzFrameRead -fuzztime=60s || true
+	cd tests/fuzz && go test -fuzz=FuzzSADParse -fuzztime=60s || true
+	cd tests/fuzz && go test -fuzz=FuzzAgentNegotiateDecode -fuzztime=60s || true
+	cd tests/fuzz && go test -fuzz=FuzzAgentDelegateDecode -fuzztime=60s || true
+	cd tests/fuzz && go test -fuzz=FuzzAgentResultDecode -fuzztime=60s || true
 	@echo "=== Fuzz tests complete ==="
 
 # -------------------------------------------------------------------
 # Module-specific test targets
 # -------------------------------------------------------------------
-.PHONY: test-nexlink test-nexroute test-nextrust test-nexstream test-nexapi test-nexctl test-nexus-cloud
+.PHONY: test-strandlink test-strandroute test-strandtrust test-strandstream test-strandapi test-strandctl test-strand-cloud
 
-test-nexlink:
-	cd nexlink && zig build test
+test-strandlink:
+	cd strandlink && zig build test
 
-test-nexroute:
-	cd nexroute/build && ctest --output-on-failure
+test-strandroute:
+	cd strandroute/build && ctest --output-on-failure
 
-test-nextrust:
-	cd nextrust && cargo test
+test-strandtrust:
+	cd strandtrust && cargo test
 
-test-nexstream:
-	cd nexstream && cargo test
+test-strandstream:
+	cd strandstream && cargo test
 
-test-nexapi:
-	cd nexapi && go test ./... -v
+test-strandapi:
+	cd strandapi && go test ./... -v
 
-test-nexctl:
-	cd nexctl && go test ./... -v
+test-strandctl:
+	cd strandctl && go test ./... -v
 
-test-nexus-cloud:
-	cd nexus-cloud && go test ./... -v
+test-strand-cloud:
+	cd strand-cloud && go test ./... -v
 
 # -------------------------------------------------------------------
 # Code quality
 # -------------------------------------------------------------------
 fmt:
-	cd nexlink && zig fmt src/ tests/ || true
-	cd nextrust && cargo fmt || true
-	cd nexstream && cargo fmt || true
-	cd nexapi && gofmt -w . || true
-	cd nexctl && gofmt -w . || true
-	cd nexus-cloud && gofmt -w . || true
+	cd strandlink && zig fmt src/ tests/ || true
+	cd strandtrust && cargo fmt || true
+	cd strandstream && cargo fmt || true
+	cd strandapi && gofmt -w . || true
+	cd strandctl && gofmt -w . || true
+	cd strand-cloud && gofmt -w . || true
 
 lint:
-	cd nextrust && cargo clippy --all-targets --all-features -- -D warnings || true
-	cd nexstream && cargo clippy --all-targets --all-features -- -D warnings || true
-	cd nexapi && go vet ./... || true
-	cd nexctl && go vet ./... || true
-	cd nexus-cloud && go vet ./... || true
+	cd strandtrust && cargo clippy --all-targets --all-features -- -D warnings || true
+	cd strandstream && cargo clippy --all-targets --all-features -- -D warnings || true
+	cd strandapi && go vet ./... || true
+	cd strandctl && go vet ./... || true
+	cd strand-cloud && go vet ./... || true
 
 check: fmt lint
 	@echo "=== Code quality checks complete ==="
@@ -170,13 +176,13 @@ check: fmt lint
 # -------------------------------------------------------------------
 clean:
 	@echo "=== Cleaning all build artifacts ==="
-	cd nexlink && rm -rf zig-out zig-cache .zig-cache || true
-	cd nexroute && rm -rf build || true
-	cd nextrust && cargo clean || true
-	cd nexstream && cargo clean || true
-	cd nexapi && go clean ./... || true
-	cd nexctl && rm -f nexctl && go clean ./... || true
-	cd nexus-cloud && go clean ./... || true
+	cd strandlink && rm -rf zig-out zig-cache .zig-cache || true
+	cd strandroute && rm -rf build || true
+	cd strandtrust && cargo clean || true
+	cd strandstream && cargo clean || true
+	cd strandapi && go clean ./... || true
+	cd strandctl && rm -f strandctl && go clean ./... || true
+	cd strand-cloud && go clean ./... || true
 	@echo "=== Clean complete ==="
 
 # -------------------------------------------------------------------
@@ -185,14 +191,14 @@ clean:
 .PHONY: docker-up docker-down docker-logs docker-allinone docker-dev docker-clean docker-build docker-push
 
 docker-up:
-	@echo "=== Starting Nexus Protocol stack ==="
+	@echo "=== Starting Strand Protocol stack ==="
 	docker compose up --build -d
 	@echo "=== Stack is running ==="
-	@echo "  nexus-cloud:       http://localhost:8080"
-	@echo "  nexapi-inference:  http://localhost:9000"
+	@echo "  strand-cloud:        http://localhost:8080"
+	@echo "  strandapi-inference: http://localhost:9000"
 
 docker-down:
-	@echo "=== Stopping Nexus Protocol stack ==="
+	@echo "=== Stopping Strand Protocol stack ==="
 	docker compose down
 	@echo "=== Stack stopped ==="
 
@@ -225,52 +231,52 @@ docker-build:
 .PHONY: mvp
 mvp:
 	@echo "=== Building MVP subset ==="
-	$(MAKE) nexlink
-	$(MAKE) nextrust
-	$(MAKE) nexstream
-	$(MAKE) nexapi-overlay
-	@echo "=== MVP build complete (nexlink + nextrust + nexstream + nexapi overlay) ==="
+	$(MAKE) strandlink
+	$(MAKE) strandtrust
+	$(MAKE) strandstream
+	$(MAKE) strandapi-overlay
+	@echo "=== MVP build complete (strandlink + strandtrust + strandstream + strandapi overlay) ==="
 
 # -------------------------------------------------------------------
 # Help
 # -------------------------------------------------------------------
 .PHONY: help
 help:
-	@echo "Nexus Protocol Monorepo Build System"
+	@echo "Strand Protocol Monorepo Build System"
 	@echo ""
 	@echo "Build targets (in dependency order):"
-	@echo "  make all            Build everything"
-	@echo "  make mvp            Build MVP subset (no CGo required)"
-	@echo "  make nexlink        Phase 1: NexLink (Zig)"
-	@echo "  make nexroute       Phase 2: NexRoute (C + P4)"
-	@echo "  make nextrust       Phase 3a: NexTrust (Rust)"
-	@echo "  make nexstream      Phase 3b: NexStream (Rust)"
-	@echo "  make nexapi         Phase 4: NexAPI (Go + CGo)"
-	@echo "  make nexapi-overlay Phase 4: NexAPI (pure Go, no CGo)"
-	@echo "  make nexctl         Phase 5a: NexCtl (Go)"
-	@echo "  make nexus-cloud    Phase 5b: Nexus Cloud (Go)"
+	@echo "  make all              Build everything"
+	@echo "  make mvp              Build MVP subset (no CGo required)"
+	@echo "  make strandlink        Phase 1: StrandLink (Zig)"
+	@echo "  make strandroute       Phase 2: StrandRoute (C + P4)"
+	@echo "  make strandtrust       Phase 3a: StrandTrust (Rust)"
+	@echo "  make strandstream      Phase 3b: StrandStream (Rust)"
+	@echo "  make strandapi         Phase 4: StrandAPI (Go + CGo)"
+	@echo "  make strandapi-overlay Phase 4: StrandAPI (pure Go, no CGo)"
+	@echo "  make strandctl         Phase 5a: StrandCtl (Go)"
+	@echo "  make strand-cloud      Phase 5b: Strand Cloud (Go)"
 	@echo ""
 	@echo "Test targets:"
-	@echo "  make test           Run all tests (unit + integration)"
-	@echo "  make test-unit      Unit tests only (fast)"
+	@echo "  make test             Run all tests (unit + integration)"
+	@echo "  make test-unit        Unit tests only (fast)"
 	@echo "  make test-integration Integration tests"
-	@echo "  make test-fuzz      Fuzz tests (long-running)"
-	@echo "  make test-<module>  Test a specific module"
+	@echo "  make test-fuzz        Fuzz tests (long-running)"
+	@echo "  make test-<module>    Test a specific module"
 	@echo ""
 	@echo "Quality targets:"
-	@echo "  make fmt            Format all source code"
-	@echo "  make lint           Run linters on all modules"
-	@echo "  make check          Format + lint"
+	@echo "  make fmt              Format all source code"
+	@echo "  make lint             Run linters on all modules"
+	@echo "  make check            Format + lint"
 	@echo ""
 	@echo "Docker targets:"
-	@echo "  make docker-up      Build and start the full stack (background)"
-	@echo "  make docker-down    Stop all running services"
-	@echo "  make docker-logs    Follow logs from all services"
-	@echo "  make docker-allinone Start the all-in-one mode"
-	@echo "  make docker-dev     Start dev stack with source mounts"
-	@echo "  make docker-clean   Stop, remove volumes and local images"
-	@echo "  make docker-build   Build all Docker images"
+	@echo "  make docker-up        Build and start the full stack (background)"
+	@echo "  make docker-down      Stop all running services"
+	@echo "  make docker-logs      Follow logs from all services"
+	@echo "  make docker-allinone  Start the all-in-one mode"
+	@echo "  make docker-dev       Start dev stack with source mounts"
+	@echo "  make docker-clean     Stop, remove volumes and local images"
+	@echo "  make docker-build     Build all Docker images"
 	@echo ""
 	@echo "Other targets:"
-	@echo "  make clean          Remove all build artifacts"
-	@echo "  make help           Show this help message"
+	@echo "  make clean            Remove all build artifacts"
+	@echo "  make help             Show this help message"

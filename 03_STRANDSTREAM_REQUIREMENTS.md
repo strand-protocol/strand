@@ -1,6 +1,6 @@
-# NexStream — Layer 3: Hybrid Transport Protocol
+# StrandStream — Layer 3: Hybrid Transport Protocol
 
-## Module: `nexstream/`
+## Module: `strandstream/`
 
 ## Language: Rust (Edition 2021, MSRV 1.75+)
 
@@ -10,9 +10,9 @@
 
 ## 1. Overview
 
-NexStream is the transport layer of the Nexus Protocol stack. It replaces TCP and UDP with a hybrid transport that provides four delivery modes — Reliable-Ordered, Reliable-Unordered, Best-Effort, and Probabilistic — all multiplexed over a single connection. NexStream is designed for AI workloads where different data types within the same session have fundamentally different reliability and ordering requirements.
+StrandStream is the transport layer of the Strand Protocol stack. It replaces TCP and UDP with a hybrid transport that provides four delivery modes — Reliable-Ordered, Reliable-Unordered, Best-Effort, and Probabilistic — all multiplexed over a single connection. StrandStream is designed for AI workloads where different data types within the same session have fundamentally different reliability and ordering requirements.
 
-NexStream operates on top of NexLink frames (received via NexLink's ring buffer interface) and provides the stream abstraction consumed by NexTrust and NexAPI above it.
+StrandStream operates on top of StrandLink frames (received via StrandLink's ring buffer interface) and provides the stream abstraction consumed by StrandTrust and StrandAPI above it.
 
 ---
 
@@ -20,18 +20,18 @@ NexStream operates on top of NexLink frames (received via NexLink's ring buffer 
 
 | Standard | Title | Relevance |
 |----------|-------|-----------|
-| **RFC 9293** | Transmission Control Protocol (TCP) | NexStream's Reliable-Ordered mode provides TCP-equivalent guarantees. TCP's congestion control, flow control, and reliability mechanisms are reimplemented with AI-workload optimizations |
-| **RFC 768** | User Datagram Protocol (UDP) | NexStream's Best-Effort mode provides UDP-equivalent unreliable delivery |
-| **RFC 9000** | QUIC: A UDP-Based Multiplexed and Secure Transport | Primary architectural reference. NexStream's multiplexing, connection migration, and stream model are heavily inspired by QUIC. Key differences: NexStream adds Reliable-Unordered and Probabilistic modes, removes HTTP semantics, and operates over NexLink instead of UDP |
-| **RFC 9002** | QUIC Loss Detection and Congestion Control | Reference for NexStream's congestion control implementation. NexStream extends NewReno/CUBIC with AI-workload-specific adaptations |
+| **RFC 9293** | Transmission Control Protocol (TCP) | StrandStream's Reliable-Ordered mode provides TCP-equivalent guarantees. TCP's congestion control, flow control, and reliability mechanisms are reimplemented with AI-workload optimizations |
+| **RFC 768** | User Datagram Protocol (UDP) | StrandStream's Best-Effort mode provides UDP-equivalent unreliable delivery |
+| **RFC 9000** | QUIC: A UDP-Based Multiplexed and Secure Transport | Primary architectural reference. StrandStream's multiplexing, connection migration, and stream model are heavily inspired by QUIC. Key differences: StrandStream adds Reliable-Unordered and Probabilistic modes, removes HTTP semantics, and operates over StrandLink instead of UDP |
+| **RFC 9002** | QUIC Loss Detection and Congestion Control | Reference for StrandStream's congestion control implementation. StrandStream extends NewReno/CUBIC with AI-workload-specific adaptations |
 | **RFC 5681** | TCP Congestion Control | Foundational reference for AIMD, slow start, congestion avoidance |
-| **RFC 8312** | CUBIC for Fast Long-Distance Networks | Reference congestion control algorithm; NexStream implements CUBIC as default with BBR as alternative |
+| **RFC 8312** | CUBIC for Fast Long-Distance Networks | Reference congestion control algorithm; StrandStream implements CUBIC as default with BBR as alternative |
 | **RFC 9438** | BBR Congestion Control (BBRv3) | Alternative congestion control for high-bandwidth AI training workloads |
-| **RFC 4960** | Stream Control Transmission Protocol (SCTP) | Reference for multi-stream multiplexing. SCTP pioneered multi-homing and multi-streaming; NexStream extends these concepts |
-| **RFC 6298** | Computing TCP's Retransmission Timer | Reference for RTO calculation (Jacobson/Karels algorithm) used in NexStream's reliable modes |
-| **RFC 7323** | TCP Extensions for High Performance | Reference for window scaling, timestamps, PAWS — NexStream implements equivalents |
-| **RFC 8684** | TCP Extensions for Multipath Operation (MPTCP) | Reference for multipath transport — NexStream natively supports multipath via NexRoute integration |
-| **RFC 6347** | Datagram Transport Layer Security Version 1.2 (DTLS) | Reference for securing datagram-based transport — NexStream delegates encryption to NexTrust but references DTLS patterns for unreliable-mode security |
+| **RFC 4960** | Stream Control Transmission Protocol (SCTP) | Reference for multi-stream multiplexing. SCTP pioneered multi-homing and multi-streaming; StrandStream extends these concepts |
+| **RFC 6298** | Computing TCP's Retransmission Timer | Reference for RTO calculation (Jacobson/Karels algorithm) used in StrandStream's reliable modes |
+| **RFC 7323** | TCP Extensions for High Performance | Reference for window scaling, timestamps, PAWS — StrandStream implements equivalents |
+| **RFC 8684** | TCP Extensions for Multipath Operation (MPTCP) | Reference for multipath transport — StrandStream natively supports multipath via StrandRoute integration |
+| **RFC 6347** | Datagram Transport Layer Security Version 1.2 (DTLS) | Reference for securing datagram-based transport — StrandStream delegates encryption to StrandTrust but references DTLS patterns for unreliable-mode security |
 
 ---
 
@@ -48,11 +48,11 @@ NexStream operates on top of NexLink frames (received via NexLink's ring buffer 
 
 ### 3.2 Stream Multiplexing
 
-NexStream multiplexes multiple independent streams over a single NexLink connection (identified by source+dest Node ID pair). Each stream has:
+StrandStream multiplexes multiple independent streams over a single StrandLink connection (identified by source+dest Node ID pair). Each stream has:
 
-- **Stream ID**: 32-bit identifier (from NexLink header `stream_id` field)
+- **Stream ID**: 32-bit identifier (from StrandLink header `stream_id` field)
 - **Delivery Mode**: One of RO/RU/BE/PR, set at stream creation, immutable for stream lifetime
-- **Priority**: 0-15 priority level, maps to NexLink frame priority
+- **Priority**: 0-15 priority level, maps to StrandLink frame priority
 - **Flow Control**: Independent per-stream send/receive windows (for RO and RU modes)
 - **Congestion Control**: Shared per-connection congestion window with per-stream fairness
 
@@ -83,9 +83,9 @@ Client                                Server
   |<-- CONN_CLOSE_ACK ------------------|
 ```
 
-### 3.4 Frame Types (NexStream Control Frames)
+### 3.4 Frame Types (StrandStream Control Frames)
 
-These are carried inside NexLink frames with `frame_type = StreamControl (0x0007)`:
+These are carried inside StrandLink frames with `frame_type = StreamControl (0x0007)`:
 
 | Type | ID | Payload | Description |
 |------|----|---------|-------------|
@@ -110,14 +110,14 @@ These are carried inside NexLink frames with `frame_type = StreamControl (0x0007
 ### 4.1 Source Tree Structure
 
 ```
-nexstream/
+strandstream/
 ├── Cargo.toml
 ├── src/
 │   ├── lib.rs                     # Crate root, public API
 │   ├── connection.rs              # Connection state machine
 │   ├── stream.rs                  # Individual stream state + operations
 │   ├── mux.rs                     # Stream multiplexer / demultiplexer
-│   ├── frame.rs                   # NexStream control frame encoding/decoding
+│   ├── frame.rs                   # StrandStream control frame encoding/decoding
 │   ├── transport/
 │   │   ├── mod.rs                 # Transport mode trait definition
 │   │   ├── reliable_ordered.rs    # RO mode: TCP-like reliability + ordering
@@ -130,7 +130,7 @@ nexstream/
 │   │   ├── bbr.rs                 # BBRv3 congestion control (RFC 9438)
 │   │   └── none.rs                # No congestion control (for testing / controlled networks)
 │   ├── flow_control.rs            # Per-stream and per-connection flow control
-│   ├── loss_detection.rs          # Loss detection (RFC 9002 adapted for NexStream)
+│   ├── loss_detection.rs          # Loss detection (RFC 9002 adapted for StrandStream)
 │   ├── retransmission.rs          # Retransmission engine for RO/RU modes
 │   ├── rtt.rs                     # RTT estimation (RFC 6298 Jacobson/Karels + smoothing)
 │   ├── fec.rs                     # Forward Error Correction for Probabilistic mode
@@ -141,7 +141,7 @@ nexstream/
 │   └── error.rs                   # Error types
 ├── src/platform/
 │   ├── mod.rs                     # Platform abstraction trait
-│   ├── nexlink.rs                 # NexLink integration (FFI to Zig ring buffer)
+│   ├── strandlink.rs                 # StrandLink integration (FFI to Zig ring buffer)
 │   ├── tokio.rs                   # Tokio async runtime integration for server workloads
 │   └── no_std.rs                  # no_std platform for embedded targets
 ├── tests/
@@ -158,7 +158,7 @@ nexstream/
 │   ├── latency_bench.rs           # Per-frame processing latency
 │   └── mux_bench.rs               # Multiplexer overhead per stream count
 ├── fuzz/
-│   ├── fuzz_frame_decode.rs       # Fuzz NexStream frame decoder
+│   ├── fuzz_frame_decode.rs       # Fuzz StrandStream frame decoder
 │   └── fuzz_connection_input.rs   # Fuzz connection state machine with random input
 └── examples/
     ├── echo_server.rs             # Simple echo server demonstrating all 4 modes
@@ -190,24 +190,24 @@ pub struct StreamConfig {
     pub max_retransmissions: Option<u32>, // For reliable modes: max retransmit attempts
 }
 
-/// A NexStream connection
+/// A StrandStream connection
 pub struct Connection { /* ... */ }
 
 impl Connection {
     /// Initiate a connection to a remote node
-    pub async fn connect(config: ConnectionConfig) -> Result<Self, NexStreamError>;
+    pub async fn connect(config: ConnectionConfig) -> Result<Self, StrandStreamError>;
 
     /// Accept an incoming connection
-    pub async fn accept(config: ConnectionConfig) -> Result<Self, NexStreamError>;
+    pub async fn accept(config: ConnectionConfig) -> Result<Self, StrandStreamError>;
 
     /// Open a new stream on this connection
-    pub async fn open_stream(&self, config: StreamConfig) -> Result<Stream, NexStreamError>;
+    pub async fn open_stream(&self, config: StreamConfig) -> Result<Stream, StrandStreamError>;
 
     /// Accept an incoming stream opened by the remote side
-    pub async fn accept_stream(&self) -> Result<Stream, NexStreamError>;
+    pub async fn accept_stream(&self) -> Result<Stream, StrandStreamError>;
 
     /// Close the connection gracefully
-    pub async fn close(&self) -> Result<(), NexStreamError>;
+    pub async fn close(&self) -> Result<(), StrandStreamError>;
 
     /// Get connection statistics
     pub fn stats(&self) -> ConnectionStats;
@@ -218,19 +218,19 @@ pub struct Stream { /* ... */ }
 
 impl Stream {
     /// Send data on this stream (behavior depends on TransportMode)
-    pub async fn send(&self, data: &[u8]) -> Result<usize, NexStreamError>;
+    pub async fn send(&self, data: &[u8]) -> Result<usize, StrandStreamError>;
 
-    /// Send data with zero-copy from a NexLink ring buffer slot
-    pub async fn send_zerocopy(&self, slot: RingBufferSlot) -> Result<(), NexStreamError>;
+    /// Send data with zero-copy from a StrandLink ring buffer slot
+    pub async fn send_zerocopy(&self, slot: RingBufferSlot) -> Result<(), StrandStreamError>;
 
     /// Receive data from this stream
-    pub async fn recv(&self, buf: &mut [u8]) -> Result<usize, NexStreamError>;
+    pub async fn recv(&self, buf: &mut [u8]) -> Result<usize, StrandStreamError>;
 
-    /// Receive into a NexLink ring buffer slot (zero-copy)
-    pub async fn recv_zerocopy(&self) -> Result<RingBufferSlot, NexStreamError>;
+    /// Receive into a StrandLink ring buffer slot (zero-copy)
+    pub async fn recv_zerocopy(&self) -> Result<RingBufferSlot, StrandStreamError>;
 
     /// Close this stream
-    pub async fn close(&self) -> Result<(), NexStreamError>;
+    pub async fn close(&self) -> Result<(), StrandStreamError>;
 
     /// Get the stream's transport mode
     pub fn mode(&self) -> TransportMode;
@@ -290,7 +290,7 @@ pub trait CongestionController: Send + Sync {
 | NS-C-001 | Implement full connection lifecycle: INIT → ESTABLISHED → CLOSING → CLOSED | P0 |
 | NS-C-002 | Support connection timeout: if CONN_ACCEPT not received within configurable timeout (default 5s), fail | P0 |
 | NS-C-003 | Idle timeout: close connections with no stream activity for configurable duration (default 60s) | P1 |
-| NS-C-004 | Connection migration: support changing the underlying NexLink path (Node ID pair) without tearing down streams. Reference RFC 9000 §9 (QUIC Connection Migration) | P2 |
+| NS-C-004 | Connection migration: support changing the underlying StrandLink path (Node ID pair) without tearing down streams. Reference RFC 9000 §9 (QUIC Connection Migration) | P2 |
 | NS-C-005 | Maximum concurrent streams per connection configurable (default 1024) | P0 |
 
 ### 5.2 Reliable-Ordered Mode (RFC 9293 / TCP equivalent)
@@ -329,7 +329,7 @@ pub trait CongestionController: Send + Sync {
 |----|-------------|----------|
 | NS-PR-001 | Configurable delivery probability p: each frame independently delivered with probability p | P0 |
 | NS-PR-002 | Forward Error Correction (FEC): Reed-Solomon or XOR-based erasure coding, configurable redundancy ratio | P1 |
-| NS-PR-003 | Probabilistic multipath: when NexRoute provides K paths, distribute frames across paths with configurable weights | P1 |
+| NS-PR-003 | Probabilistic multipath: when StrandRoute provides K paths, distribute frames across paths with configurable weights | P1 |
 | NS-PR-004 | No retransmission: if a frame is lost beyond FEC recovery, it stays lost | P0 |
 | NS-PR-005 | Receiver reports: periodic summary of received/lost frame counts for sender-side adaptation | P1 |
 
@@ -340,7 +340,7 @@ pub trait CongestionController: Send + Sync {
 | NS-CC-001 | Implement CUBIC congestion control as default (RFC 8312) | P0 |
 | NS-CC-002 | Implement BBRv3 as alternative congestion control (RFC 9438) | P1 |
 | NS-CC-003 | Per-connection congestion window shared across all streams with weighted fairness | P0 |
-| NS-CC-004 | ECN (Explicit Congestion Notification) support: read ECN bits from NexLink frames, reduce window on CE marks | P1 |
+| NS-CC-004 | ECN (Explicit Congestion Notification) support: read ECN bits from StrandLink frames, reduce window on CE marks | P1 |
 | NS-CC-005 | Pacing: spread packet transmissions evenly over RTT to avoid bursts | P1 |
 | NS-CC-006 | Congestion controller pluggable via `CongestionController` trait | P0 |
 
@@ -365,7 +365,7 @@ pub trait CongestionController: Send + Sync {
 | NS-NF-004 | Maximum concurrent streams per connection | 65,536 |
 | NS-NF-005 | Memory per stream (idle) | < 4KB |
 | NS-NF-006 | Memory per stream (active, default buffer sizes) | < 256KB |
-| NS-NF-007 | Zero-copy path: no buffer copies between NexLink ring buffer and application | For send_zerocopy/recv_zerocopy |
+| NS-NF-007 | Zero-copy path: no buffer copies between StrandLink ring buffer and application | For send_zerocopy/recv_zerocopy |
 | NS-NF-008 | no_std support (embedded target) | All core logic excluding async runtime |
 
 ---
@@ -401,7 +401,7 @@ cargo doc --open
 | `no_std` | No | Embedded/no_std target (mutually exclusive with std) |
 | `bbr` | No | BBRv3 congestion control (adds complexity, optional) |
 | `fec` | No | Forward Error Correction for Probabilistic mode |
-| `nexlink-ffi` | Yes | NexLink C FFI bindings for ring buffer integration |
+| `strandlink-ffi` | Yes | StrandLink C FFI bindings for ring buffer integration |
 
 ---
 
@@ -415,7 +415,7 @@ cargo doc --open
 | Congestion control tests | CUBIC/BBR behavior under step function bandwidth changes. Fairness between streams. No starvation | All CC algorithms |
 | Fuzz tests | Frame decoder, connection state machine input | 10M+ iterations |
 | Benchmark tests | Throughput, latency, memory per stream. Regression tracked in CI | Hot path |
-| Integration tests | Full NexLink → NexStream roundtrip with mock NexLink backend | All modes |
+| Integration tests | Full StrandLink → StrandStream roundtrip with mock StrandLink backend | All modes |
 
 ---
 
@@ -431,4 +431,4 @@ cargo doc --open
 | `proptest` | 1.4+ | Property-based testing (dev dependency) |
 | `criterion` | 0.5+ | Benchmarking (dev dependency) |
 | `cargo-fuzz` | — | Fuzz testing (dev dependency) |
-| NexLink FFI | — | C FFI bindings to NexLink ring buffer (via `bindgen`) |
+| StrandLink FFI | — | C FFI bindings to StrandLink ring buffer (via `bindgen`) |

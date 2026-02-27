@@ -1,4 +1,4 @@
-package nexbuf
+package strandbuf
 
 import (
 	"math"
@@ -278,5 +278,107 @@ func TestBufferReset(t *testing.T) {
 	}
 	if got != 99 {
 		t.Errorf("got %d, want 99", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Boundary condition tests
+// ---------------------------------------------------------------------------
+
+func TestReadBeyondBuffer(t *testing.T) {
+	// A reader with only 2 bytes should fail for 4-byte reads.
+	r := NewReader([]byte{0xAA, 0xBB})
+	_, err := r.ReadUint32()
+	if err != ErrShortBuffer {
+		t.Errorf("ReadUint32 on 2 bytes: got %v, want ErrShortBuffer", err)
+	}
+	// A reader with 0 bytes should fail on ReadUint8.
+	r2 := NewReader([]byte{})
+	_, err = r2.ReadUint8()
+	if err != ErrShortBuffer {
+		t.Errorf("ReadUint8 on empty: got %v, want ErrShortBuffer", err)
+	}
+	// ReadString on a buffer that has a length but not enough payload.
+	buf := NewBuffer(8)
+	buf.WriteUint32(100) // declare 100 bytes of string
+	r3 := NewReader(buf.Bytes())
+	_, err = r3.ReadString()
+	if err != ErrShortBuffer {
+		t.Errorf("ReadString with truncated payload: got %v, want ErrShortBuffer", err)
+	}
+}
+
+func TestEmptyBufferGrows(t *testing.T) {
+	buf := NewBuffer(0) // zero initial capacity
+	buf.WriteUint32(42)
+	buf.WriteString("hello")
+	buf.WriteBytes([]byte{1, 2, 3})
+
+	// Verify the data is correct.
+	r := NewReader(buf.Bytes())
+	v, err := r.ReadUint32()
+	if err != nil {
+		t.Fatalf("ReadUint32: %v", err)
+	}
+	if v != 42 {
+		t.Errorf("uint32 = %d, want 42", v)
+	}
+	s, err := r.ReadString()
+	if err != nil {
+		t.Fatalf("ReadString: %v", err)
+	}
+	if s != "hello" {
+		t.Errorf("string = %q, want %q", s, "hello")
+	}
+	b, err := r.ReadBytes()
+	if err != nil {
+		t.Fatalf("ReadBytes: %v", err)
+	}
+	if len(b) != 3 || b[0] != 1 || b[1] != 2 || b[2] != 3 {
+		t.Errorf("bytes = %v, want [1 2 3]", b)
+	}
+}
+
+func TestReaderExhaustion(t *testing.T) {
+	buf := NewBuffer(4)
+	buf.WriteUint32(999)
+
+	r := NewReader(buf.Bytes())
+	// First read succeeds.
+	v, err := r.ReadUint32()
+	if err != nil {
+		t.Fatalf("first ReadUint32: %v", err)
+	}
+	if v != 999 {
+		t.Errorf("first ReadUint32 = %d, want 999", v)
+	}
+	if r.Remaining() != 0 {
+		t.Errorf("Remaining = %d, want 0", r.Remaining())
+	}
+	// Second read should fail — buffer is exhausted.
+	_, err = r.ReadUint8()
+	if err != ErrShortBuffer {
+		t.Errorf("after exhaustion: got %v, want ErrShortBuffer", err)
+	}
+}
+
+func TestReadBytesZeroCopy(t *testing.T) {
+	// ReadBytes returns a sub-slice of the underlying buffer (zero-copy).
+	original := []byte{
+		0x03, 0x00, 0x00, 0x00, // length = 3
+		0xAA, 0xBB, 0xCC, // data
+	}
+	r := NewReader(original)
+	b, err := r.ReadBytes()
+	if err != nil {
+		t.Fatalf("ReadBytes: %v", err)
+	}
+	if len(b) != 3 || b[0] != 0xAA || b[1] != 0xBB || b[2] != 0xCC {
+		t.Errorf("ReadBytes = %v, want [AA BB CC]", b)
+	}
+	// Mutating the returned slice should also mutate the original (zero-copy).
+	b[0] = 0xFF
+	if original[4] != 0xFF {
+		t.Errorf("ReadBytes did not return a zero-copy sub-slice")
 	}
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# run-demo.sh -- Build, start, and smoke-test the Nexus
+# run-demo.sh -- Build, start, and smoke-test the Strand
 # Protocol Docker stack.
 # ============================================================
 
@@ -49,7 +49,7 @@ wait_for_healthy() {
 # -----------------------------------------------------------
 echo ""
 echo -e "${BOLD}========================================${NC}"
-echo -e "${BOLD}  Nexus Protocol -- Demo Launcher${NC}"
+echo -e "${BOLD}  Strand Protocol -- Demo Launcher${NC}"
 echo -e "${BOLD}========================================${NC}"
 echo ""
 
@@ -66,13 +66,13 @@ echo ""
 
 healthy=true
 
-if ! wait_for_healthy "nexus-cloud" "http://localhost:8080/healthz" 60; then
+if ! wait_for_healthy "strand-cloud" "http://localhost:8080/healthz" 60; then
     healthy=false
 fi
 
-if ! wait_for_healthy "nexapi-inference" "http://localhost:9000" 60; then
+if ! wait_for_healthy "strandapi-inference" "http://localhost:9000" 60; then
     # The inference server may not have an HTTP healthz; just check the port.
-    warn "nexapi-inference port check inconclusive (it uses a custom protocol, not HTTP)"
+    warn "strandapi-inference port check inconclusive (it uses a custom protocol, not HTTP)"
 fi
 
 echo ""
@@ -83,20 +83,20 @@ echo ""
 info "Running smoke tests ..."
 echo ""
 
-# Test 1: nexus-cloud /healthz
+# Test 1: strand-cloud /healthz
 if curl -sf "http://localhost:8080/healthz" > /dev/null 2>&1; then
-    ok "nexus-cloud /healthz returned 200"
+    ok "strand-cloud /healthz returned 200"
 else
-    fail "nexus-cloud /healthz failed"
+    fail "strand-cloud /healthz failed"
     healthy=false
 fi
 
-# Test 2: nexus-cloud responds to API requests
+# Test 2: strand-cloud responds to API requests
 status_code=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:8080/healthz" 2>/dev/null || echo "000")
 if [ "$status_code" = "200" ]; then
-    ok "nexus-cloud HTTP status: $status_code"
+    ok "strand-cloud HTTP status: $status_code"
 else
-    fail "nexus-cloud HTTP status: $status_code (expected 200)"
+    fail "strand-cloud HTTP status: $status_code (expected 200)"
     healthy=false
 fi
 
@@ -104,16 +104,16 @@ fi
 running=$(docker compose ps --status running --format '{{.Name}}' 2>/dev/null | wc -l | tr -d ' ')
 info "Running containers: $running"
 
-# Test 4: nexctl connectivity (if nexctl binary is available)
-if command -v nexctl &> /dev/null; then
-    info "nexctl found; attempting version check ..."
-    if nexctl version 2>/dev/null; then
-        ok "nexctl version succeeded"
+# Test 4: strandctl connectivity (if strandctl binary is available)
+if command -v strandctl &> /dev/null; then
+    info "strandctl found; attempting version check ..."
+    if strandctl version 2>/dev/null; then
+        ok "strandctl version succeeded"
     else
-        warn "nexctl version failed (non-fatal)"
+        warn "strandctl version failed (non-fatal)"
     fi
 else
-    info "nexctl not found in PATH; skipping CLI smoke test"
+    info "strandctl not found in PATH; skipping CLI smoke test"
 fi
 
 echo ""
@@ -123,19 +123,19 @@ echo ""
 # -----------------------------------------------------------
 if [ "$healthy" = true ]; then
     echo -e "${GREEN}${BOLD}========================================${NC}"
-    echo -e "${GREEN}${BOLD}  Nexus Protocol is running!${NC}"
+    echo -e "${GREEN}${BOLD}  Strand Protocol is running!${NC}"
     echo -e "${GREEN}${BOLD}========================================${NC}"
 else
     echo -e "${YELLOW}${BOLD}========================================${NC}"
-    echo -e "${YELLOW}${BOLD}  Nexus Protocol started with warnings${NC}"
+    echo -e "${YELLOW}${BOLD}  Strand Protocol started with warnings${NC}"
     echo -e "${YELLOW}${BOLD}========================================${NC}"
 fi
 
 echo ""
 echo -e "${BOLD}Endpoint URLs:${NC}"
-echo -e "  nexus-cloud (control plane):  ${CYAN}http://localhost:8080${NC}"
-echo -e "  nexus-cloud healthz:          ${CYAN}http://localhost:8080/healthz${NC}"
-echo -e "  nexapi-inference (example):   ${CYAN}http://localhost:9000${NC}"
+echo -e "  strand-cloud (control plane):   ${CYAN}http://localhost:8080${NC}"
+echo -e "  strand-cloud healthz:           ${CYAN}http://localhost:8080/healthz${NC}"
+echo -e "  strandapi-inference (example):  ${CYAN}http://localhost:9000${NC}"
 echo ""
 echo -e "${BOLD}Useful commands:${NC}"
 echo "  docker compose logs -f              -- follow logs"

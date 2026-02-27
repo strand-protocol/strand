@@ -17,7 +17,7 @@ func (m *MockClient) ListNodes() ([]NodeInfo, error) {
 			Address:      "10.0.1.10:9100",
 			Status:       "ready",
 			LastSeen:     time.Now().Add(-30 * time.Second),
-			Firmware:     "nexlink-v2.4.1",
+			Firmware:     "strandlink-v2.4.1",
 			Capabilities: []string{"llm-inference", "embedding", "rerank"},
 		},
 		{
@@ -25,7 +25,7 @@ func (m *MockClient) ListNodes() ([]NodeInfo, error) {
 			Address:      "10.0.1.11:9100",
 			Status:       "ready",
 			LastSeen:     time.Now().Add(-15 * time.Second),
-			Firmware:     "nexlink-v2.4.1",
+			Firmware:     "strandlink-v2.4.1",
 			Capabilities: []string{"llm-inference", "vision"},
 		},
 		{
@@ -33,7 +33,7 @@ func (m *MockClient) ListNodes() ([]NodeInfo, error) {
 			Address:      "10.0.1.12:9100",
 			Status:       "draining",
 			LastSeen:     time.Now().Add(-120 * time.Second),
-			Firmware:     "nexlink-v2.3.0",
+			Firmware:     "strandlink-v2.3.0",
 			Capabilities: []string{"embedding"},
 		},
 	}, nil
@@ -102,7 +102,7 @@ func (m *MockClient) IssueMIC(nodeID string) (*MICInfo, error) {
 		NodeID:     nodeID,
 		ModelHash:  "sha256:a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
 		ValidUntil: time.Now().Add(365 * 24 * time.Hour),
-		Issuer:     "nexus-root-ca",
+		Issuer:     "strand-root-ca",
 		Status:     "valid",
 	}, nil
 }
@@ -112,16 +112,16 @@ func (m *MockClient) VerifyMIC(data []byte) (*MICInfo, error) {
 		NodeID:     "node-alpha-01",
 		ModelHash:  "sha256:a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
 		ValidUntil: time.Now().Add(180 * 24 * time.Hour),
-		Issuer:     "nexus-root-ca",
+		Issuer:     "strand-root-ca",
 		Status:     "valid",
 	}, nil
 }
 
 func (m *MockClient) ListCAs() ([]string, error) {
 	return []string{
-		"nexus-root-ca",
-		"nexus-intermediate-ca-1",
-		"nexus-intermediate-ca-2",
+		"strand-root-ca",
+		"strand-intermediate-ca-1",
+		"strand-intermediate-ca-2",
 	}, nil
 }
 
@@ -148,21 +148,21 @@ func (m *MockClient) ListFirmware() ([]FirmwareInfo, error) {
 	return []FirmwareInfo{
 		{
 			ID:       "fw-001",
-			Version:  "nexlink-v2.4.1",
+			Version:  "strandlink-v2.4.1",
 			Platform: "ConnectX-7",
 			Size:     16777216,
 			Checksum: "sha256:deadbeef01234567",
 		},
 		{
 			ID:       "fw-002",
-			Version:  "nexlink-v2.4.1",
+			Version:  "strandlink-v2.4.1",
 			Platform: "E810",
 			Size:     12582912,
 			Checksum: "sha256:cafebabe89abcdef",
 		},
 		{
 			ID:       "fw-003",
-			Version:  "nexlink-v2.3.0",
+			Version:  "strandlink-v2.3.0",
 			Platform: "BlueField-3",
 			Size:     33554432,
 			Checksum: "sha256:0123456789abcdef",
@@ -178,5 +178,5 @@ func (m *MockClient) FlashFirmware(device, image string) error {
 }
 
 func (m *MockClient) Version() (string, error) {
-	return "nexus-api v0.1.0 (mock)", nil
+	return "strand-api v0.1.0 (mock)", nil
 }

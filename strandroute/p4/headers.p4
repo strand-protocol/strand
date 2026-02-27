@@ -1,12 +1,12 @@
 /*
- * headers.p4 - P4_16 header definitions for NexRoute
+ * headers.p4 - P4_16 header definitions for StrandRoute
  *
- * Defines NexLink frame header and NexRoute SAD overlay header
+ * Defines StrandLink frame header and StrandRoute SAD overlay header
  * for programmable switch dataplanes.
  */
 
-#ifndef __NEXROUTE_HEADERS_P4__
-#define __NEXROUTE_HEADERS_P4__
+#ifndef __STRANDROUTE_HEADERS_P4__
+#define __STRANDROUTE_HEADERS_P4__
 
 /* --------------------------------------------------------------------------
  * Ethernet header (for physical port ingress)
@@ -18,16 +18,16 @@ header ethernet_t {
     bit<16> ether_type;
 }
 
-/* EtherType for NexLink frames */
-const bit<16> ETHERTYPE_NEXLINK = 0x9100;
+/* EtherType for StrandLink frames */
+const bit<16> ETHERTYPE_STRANDLINK = 0x9100;
 
 /* --------------------------------------------------------------------------
- * NexLink frame header - 64 bytes fixed
+ * StrandLink frame header - 64 bytes fixed
  *
- * This must match nexlink_frame_header_t exactly.
+ * This must match strandlink_frame_header_t exactly.
  * -------------------------------------------------------------------------- */
 
-header nexlink_t {
+header strandlink_t {
     bit<8>   version;
     bit<8>   frame_type;
     bit<16>  payload_length;
@@ -44,9 +44,9 @@ header nexlink_t {
 }
 
 /* --------------------------------------------------------------------------
- * NexRoute SAD header - extracted from NexLink options area
+ * StrandRoute SAD header - extracted from StrandLink options area
  *
- * The SAD sits inside the NexLink options region.  We parse a fixed
+ * The SAD sits inside the StrandLink options region.  We parse a fixed
  * header (4 bytes) and then up to 3 "first fields" for TCAM matching.
  * Full SAD parsing for variable-length fields is deferred to the
  * control plane via digest/clone.
@@ -61,7 +61,7 @@ header nexlink_t {
  *   field2: CONTEXT_WINDOW (type=0x03, 4 bytes -> 32 bits)
  * -------------------------------------------------------------------------- */
 
-header nexroute_sad_t {
+header strandroute_sad_t {
     bit<8>  version;
     bit<8>  flags;
     bit<16> num_fields;
@@ -77,10 +77,10 @@ header sad_field_t {
 }
 
 /* --------------------------------------------------------------------------
- * Metadata for NexRoute processing
+ * Metadata for StrandRoute processing
  * -------------------------------------------------------------------------- */
 
-struct nexroute_metadata_t {
+struct strandroute_metadata_t {
     bit<1>   has_sad;
     bit<32>  model_arch;
     bit<32>  capability_flags;
@@ -97,11 +97,11 @@ struct nexroute_metadata_t {
 
 struct headers_t {
     ethernet_t       ethernet;
-    nexlink_t        nexlink;
-    nexroute_sad_t   sad_header;
+    strandlink_t        strandlink;
+    strandroute_sad_t   sad_header;
     sad_field_t      sad_field0;    /* MODEL_ARCH */
     sad_field_t      sad_field1;    /* CAPABILITY */
     sad_field_t      sad_field2;    /* CONTEXT_WINDOW */
 }
 
-#endif /* __NEXROUTE_HEADERS_P4__ */
+#endif /* __STRANDROUTE_HEADERS_P4__ */

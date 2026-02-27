@@ -1,6 +1,6 @@
-# NexLink — Layer 1: AI-Native Frame Protocol
+# StrandLink — Layer 1: AI-Native Frame Protocol
 
-## Module: `nexlink/`
+## Module: `strandlink/`
 
 ## Language: Zig (0.13+)
 
@@ -10,24 +10,24 @@
 
 ## 1. Overview
 
-NexLink is the lowest layer of the Nexus Protocol stack. It defines a new frame format optimized for AI workloads — replacing the IEEE 802.3 Ethernet frame with a format that supports zero-copy DMA, tensor-aware memory alignment, AI metadata headers, and direct NIC-to-GPU data paths.
+StrandLink is the lowest layer of the Strand Protocol stack. It defines a new frame format optimized for AI workloads — replacing the IEEE 802.3 Ethernet frame with a format that supports zero-copy DMA, tensor-aware memory alignment, AI metadata headers, and direct NIC-to-GPU data paths.
 
-NexLink runs as a firmware shim on programmable NICs (SmartNICs) or as a userspace driver via DPDK/XDP on standard NICs. The frame format is designed to be encapsulated inside standard Ethernet for backward compatibility (Tier 3 overlay mode).
+StrandLink runs as a firmware shim on programmable NICs (SmartNICs) or as a userspace driver via DPDK/XDP on standard NICs. The frame format is designed to be encapsulated inside standard Ethernet for backward compatibility (Tier 3 overlay mode).
 
 ---
 
 ## 2. Standards & RFCs Being Replaced / Extended
 
-NexLink replaces or extends the following standards. Claude Code **must** reference these specifications when implementing corresponding functionality:
+StrandLink replaces or extends the following standards. Claude Code **must** reference these specifications when implementing corresponding functionality:
 
 | Standard | Title | Relevance |
 |----------|-------|-----------|
-| **IEEE 802.3** | Ethernet Frame Format | NexLink replaces the Ethernet payload format while remaining encapsulatable inside 802.3 frames for overlay mode |
-| **RFC 894** | A Standard for the Transmission of IP Datagrams over Ethernet Networks | Defines how IP is carried over Ethernet; NexLink defines how Nexus datagrams are carried |
-| **RFC 7348** (VXLAN) | Virtual Extensible Local Area Network | Reference for overlay encapsulation design — NexLink Tier 3 uses a similar UDP encapsulation model |
-| **RFC 8926** (Geneve) | Generic Network Virtualization Encapsulation | Alternative overlay reference; NexLink's overlay header design borrows Geneve's extensible TLV option model |
-| **RFC 3031** (MPLS) | Multiprotocol Label Switching Architecture | Reference for label-based forwarding — NexLink's stream ID operates similarly to MPLS labels |
-| **IEEE 802.1Q** | VLAN Tagging | NexLink supports QoS priority bits analogous to 802.1p/PCP fields |
+| **IEEE 802.3** | Ethernet Frame Format | StrandLink replaces the Ethernet payload format while remaining encapsulatable inside 802.3 frames for overlay mode |
+| **RFC 894** | A Standard for the Transmission of IP Datagrams over Ethernet Networks | Defines how IP is carried over Ethernet; StrandLink defines how Strand datagrams are carried |
+| **RFC 7348** (VXLAN) | Virtual Extensible Local Area Network | Reference for overlay encapsulation design — StrandLink Tier 3 uses a similar UDP encapsulation model |
+| **RFC 8926** (Geneve) | Generic Network Virtualization Encapsulation | Alternative overlay reference; StrandLink's overlay header design borrows Geneve's extensible TLV option model |
+| **RFC 3031** (MPLS) | Multiprotocol Label Switching Architecture | Reference for label-based forwarding — StrandLink's stream ID operates similarly to MPLS labels |
+| **IEEE 802.1Q** | VLAN Tagging | StrandLink supports QoS priority bits analogous to 802.1p/PCP fields |
 | **RFC 2464** | Transmission of IPv6 Packets over Ethernet Networks | Reference for MTU handling and fragmentation at the link layer |
 
 ### Hardware SDK References (for firmware targets)
@@ -38,13 +38,13 @@ NexLink replaces or extends the following standards. Claude Code **must** refere
 | **Intel Infrastructure Processing Unit SDK** | Intel | E810 / IPU firmware development |
 | **DPDK (libdpdk)** | Linux Foundation | Userspace NIC driver for kernel bypass on standard NICs |
 | **XDP/eBPF** | Linux Kernel | In-kernel fast-path packet processing |
-| **io_uring** | Linux Kernel | Async I/O ring buffer interface — reference for NexLink's ring buffer design |
+| **io_uring** | Linux Kernel | Async I/O ring buffer interface — reference for StrandLink's ring buffer design |
 
 ---
 
 ## 3. Frame Format Specification
 
-### 3.1 NexLink Frame Header (64 bytes fixed)
+### 3.1 StrandLink Frame Header (64 bytes fixed)
 
 ```
  0                   1                   2                   3
@@ -93,7 +93,7 @@ NexLink replaces or extends the following standards. Claude Code **must** refere
 | `frame_length` | 32 bits | Total frame length in bytes including header, options, payload, and CRC |
 | `stream_id` | 32 bits | Multiplexed stream identifier (analogous to MPLS label / HTTP/2 stream ID) |
 | `sequence_number` | 32 bits | Per-stream monotonic sequence number |
-| `source_node_id` | 128 bits | Nexus node identifier (NOT an IP address — derived from NexTrust identity key) |
+| `source_node_id` | 128 bits | Strand node identifier (NOT an IP address — derived from StrandTrust identity key) |
 | `dest_node_id` | 128 bits | Destination node identifier or multicast group ID |
 | `priority` | 4 bits | 0-15 priority level (0 = lowest, 15 = express). Maps to hardware QoS queues |
 | `qos_class` | 4 bits | `0x0` = BestEffort, `0x1` = ReliableOrdered, `0x2` = ReliableUnordered, `0x3` = Probabilistic, `0x4-0xF` = Reserved |
@@ -125,7 +125,7 @@ Defined option types:
 | `0x04` | `TENSOR_SHAPE` | Tensor dimension descriptor: ndims (8b) + dims[] (32b each) |
 | `0x05` | `TRACE_ID` | 16-byte distributed trace ID for observability |
 | `0x06` | `HOP_COUNT` | Current hop count (8b) for loop prevention |
-| `0x07` | `SEMANTIC_ADDR` | Compressed semantic address descriptor (for NexRoute integration) |
+| `0x07` | `SEMANTIC_ADDR` | Compressed semantic address descriptor (for StrandRoute integration) |
 | `0x08` | `GPU_HINT` | Target GPU device ID + memory pool hint for GPUDirect RDMA |
 
 ---
@@ -135,7 +135,7 @@ Defined option types:
 ### 4.1 Source Tree Structure
 
 ```
-nexlink/
+strandlink/
 ├── build.zig                    # Top-level Zig build script
 ├── src/
 │   ├── main.zig                 # Entry point for userspace test harness
@@ -148,7 +148,7 @@ nexlink/
 │   ├── tx.zig                   # Transmit path: frame assembly → ring buffer → DMA
 │   ├── rx.zig                   # Receive path: DMA → ring buffer → frame parsing → dispatch
 │   ├── stats.zig                # Per-port and per-stream statistics counters
-│   ├── overlay.zig              # Tier 3 overlay: NexLink encapsulated in UDP/IP
+│   ├── overlay.zig              # Tier 3 overlay: StrandLink encapsulated in UDP/IP
 │   └── platform/
 │       ├── dpdk.zig             # DPDK backend (Linux userspace, kernel bypass)
 │       ├── xdp.zig              # XDP/eBPF backend (Linux in-kernel fast path)
@@ -163,7 +163,7 @@ nexlink/
 │   ├── fuzz_test.zig            # Fuzz testing for frame parser
 │   └── benchmark_test.zig       # Latency and throughput microbenchmarks
 ├── include/
-│   └── nexlink.h                # C-compatible header for FFI (auto-generated from Zig exports)
+│   └── strandlink.h                # C-compatible header for FFI (auto-generated from Zig exports)
 └── firmware/
     ├── connectx/                # ConnectX-specific firmware build artifacts
     ├── e810/                    # E810-specific firmware build artifacts
@@ -175,7 +175,7 @@ nexlink/
 ```zig
 // frame.zig
 
-pub const NEXLINK_VERSION: u4 = 1;
+pub const STRANDLINK_VERSION: u4 = 1;
 pub const HEADER_SIZE: usize = 64;
 pub const MAX_OPTIONS_SIZE: usize = 256;
 pub const MAX_FRAME_SIZE: usize = 65535; // 64KB max (jumbo frames via fragmentation)
@@ -320,8 +320,8 @@ pub const RingBuffer = struct {
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | NL-P-001 | **DPDK backend**: Initialize DPDK EAL, bind NIC ports, configure RX/TX queues, implement poll-mode receive/transmit loops | P0 |
-| NL-P-002 | **XDP backend**: Load eBPF/XDP program for fast-path frame classification, redirect NexLink frames to userspace via AF_XDP socket | P1 |
-| NL-P-003 | **Overlay backend**: Encapsulate NexLink frames in UDP/IP (destination port 6477). Implement encap/decap with configurable outer source/dest IP. Reference RFC 7348 (VXLAN) and RFC 8926 (Geneve) encapsulation patterns | P0 |
+| NL-P-002 | **XDP backend**: Load eBPF/XDP program for fast-path frame classification, redirect StrandLink frames to userspace via AF_XDP socket | P1 |
+| NL-P-003 | **Overlay backend**: Encapsulate StrandLink frames in UDP/IP (destination port 6477). Implement encap/decap with configurable outer source/dest IP. Reference RFC 7348 (VXLAN) and RFC 8926 (Geneve) encapsulation patterns | P0 |
 | NL-P-004 | **Mock backend**: In-memory loopback for unit testing. Simulates ring buffer semantics without hardware | P0 |
 | NL-P-005 | **ConnectX firmware shim**: Zig freestanding target. Interface with ConnectX NIC via NVIDIA DOCA SDK C API using `@cImport`. Implement custom RX/TX processing in the NIC pipeline | P2 |
 | NL-P-006 | All backends must implement a common `Platform` interface trait for backend-agnostic upper layers | P0 |
@@ -330,10 +330,10 @@ pub const RingBuffer = struct {
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| NL-O-001 | Encapsulate NexLink frames inside UDP datagrams. Outer header: standard Ethernet + IPv4/IPv6 + UDP (port 6477) + NexLink Overlay Header (8 bytes) + NexLink Frame | P0 |
+| NL-O-001 | Encapsulate StrandLink frames inside UDP datagrams. Outer header: standard Ethernet + IPv4/IPv6 + UDP (port 6477) + StrandLink Overlay Header (8 bytes) + StrandLink Frame | P0 |
 | NL-O-002 | Overlay header format: `[Version:4][Flags:4][Reserved:8][VNI:24][Reserved:24]` (modeled after Geneve, RFC 8926) | P0 |
 | NL-O-003 | Support both IPv4 and IPv6 outer headers | P0 |
-| NL-O-004 | Handle MTU calculation: outer Ethernet (14) + outer IP (20/40) + UDP (8) + overlay header (8) + NexLink frame. Default inner MTU = 1422 bytes (for 1500 byte outer MTU with IPv4) | P0 |
+| NL-O-004 | Handle MTU calculation: outer Ethernet (14) + outer IP (20/40) + UDP (8) + overlay header (8) + StrandLink frame. Default inner MTU = 1422 bytes (for 1500 byte outer MTU with IPv4) | P0 |
 | NL-O-005 | Implement UDP checksum offload hints for hardware that supports it | P1 |
 
 ---
@@ -393,7 +393,7 @@ zig build -Demit-h
 | Fuzz tests | AFL-style fuzzing of frame decoder with random byte inputs. Must not crash, panic, or read out of bounds | 10M+ iterations |
 | Property tests | Encode(Decode(x)) == x for all valid frames. Decode(random_bytes) returns error, never UB | Statistical coverage |
 | Benchmark tests | Latency and throughput for encode/decode/ring_buffer operations. Results logged as JSON for regression tracking | All hot-path functions |
-| Integration tests | DPDK backend: send/receive NexLink frames between two DPDK-bound NICs (or virtual functions) | Basic TX/RX path |
+| Integration tests | DPDK backend: send/receive StrandLink frames between two DPDK-bound NICs (or virtual functions) | Basic TX/RX path |
 | Overlay tests | Encap/decap roundtrip through standard UDP socket. Verify outer header correctness per RFC 7348/8926 patterns | Full encap/decap path |
 
 ---
@@ -412,30 +412,30 @@ zig build -Demit-h
 
 ## 10. C FFI Exports
 
-NexLink must export a C-compatible API for integration with C-based switch OS code (NexRoute) and other language bindings:
+StrandLink must export a C-compatible API for integration with C-based switch OS code (StrandRoute) and other language bindings:
 
 ```c
-// nexlink.h (auto-generated)
+// strandlink.h (auto-generated)
 
-typedef struct nexlink_frame_header { /* ... packed struct matching Zig layout ... */ } nexlink_frame_header_t;
-typedef struct nexlink_ring_buffer { /* ... opaque handle ... */ } nexlink_ring_buffer_t;
+typedef struct strandlink_frame_header { /* ... packed struct matching Zig layout ... */ } strandlink_frame_header_t;
+typedef struct strandlink_ring_buffer { /* ... opaque handle ... */ } strandlink_ring_buffer_t;
 
 // Frame operations
-int nexlink_frame_encode(const nexlink_frame_header_t *header, const uint8_t *options,
+int strandlink_frame_encode(const strandlink_frame_header_t *header, const uint8_t *options,
                          uint16_t options_len, const uint8_t *payload, uint32_t payload_len,
                          uint8_t *out_buf, uint32_t out_buf_len, uint32_t *out_frame_len);
 
-int nexlink_frame_decode(const uint8_t *buf, uint32_t buf_len,
-                         nexlink_frame_header_t *out_header, const uint8_t **out_payload,
+int strandlink_frame_decode(const uint8_t *buf, uint32_t buf_len,
+                         strandlink_frame_header_t *out_header, const uint8_t **out_payload,
                          uint32_t *out_payload_len);
 
 // Ring buffer operations
-nexlink_ring_buffer_t *nexlink_ring_alloc(uint32_t num_slots, uint32_t slot_size);
-void nexlink_ring_free(nexlink_ring_buffer_t *ring);
-uint8_t *nexlink_ring_reserve(nexlink_ring_buffer_t *ring);
-void nexlink_ring_commit(nexlink_ring_buffer_t *ring);
-const uint8_t *nexlink_ring_peek(nexlink_ring_buffer_t *ring);
-void nexlink_ring_release(nexlink_ring_buffer_t *ring);
+strandlink_ring_buffer_t *strandlink_ring_alloc(uint32_t num_slots, uint32_t slot_size);
+void strandlink_ring_free(strandlink_ring_buffer_t *ring);
+uint8_t *strandlink_ring_reserve(strandlink_ring_buffer_t *ring);
+void strandlink_ring_commit(strandlink_ring_buffer_t *ring);
+const uint8_t *strandlink_ring_peek(strandlink_ring_buffer_t *ring);
+void strandlink_ring_release(strandlink_ring_buffer_t *ring);
 ```
 
 ---
@@ -444,5 +444,5 @@ void nexlink_ring_release(nexlink_ring_buffer_t *ring);
 
 - **Hardware timestamping**: PTP (IEEE 1588) integration for sub-microsecond timestamp accuracy across nodes
 - **GPUDirect RDMA**: Direct NIC-to-GPU memory path integration with NVIDIA GPUDirect. Requires CUDA interop from Zig (via C FFI to `nvidia-peermem` kernel module)
-- **Compression**: Whether to implement LZ4/ZSTD in NexLink or defer to NexStream. Current design allows both.
-- **Jumbo frame negotiation**: Path MTU discovery equivalent for NexLink. May use heartbeat frames to probe MTU.
+- **Compression**: Whether to implement LZ4/ZSTD in StrandLink or defer to StrandStream. Current design allows both.
+- **Jumbo frame negotiation**: Path MTU discovery equivalent for StrandLink. May use heartbeat frames to probe MTU.

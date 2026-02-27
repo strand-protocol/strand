@@ -5,14 +5,14 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/protocol"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/sad"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/protocol"
+	"github.com/strand-protocol/strand/strandapi/pkg/sad"
 )
 
-// TestNexBufEncodingDeterministic verifies that encoding the same message
+// TestStrandBufEncodingDeterministic verifies that encoding the same message
 // twice produces identical byte sequences.
-func TestNexBufEncodingDeterministic(t *testing.T) {
+func TestStrandBufEncodingDeterministic(t *testing.T) {
 	req := &protocol.InferenceRequest{
 		ID:          [16]byte{0xAA, 0xBB, 0xCC, 0xDD, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C},
 		ModelSAD:    []byte{0x01, 0x02, 0x03},
@@ -24,29 +24,29 @@ func TestNexBufEncodingDeterministic(t *testing.T) {
 		Metadata: map[string]string{},
 	}
 
-	buf1 := nexbuf.NewBuffer(256)
+	buf1 := strandbuf.NewBuffer(256)
 	req.Encode(buf1)
 
-	buf2 := nexbuf.NewBuffer(256)
+	buf2 := strandbuf.NewBuffer(256)
 	req.Encode(buf2)
 
 	if !bytes.Equal(buf1.Bytes(), buf2.Bytes()) {
-		t.Errorf("NexBuf encoding is NOT deterministic:\n  first:  %x\n  second: %x", buf1.Bytes(), buf2.Bytes())
+		t.Errorf("StrandBuf encoding is NOT deterministic:\n  first:  %x\n  second: %x", buf1.Bytes(), buf2.Bytes())
 	}
 }
 
-// TestNexBufEncodingDeterministicNoMetadata ensures a message with no
+// TestStrandBufEncodingDeterministicNoMetadata ensures a message with no
 // metadata entries encodes deterministically.
-func TestNexBufEncodingDeterministicNoMetadata(t *testing.T) {
+func TestStrandBufEncodingDeterministicNoMetadata(t *testing.T) {
 	req := &protocol.InferenceRequest{
 		Prompt:   "no metadata",
 		Metadata: map[string]string{},
 	}
 
-	buf1 := nexbuf.NewBuffer(128)
+	buf1 := strandbuf.NewBuffer(128)
 	req.Encode(buf1)
 
-	buf2 := nexbuf.NewBuffer(128)
+	buf2 := strandbuf.NewBuffer(128)
 	req.Encode(buf2)
 
 	if !bytes.Equal(buf1.Bytes(), buf2.Bytes()) {
@@ -54,9 +54,9 @@ func TestNexBufEncodingDeterministicNoMetadata(t *testing.T) {
 	}
 }
 
-// TestNexBufEncodeDecodeRoundtrip verifies encode -> decode produces the
+// TestStrandBufEncodeDecodeRoundtrip verifies encode -> decode produces the
 // same logical message.
-func TestNexBufEncodeDecodeRoundtrip(t *testing.T) {
+func TestStrandBufEncodeDecodeRoundtrip(t *testing.T) {
 	original := &protocol.InferenceRequest{
 		ID:          [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 		ModelSAD:    []byte("sad:llm:gpt4:128k"),
@@ -69,11 +69,11 @@ func TestNexBufEncodeDecodeRoundtrip(t *testing.T) {
 		},
 	}
 
-	buf := nexbuf.NewBuffer(256)
+	buf := strandbuf.NewBuffer(256)
 	original.Encode(buf)
 
 	decoded := &protocol.InferenceRequest{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -113,11 +113,11 @@ func TestInferenceResponseRoundtrip(t *testing.T) {
 		CompletionTokens: 7,
 	}
 
-	buf := nexbuf.NewBuffer(128)
+	buf := strandbuf.NewBuffer(128)
 	original.Encode(buf)
 
 	decoded := &protocol.InferenceResponse{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
@@ -153,11 +153,11 @@ func TestTensorTransferRoundtrip(t *testing.T) {
 		Data:  data,
 	}
 
-	buf := nexbuf.NewBuffer(8192)
+	buf := strandbuf.NewBuffer(8192)
 	original.Encode(buf)
 
 	decoded := &protocol.TensorTransfer{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("decode tensor: %v", err)
 	}
@@ -192,7 +192,7 @@ func TestSADBinaryFormatLayout(t *testing.T) {
 		ModelType:     "llm",
 	}
 
-	buf := nexbuf.NewBuffer(64)
+	buf := strandbuf.NewBuffer(64)
 	s.Encode(buf)
 	data := buf.Bytes()
 
@@ -251,11 +251,11 @@ func TestSADRoundtrip(t *testing.T) {
 		ModelType:     "multimodal",
 	}
 
-	buf := nexbuf.NewBuffer(64)
+	buf := strandbuf.NewBuffer(64)
 	original.Encode(buf)
 
 	decoded := &sad.SAD{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("SAD decode: %v", err)
 	}
@@ -364,7 +364,7 @@ func TestSADBuilderRoundtrip(t *testing.T) {
 
 	// Decode.
 	decoded := &sad.SAD{}
-	reader := nexbuf.NewReader(sadBytes)
+	reader := strandbuf.NewReader(sadBytes)
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("SAD decode: %v", err)
 	}

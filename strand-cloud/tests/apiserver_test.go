@@ -8,10 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/apiserver"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/ca"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/apiserver"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/ca"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/store"
 )
 
 // newTestServer creates an httptest.Server backed by in-memory stores and a CA.
@@ -116,7 +116,7 @@ func TestNodeCRUD(t *testing.T) {
 	defer ts.Close()
 
 	// Create
-	body, _ := json.Marshal(model.Node{ID: "n1", Address: "10.0.0.1"})
+	body, _ := json.Marshal(model.Node{ID: "n1", Address: "10.0.0.1:6477"})
 	resp, err := http.Post(ts.URL+"/api/v1/nodes", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -145,7 +145,7 @@ func TestNodeCRUD(t *testing.T) {
 	}
 
 	// Update
-	body, _ = json.Marshal(model.Node{ID: "n1", Address: "10.0.0.2", Status: "degraded"})
+	body, _ = json.Marshal(model.Node{ID: "n1", Address: "10.0.0.2:6477", Status: "degraded"})
 	req, _ := http.NewRequest(http.MethodPut, ts.URL+"/api/v1/nodes/n1", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ = http.DefaultClient.Do(req)
@@ -265,7 +265,7 @@ func TestFirmwareCRUD(t *testing.T) {
 		Platform: "arm64",
 		Size:     2048000,
 		Checksum: "sha256:deadbeef",
-		URL:      "https://firmware.nexus.dev/v3.0.0/arm64.bin",
+		URL:      "https://firmware.strand.dev/v3.0.0/arm64.bin",
 	}
 	body, _ := json.Marshal(fw)
 	resp, _ := http.Post(ts.URL+"/api/v1/firmware", "application/json", bytes.NewReader(body))
@@ -322,7 +322,7 @@ func TestNodeHeartbeat(t *testing.T) {
 	defer ts.Close()
 
 	// Create node first.
-	body, _ := json.Marshal(model.Node{ID: "hb-node", Address: "10.0.0.5"})
+	body, _ := json.Marshal(model.Node{ID: "hb-node", Address: "10.0.0.5:6477"})
 	resp, _ := http.Post(ts.URL+"/api/v1/nodes", "application/json", bytes.NewReader(body))
 	resp.Body.Close()
 
@@ -368,7 +368,7 @@ func TestCreateNodeValidation(t *testing.T) {
 	defer ts.Close()
 
 	// Missing ID
-	body, _ := json.Marshal(model.Node{Address: "10.0.0.1"})
+	body, _ := json.Marshal(model.Node{Address: "10.0.0.1:6477"})
 	resp, _ := http.Post(ts.URL+"/api/v1/nodes", "application/json", bytes.NewReader(body))
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
@@ -435,7 +435,7 @@ func TestRBACViewerCannotDelete(t *testing.T) {
 	defer ts.Close()
 
 	// First create a node as admin.
-	body, _ := json.Marshal(model.Node{ID: "rbac-test-node", Address: "10.0.1.1"})
+	body, _ := json.Marshal(model.Node{ID: "rbac-test-node", Address: "10.0.1.1:6477"})
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/nodes", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer admin-token")
@@ -459,7 +459,7 @@ func TestRBACOperatorCanPost(t *testing.T) {
 	ts := newAuthTestServer(t)
 	defer ts.Close()
 
-	body, _ := json.Marshal(model.Node{ID: "op-node", Address: "10.0.2.1"})
+	body, _ := json.Marshal(model.Node{ID: "op-node", Address: "10.0.2.1:6477"})
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/nodes", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer operator-token")
@@ -478,7 +478,7 @@ func TestRBACOperatorCannotDelete(t *testing.T) {
 	defer ts.Close()
 
 	// Create as admin first.
-	body, _ := json.Marshal(model.Node{ID: "op-del-node", Address: "10.0.3.1"})
+	body, _ := json.Marshal(model.Node{ID: "op-del-node", Address: "10.0.3.1:6477"})
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/nodes", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer admin-token")
@@ -502,7 +502,7 @@ func TestRBACAdminCanDelete(t *testing.T) {
 	ts := newAuthTestServer(t)
 	defer ts.Close()
 
-	body, _ := json.Marshal(model.Node{ID: "admin-node", Address: "10.0.4.1"})
+	body, _ := json.Marshal(model.Node{ID: "admin-node", Address: "10.0.4.1:6477"})
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/nodes", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer admin-token")

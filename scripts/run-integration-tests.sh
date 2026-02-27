@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run-integration-tests.sh
 #
-# Builds all modules and runs Go integration + unit tests across the Nexus
+# Builds all modules and runs Go integration + unit tests across the Strand
 # Protocol monorepo. Exits non-zero on any failure.
 #
 # Usage: ./scripts/run-integration-tests.sh
@@ -44,9 +44,9 @@ log_fail() {
 log_header "Building Go modules"
 
 GO_MODULES=(
-    "nexapi"
-    "nexus-cloud"
-    "nexctl"
+    "strandapi"
+    "strand-cloud"
+    "strandctl"
 )
 
 for mod in "${GO_MODULES[@]}"; do
@@ -123,7 +123,7 @@ fi
 log_header "Running Go fuzz tests (short)"
 
 FUZZ_TARGETS=(
-    "FuzzNexBufRoundtrip"
+    "FuzzStrandBufRoundtrip"
     "FuzzFrameRead"
     "FuzzSADParse"
     "FuzzInferenceResponseDecode"

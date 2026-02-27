@@ -1,18 +1,18 @@
-# NexCtl — Command-Line Interface & Management Tool
+# StrandCtl — Command-Line Interface & Management Tool
 
-## Module: `nexctl/`
+## Module: `strandctl/`
 
 ## Language: Go (1.22+)
 
-## Binary: `nexctl`
+## Binary: `strandctl`
 
 ---
 
 ## 1. Overview
 
-NexCtl is the operator-facing CLI tool for the Nexus Protocol stack. It provides a unified interface for deploying, configuring, monitoring, diagnosing, and managing all Nexus components across a fleet of switches, NICs, and servers. NexCtl is to Nexus what `kubectl` is to Kubernetes — the single pane of glass for infrastructure operators.
+StrandCtl is the operator-facing CLI tool for the Strand Protocol stack. It provides a unified interface for deploying, configuring, monitoring, diagnosing, and managing all Strand components across a fleet of switches, NICs, and servers. StrandCtl is to Strand what `kubectl` is to Kubernetes — the single pane of glass for infrastructure operators.
 
-NexCtl communicates with Nexus nodes via the NexAPI control plane and can also directly interface with NexLink/NexRoute firmware via SSH and vendor-specific management APIs.
+StrandCtl communicates with Strand nodes via the StrandAPI control plane and can also directly interface with StrandLink/StrandRoute firmware via SSH and vendor-specific management APIs.
 
 ---
 
@@ -20,11 +20,11 @@ NexCtl communicates with Nexus nodes via the NexAPI control plane and can also d
 
 | Reference | Relevance |
 |-----------|-----------|
-| `kubectl` (Kubernetes CLI) | Primary UX reference — NexCtl follows similar command structure, output formatting, and resource-based interaction model |
+| `kubectl` (Kubernetes CLI) | Primary UX reference — StrandCtl follows similar command structure, output formatting, and resource-based interaction model |
 | `calicoctl` (Calico CNI CLI) | Reference for network policy management CLIs |
 | `sonic-cli` (SONiC CLI) | Reference for switch OS CLI patterns |
 | `istioctl` (Istio service mesh CLI) | Reference for mesh diagnostics, proxy injection, and config validation |
-| `ethtool` (Linux NIC tool) | Reference for NIC-level diagnostics that NexCtl wraps |
+| `ethtool` (Linux NIC tool) | Reference for NIC-level diagnostics that StrandCtl wraps |
 | Cobra (Go CLI framework) | CLI framework used for implementation |
 
 ---
@@ -34,22 +34,22 @@ NexCtl communicates with Nexus nodes via the NexAPI control plane and can also d
 ### 3.1 Top-Level Commands
 
 ```
-nexctl
-├── node                   # Manage Nexus nodes
+strandctl
+├── node                   # Manage Strand nodes
 │   ├── list               # List all known nodes in the network
 │   ├── info <node-id>     # Show detailed info for a node
-│   ├── join <address>     # Join a node to the Nexus network
+│   ├── join <address>     # Join a node to the Strand network
 │   ├── remove <node-id>   # Remove a node from the network
 │   └── label <node-id>    # Add/remove labels on a node
 │
 ├── firmware               # Firmware management
 │   ├── status <node-id>   # Show current firmware version on a node
-│   ├── flash <node-id>    # Flash NexLink firmware to a NIC
+│   ├── flash <node-id>    # Flash StrandLink firmware to a NIC
 │   ├── upgrade <node-id>  # Rolling firmware upgrade
 │   ├── rollback <node-id> # Rollback to previous firmware
 │   └── list-supported     # List supported NIC models and firmware versions
 │
-├── route                  # NexRoute management
+├── route                  # StrandRoute management
 │   ├── table              # Show the routing table (all capabilities)
 │   ├── resolve <sad>      # Resolve a SAD query to matching nodes
 │   ├── advertise          # Manually advertise a capability
@@ -60,13 +60,13 @@ nexctl
 │       ├── apply <file>
 │       └── delete <name>
 │
-├── stream                 # NexStream management
+├── stream                 # StrandStream management
 │   ├── list               # List active connections and streams
 │   ├── info <conn-id>     # Show connection/stream details
 │   ├── close <conn-id>    # Force-close a connection
 │   └── stats              # Aggregate transport statistics
 │
-├── trust                  # NexTrust management
+├── trust                  # StrandTrust management
 │   ├── ca                 # Certificate Authority operations
 │   │   ├── init           # Initialize a new root CA
 │   │   ├── issue          # Issue a new MIC
@@ -86,18 +86,18 @@ nexctl
 │       └── verify          
 │
 ├── diagnose               # Network diagnostics
-│   ├── ping <node-id>     # NexStream-level ping (latency measurement)
-│   ├── traceroute <node-id># Trace the NexRoute path to a node
+│   ├── ping <node-id>     # StrandStream-level ping (latency measurement)
+│   ├── traceroute <node-id># Trace the StrandRoute path to a node
 │   ├── mtu <node-id>      # Test path MTU between local and remote
-│   ├── bandwidth <node-id># Bandwidth test (iperf-like for NexStream)
-│   ├── capture             # Packet capture (tcpdump-like for NexLink frames)
+│   ├── bandwidth <node-id># Bandwidth test (iperf-like for StrandStream)
+│   ├── capture             # Packet capture (tcpdump-like for StrandLink frames)
 │   │   ├── start
 │   │   ├── stop
 │   │   └── read <file>
 │   └── health             # Run health checks across all nodes
 │
 ├── config                 # Configuration management
-│   ├── show               # Show current nexctl configuration
+│   ├── show               # Show current strandctl configuration
 │   ├── set <key> <value>  # Set configuration value
 │   ├── validate <file>    # Validate a configuration file
 │   └── apply <file>       # Apply configuration to one or more nodes
@@ -107,7 +107,7 @@ nexctl
 │   ├── export             # Export metrics in Prometheus/JSON format
 │   └── top                # Top-like view of busiest nodes/streams
 │
-└── version                # Show nexctl and protocol versions
+└── version                # Show strandctl and protocol versions
 ```
 
 ---
@@ -117,7 +117,7 @@ nexctl
 ### 4.1 Source Tree Structure
 
 ```
-nexctl/
+strandctl/
 ├── go.mod
 ├── go.sum
 ├── main.go                           # Entry point
@@ -137,7 +137,7 @@ nexctl/
 │   │   ├── client.go                 # Control plane API client
 │   │   ├── node_client.go            # Node management API
 │   │   ├── route_client.go           # Routing table API
-│   │   ├── trust_client.go           # NexTrust CA API
+│   │   ├── trust_client.go           # StrandTrust CA API
 │   │   └── firmware_client.go        # Firmware management API
 │   ├── firmware/
 │   │   ├── flasher.go                # Firmware flashing engine
@@ -145,7 +145,7 @@ nexctl/
 │   │   ├── supported_nics.go         # Registry of supported NIC models
 │   │   └── images/                   # Firmware image handling
 │   ├── capture/
-│   │   ├── capture.go                # NexLink frame capture engine
+│   │   ├── capture.go                # StrandLink frame capture engine
 │   │   ├── filter.go                 # BPF-like capture filter expressions
 │   │   └── writer.go                 # pcap-ng writer for captured frames
 │   ├── tui/
@@ -158,7 +158,7 @@ nexctl/
 │   │   ├── yaml.go                   # YAML output formatter
 │   │   └── wide.go                   # Wide table output
 │   └── config/
-│       ├── config.go                 # nexctl config file management
+│       ├── config.go                 # strandctl config file management
 │       └── context.go                # Multi-cluster context switching
 ├── tests/
 │   ├── cmd_test.go                   # Command parsing tests
@@ -168,7 +168,7 @@ nexctl/
 │   └── e2e/
 │       └── e2e_test.go               # End-to-end CLI tests
 └── docs/
-    ├── nexctl.md                     # Complete CLI reference
+    ├── strandctl.md                     # Complete CLI reference
     └── examples.md                   # Usage examples
 ```
 
@@ -182,7 +182,7 @@ nexctl/
 |----|-------------|----------|
 | NC-CLI-001 | All commands support `--output` flag: `table` (default), `json`, `yaml`, `wide` | P0 |
 | NC-CLI-002 | All commands support `--context` flag to select target cluster/network | P0 |
-| NC-CLI-003 | Configuration file at `~/.nexus/config.yaml` for defaults, API endpoints, credentials | P0 |
+| NC-CLI-003 | Configuration file at `~/.strand/config.yaml` for defaults, API endpoints, credentials | P0 |
 | NC-CLI-004 | Tab completion for bash, zsh, fish, powershell | P1 |
 | NC-CLI-005 | `--verbose` / `-v` flag for debug output on all commands | P0 |
 | NC-CLI-006 | `--dry-run` flag for destructive operations (firmware flash, node remove, route withdraw) | P0 |
@@ -193,15 +193,15 @@ nexctl/
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| NC-NODE-001 | `node list`: display all nodes with Node ID (truncated), hostname, IP, status, firmware version, NexTrust level | P0 |
+| NC-NODE-001 | `node list`: display all nodes with Node ID (truncated), hostname, IP, status, firmware version, StrandTrust level | P0 |
 | NC-NODE-002 | `node info`: detailed node information including all capabilities, active connections, metrics | P0 |
-| NC-NODE-003 | `node join`: connect to a remote node's control plane and join it to the local Nexus network | P0 |
+| NC-NODE-003 | `node join`: connect to a remote node's control plane and join it to the local Strand network | P0 |
 
 ### 5.3 Firmware Management
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| NC-FW-001 | `firmware flash`: push NexLink firmware to target NIC via SSH + vendor tools. Support ConnectX, E810, BlueField | P0 |
+| NC-FW-001 | `firmware flash`: push StrandLink firmware to target NIC via SSH + vendor tools. Support ConnectX, E810, BlueField | P0 |
 | NC-FW-002 | `firmware status`: query running firmware version, NIC model, driver version | P0 |
 | NC-FW-003 | `firmware upgrade`: rolling upgrade across fleet with configurable parallelism and health checks between batches | P1 |
 | NC-FW-004 | `firmware rollback`: restore previous firmware version from backup | P1 |
@@ -211,10 +211,10 @@ nexctl/
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| NC-DIAG-001 | `diagnose ping`: send NexStream PING frames, report min/avg/max/p99 RTT | P0 |
-| NC-DIAG-002 | `diagnose traceroute`: discover NexRoute path hops to destination node | P0 |
-| NC-DIAG-003 | `diagnose bandwidth`: bidirectional throughput test using NexStream BE mode | P1 |
-| NC-DIAG-004 | `diagnose capture`: capture NexLink frames with BPF-like filter syntax, write to pcap-ng | P1 |
+| NC-DIAG-001 | `diagnose ping`: send StrandStream PING frames, report min/avg/max/p99 RTT | P0 |
+| NC-DIAG-002 | `diagnose traceroute`: discover StrandRoute path hops to destination node | P0 |
+| NC-DIAG-003 | `diagnose bandwidth`: bidirectional throughput test using StrandStream BE mode | P1 |
+| NC-DIAG-004 | `diagnose capture`: capture StrandLink frames with BPF-like filter syntax, write to pcap-ng | P1 |
 | NC-DIAG-005 | `diagnose health`: run health checks on all reachable nodes, report degraded/failed nodes | P0 |
 
 ### 5.5 Metrics & TUI
@@ -249,4 +249,4 @@ nexctl/
 | `github.com/olekukonez/tablewriter` | 0.0.5+ | Table output formatting |
 | `golang.org/x/crypto/ssh` | Latest | SSH client for firmware operations |
 | `github.com/fatih/color` | 1.16+ | Colorized output |
-| NexAPI client SDK | — | Control plane communication |
+| StrandAPI client SDK | — | Control plane communication |

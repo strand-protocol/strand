@@ -1,4 +1,4 @@
-# Nexus Protocol — Monorepo Build Guide
+# Strand Protocol — Monorepo Build Guide
 
 ## For Claude Code Implementation
 
@@ -7,19 +7,19 @@
 ## Repository Structure
 
 ```
-nexus/
+strand/
 ├── README.md                  ← This file
 ├── Makefile                   # Top-level build orchestration
 ├── flake.nix                  # Nix flake for reproducible builds
-├── nexlink/                   # L1: Frame protocol (Zig)
-├── nexroute/                  # L2: Semantic routing (C + P4)
-├── nexstream/                 # L3: Hybrid transport (Rust)
-├── nextrust/                  # L4: Model identity & crypto (Rust)
-├── nexapi/                    # L5: AI application protocol (Go)
-├── nexctl/                    # CLI tool (Go)
-├── nexus-cloud/               # Control plane (Go + Rust FFI)
+├── strandlink/                   # L1: Frame protocol (Zig)
+├── strandroute/                  # L2: Semantic routing (C + P4)
+├── strandstream/                 # L3: Hybrid transport (Rust)
+├── strandtrust/                  # L4: Model identity & crypto (Rust)
+├── strandapi/                    # L5: AI application protocol (Go)
+├── strandctl/                    # CLI tool (Go)
+├── strand-cloud/               # Control plane (Go + Rust FFI)
 ├── docs/                      # Protocol specifications
-├── schemas/                   # NexBuf schema files
+├── schemas/                   # StrandBuf schema files
 └── scripts/                   # Build, test, CI scripts
 ```
 
@@ -32,31 +32,31 @@ Modules **must** be built in this order due to FFI dependencies:
 ```
 Phase 1 (no dependencies):
   ┌──────────┐
-  │ nexlink  │  Zig — builds standalone, produces C headers (nexlink.h)
+  │ strandlink  │  Zig — builds standalone, produces C headers (strandlink.h)
   └────┬─────┘
        │ C FFI headers
-Phase 2 (depends on nexlink):
+Phase 2 (depends on strandlink):
   ┌────▼─────┐
-  │ nexroute │  C — links against nexlink C FFI for frame encode/decode
+  │ strandroute │  C — links against strandlink C FFI for frame encode/decode
   └──────────┘
   
-Phase 3 (depends on nexlink):
+Phase 3 (depends on strandlink):
   ┌──────────┐
-  │ nextrust │  Rust — standalone crypto library, no FFI dependencies
+  │ strandtrust │  Rust — standalone crypto library, no FFI dependencies
   └────┬─────┘
        │
   ┌────▼─────┐
-  │nexstream │  Rust — depends on nexlink (C FFI via bindgen) and nextrust for encryption
+  │strandstream │  Rust — depends on strandlink (C FFI via bindgen) and strandtrust for encryption
   └────┬─────┘
        │ CGo FFI
-Phase 4 (depends on nexstream + nextrust):
+Phase 4 (depends on strandstream + strandtrust):
   ┌────▼─────┐
-  │  nexapi  │  Go — depends on nexstream (via CGo) and nextrust (via CGo)
+  │  strandapi  │  Go — depends on strandstream (via CGo) and strandtrust (via CGo)
   └────┬─────┘
        │
-Phase 5 (depends on nexapi):
+Phase 5 (depends on strandapi):
   ┌────▼─────┐   ┌──────────────┐
-  │  nexctl  │   │ nexus-cloud  │  Both Go, depend on nexapi client SDK
+  │  strandctl  │   │ strand-cloud  │  Both Go, depend on strandapi client SDK
   └──────────┘   └──────────────┘
 ```
 
@@ -67,13 +67,13 @@ Phase 5 (depends on nexapi):
 make all
 
 # Individual modules
-make nexlink          # Phase 1
-make nexroute         # Phase 2
-make nextrust         # Phase 3a
-make nexstream        # Phase 3b
-make nexapi           # Phase 4
-make nexctl           # Phase 5a
-make nexus-cloud      # Phase 5b
+make strandlink          # Phase 1
+make strandroute         # Phase 2
+make strandtrust         # Phase 3a
+make strandstream        # Phase 3b
+make strandapi           # Phase 4
+make strandctl           # Phase 5a
+make strand-cloud      # Phase 5b
 
 # Tests
 make test             # All tests
@@ -90,13 +90,13 @@ Each module has a comprehensive requirements document. **Claude Code should read
 
 | # | Module | Language | Spec File | Key RFCs |
 |---|--------|----------|-----------|----------|
-| 1 | `nexlink` | Zig | `01_NEXLINK_REQUIREMENTS.md` | IEEE 802.3, RFC 894, RFC 7348 (VXLAN), RFC 8926 (Geneve) |
-| 2 | `nexroute` | C + P4 | `02_NEXROUTE_REQUIREMENTS.md` | RFC 791 (IPv4), RFC 8200 (IPv6), RFC 4271 (BGP), RFC 1035 (DNS), RFC 6830 (LISP) |
-| 3 | `nexstream` | Rust | `03_NEXSTREAM_REQUIREMENTS.md` | RFC 9293 (TCP), RFC 768 (UDP), RFC 9000 (QUIC), RFC 9002 (QUIC Loss Detection), RFC 8312 (CUBIC), RFC 9438 (BBR) |
-| 4 | `nextrust` | Rust | `04_NEXTRUST_REQUIREMENTS.md` | RFC 8446 (TLS 1.3), RFC 5280 (X.509), RFC 6962 (CT), RFC 9180 (HPKE), RFC 7748 (X25519), RFC 8032 (Ed25519) |
-| 5 | `nexapi` | Go | `05_NEXAPI_REQUIREMENTS.md` | RFC 9110 (HTTP), RFC 9113 (HTTP/2), RFC 9114 (HTTP/3), RFC 6455 (WebSocket), RFC 8259 (JSON) |
-| 6 | `nexctl` | Go | `06_NEXCTL_REQUIREMENTS.md` | (CLI tool — references kubectl, istioctl patterns) |
-| 7 | `nexus-cloud` | Go + Rust | `07_NEXUS_CLOUD_REQUIREMENTS.md` | RFC 8040 (RESTCONF), OpenTelemetry Spec, Kubernetes API conventions |
+| 1 | `strandlink` | Zig | `01_STRANDLINK_REQUIREMENTS.md` | IEEE 802.3, RFC 894, RFC 7348 (VXLAN), RFC 8926 (Geneve) |
+| 2 | `strandroute` | C + P4 | `02_STRANDROUTE_REQUIREMENTS.md` | RFC 791 (IPv4), RFC 8200 (IPv6), RFC 4271 (BGP), RFC 1035 (DNS), RFC 6830 (LISP) |
+| 3 | `strandstream` | Rust | `03_STRANDSTREAM_REQUIREMENTS.md` | RFC 9293 (TCP), RFC 768 (UDP), RFC 9000 (QUIC), RFC 9002 (QUIC Loss Detection), RFC 8312 (CUBIC), RFC 9438 (BBR) |
+| 4 | `strandtrust` | Rust | `04_STRANDTRUST_REQUIREMENTS.md` | RFC 8446 (TLS 1.3), RFC 5280 (X.509), RFC 6962 (CT), RFC 9180 (HPKE), RFC 7748 (X25519), RFC 8032 (Ed25519) |
+| 5 | `strandapi` | Go | `05_STRANDAPI_REQUIREMENTS.md` | RFC 9110 (HTTP), RFC 9113 (HTTP/2), RFC 9114 (HTTP/3), RFC 6455 (WebSocket), RFC 8259 (JSON) |
+| 6 | `strandctl` | Go | `06_STRANDCTL_REQUIREMENTS.md` | (CLI tool — references kubectl, istioctl patterns) |
+| 7 | `strand-cloud` | Go + Rust | `07_STRAND_CLOUD_REQUIREMENTS.md` | RFC 8040 (RESTCONF), OpenTelemetry Spec, Kubernetes API conventions |
 
 ---
 
@@ -115,12 +115,12 @@ Each module has a comprehensive requirements document. **Claude Code should read
 7. **Wire up FFI** — If the module exports C FFI or consumes another module's FFI, implement the bindings
 8. **Integration test** — Test the module against its dependencies
 
-### Phase 1: Start with NexLink
+### Phase 1: Start with StrandLink
 
 ```bash
 # Initialize the Zig project
-mkdir -p nexlink/src nexlink/tests nexlink/include
-cd nexlink
+mkdir -p strandlink/src strandlink/tests strandlink/include
+cd strandlink
 # Implement in this order:
 # 1. src/header.zig    — FrameHeader packed struct
 # 2. src/crc.zig       — CRC-32C implementation
@@ -131,19 +131,19 @@ cd nexlink
 # 7. src/memory_pool.zig — Pre-allocated memory pool
 # 8. src/overlay.zig   — UDP encapsulation (Tier 3)
 # 9. src/platform/mock.zig — Mock backend
-# 10. Generate include/nexlink.h — C FFI header
+# 10. Generate include/strandlink.h — C FFI header
 ```
 
-### Phase 2: NexRoute (after NexLink C headers exist)
+### Phase 2: StrandRoute (after StrandLink C headers exist)
 
 ```bash
 # Initialize the C project
-mkdir -p nexroute/src nexroute/include/nexroute nexroute/p4 nexroute/tests
-cd nexroute
+mkdir -p strandroute/src strandroute/include/strandroute strandroute/p4 strandroute/tests
+cd strandroute
 # Implement in this order:
-# 1. include/nexroute/sad.h + src/sad.c         — SAD encoding/decoding
+# 1. include/strandroute/sad.h + src/sad.c         — SAD encoding/decoding
 # 2. src/sad_match.c                             — SAD matching engine
-# 3. include/nexroute/routing_table.h + src/routing_table.c — RCU routing table
+# 3. include/strandroute/routing_table.h + src/routing_table.c — RCU routing table
 # 4. src/resolver.c                              — Multi-constraint resolution
 # 5. src/gossip.c                                — HyParView gossip protocol
 # 6. src/forwarding.c                            — Software dataplane
@@ -152,11 +152,11 @@ cd nexroute
 # 9. p4/sad_lookup.p4 + p4/forwarding.p4        — P4 pipeline
 ```
 
-### Phase 3: NexTrust + NexStream (Rust, can be parallel)
+### Phase 3: StrandTrust + StrandStream (Rust, can be parallel)
 
 ```bash
-# NexTrust first (no FFI dependencies)
-cd nextrust
+# StrandTrust first (no FFI dependencies)
+cd strandtrust
 # 1. src/crypto/keys.rs     — Ed25519 keypair, Node ID derivation
 # 2. src/crypto/*.rs         — All crypto primitives
 # 3. src/mic/mod.rs          — MIC data types
@@ -167,9 +167,9 @@ cd nextrust
 # 8. src/encrypt.rs          — AEAD encryption/decryption
 # 9. src/zk/                 — Zero-knowledge proofs (P1, can defer)
 
-# Then NexStream (depends on NexLink FFI + NexTrust)
-cd nexstream
-# 1. src/frame.rs            — NexStream control frame types
+# Then StrandStream (depends on StrandLink FFI + StrandTrust)
+cd strandstream
+# 1. src/frame.rs            — StrandStream control frame types
 # 2. src/transport/mod.rs    — Transport mode trait
 # 3. src/transport/reliable_ordered.rs — RO mode (most complex, start here)
 # 4. src/rtt.rs + src/loss_detection.rs — RTT estimation + loss detection
@@ -182,12 +182,12 @@ cd nexstream
 # 11. Remaining transport modes: RU, BE, PR
 ```
 
-### Phase 4-5: NexAPI → NexCtl → Nexus Cloud (Go)
+### Phase 4-5: StrandAPI → StrandCtl → Strand Cloud (Go)
 
 ```bash
-# NexAPI
-cd nexapi
-# 1. pkg/nexbuf/             — Binary serialization (core building block)
+# StrandAPI
+cd strandapi
+# 1. pkg/strandbuf/             — Binary serialization (core building block)
 # 2. pkg/protocol/           — All message type definitions
 # 3. pkg/sad/                — SAD builder (Go-native, matches C format)
 # 4. pkg/transport/overlay_transport.go — Pure Go overlay (no CGo, works immediately)
@@ -195,20 +195,20 @@ cd nexapi
 # 6. pkg/server/             — Server SDK
 # 7. examples/               — Example applications
 
-# NexCtl
-cd nexctl
+# StrandCtl
+cd strandctl
 # 1. cmd/root.go             — CLI skeleton with Cobra
 # 2. pkg/api/client.go       — Control plane API client
 # 3. Commands in order: version → node → route → trust → diagnose → firmware → metrics
 
-# Nexus Cloud
-cd nexus-cloud
+# Strand Cloud
+cd strand-cloud
 # 1. pkg/store/              — State store interface + memory backend
 # 2. pkg/apiserver/          — REST/gRPC API server
 # 3. pkg/controller/         — Fleet controller
 # 4. pkg/ca/                 — CA service
 # 5. pkg/agent/              — Node agent
-# 6. cmd/nexus-allinone/     — All-in-one binary
+# 6. cmd/strand-allinone/     — All-in-one binary
 ```
 
 ---
@@ -217,47 +217,47 @@ cd nexus-cloud
 
 ### Cross-Language FFI
 
-**Zig → C (NexLink exports to NexRoute):**
-- NexLink's `build.zig` generates `include/nexlink.h` via `zig build -Demit-h`
-- NexRoute's CMakeLists.txt includes this header and links the NexLink static library
+**Zig → C (StrandLink exports to StrandRoute):**
+- StrandLink's `build.zig` generates `include/strandlink.h` via `zig build -Demit-h`
+- StrandRoute's CMakeLists.txt includes this header and links the StrandLink static library
 - All exported functions use `export` keyword in Zig which produces C-compatible symbols
 
-**Rust → C (NexStream/NexTrust export to Go via CGo):**
+**Rust → C (StrandStream/StrandTrust export to Go via CGo):**
 - Rust crates expose `extern "C"` functions wrapped in a thin C API
 - `cbindgen` generates `.h` files from Rust `extern "C"` functions
-- Go consumes via CGo `#cgo LDFLAGS: -lnexstream -lnextrust`
+- Go consumes via CGo `#cgo LDFLAGS: -lstrandstream -lstrandtrust`
 - For the pure Go overlay transport, no CGo is needed (pure Go UDP implementation)
 
 **Critical: Pure Go Overlay Mode**
-- NexAPI MUST work in "overlay mode" with zero CGo dependencies
-- This means implementing NexLink frame encode/decode, NexStream basic RO mode, and NexTrust handshake natively in Go
-- This is essential for developer adoption — developers should be able to `go get` and start using NexAPI immediately
+- StrandAPI MUST work in "overlay mode" with zero CGo dependencies
+- This means implementing StrandLink frame encode/decode, StrandStream basic RO mode, and StrandTrust handshake natively in Go
+- This is essential for developer adoption — developers should be able to `go get` and start using StrandAPI immediately
 - The CGo path is the optimized path for production deployments
 
 ### Testing Without Hardware
 
 All modules include mock/test backends:
-- NexLink: `platform/mock.zig` — in-memory loopback
-- NexRoute: BMv2 behavioral model for P4 testing
-- NexStream: Uses NexLink mock backend
-- NexTrust: Fully software-based, no hardware needed
-- NexAPI: Overlay transport over localhost UDP
-- NexCtl: Mock API server responses
-- Nexus Cloud: In-memory state store, mock node agents
+- StrandLink: `platform/mock.zig` — in-memory loopback
+- StrandRoute: BMv2 behavioral model for P4 testing
+- StrandStream: Uses StrandLink mock backend
+- StrandTrust: Fully software-based, no hardware needed
+- StrandAPI: Overlay transport over localhost UDP
+- StrandCtl: Mock API server responses
+- Strand Cloud: In-memory state store, mock node agents
 
 ### Minimum Viable Implementation (MVP)
 
 For a working demo, implement in this priority:
 
-1. **NexLink frame encode/decode** (Zig) + mock backend + overlay mode
-2. **NexTrust keypair generation + MIC creation** (Rust)  
-3. **NexStream Reliable-Ordered mode only** (Rust) + CUBIC congestion control
-4. **NexAPI client + server** (Go) with overlay transport + InferenceRequest/Response + TokenStream
-5. **NexCtl** basic commands: `version`, `node list`, `diagnose ping`
-6. **NexRoute** SAD encoding/decoding + basic routing table (defer gossip, P4)
-7. **Nexus Cloud** API server + in-memory store + all-in-one binary
+1. **StrandLink frame encode/decode** (Zig) + mock backend + overlay mode
+2. **StrandTrust keypair generation + MIC creation** (Rust)  
+3. **StrandStream Reliable-Ordered mode only** (Rust) + CUBIC congestion control
+4. **StrandAPI client + server** (Go) with overlay transport + InferenceRequest/Response + TokenStream
+5. **StrandCtl** basic commands: `version`, `node list`, `diagnose ping`
+6. **StrandRoute** SAD encoding/decoding + basic routing table (defer gossip, P4)
+7. **Strand Cloud** API server + in-memory store + all-in-one binary
 
-This MVP lets you demo: a Go client sending an inference request to a Go server over encrypted NexStream, with semantic addressing and model identity — all running over standard UDP on any machine.
+This MVP lets you demo: a Go client sending an inference request to a Go server over encrypted StrandStream, with semantic addressing and model identity — all running over standard UDP on any machine.
 
 ---
 
@@ -265,13 +265,13 @@ This MVP lets you demo: a Go client sending an inference request to a Go server 
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| Zig | 0.13+ | NexLink build |
-| GCC or Clang | 12+ / 15+ | NexRoute C build |
-| Rust (rustc + cargo) | 1.75+ | NexStream + NexTrust |
-| Go | 1.22+ | NexAPI + NexCtl + Nexus Cloud |
-| CMake | 3.20+ | NexRoute build system |
+| Zig | 0.13+ | StrandLink build |
+| GCC or Clang | 12+ / 15+ | StrandRoute C build |
+| Rust (rustc + cargo) | 1.75+ | StrandStream + StrandTrust |
+| Go | 1.22+ | StrandAPI + StrandCtl + Strand Cloud |
+| CMake | 3.20+ | StrandRoute build system |
 | p4c | Latest | P4 compilation (optional, for switch targets) |
 | BMv2 | Latest | P4 behavioral model testing (optional) |
 | Docker | 24+ | Container builds |
-| etcd | 3.5+ | Nexus Cloud state store (production) |
+| etcd | 3.5+ | Strand Cloud state store (production) |
 | Nix | 2.18+ | Reproducible builds (optional but recommended) |

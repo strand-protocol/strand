@@ -1,10 +1,10 @@
-// NexTrust error types
+// StrandTrust error types
 
 use thiserror::Error;
 
-/// Top-level error type for the NexTrust crate.
+/// Top-level error type for the StrandTrust crate.
 #[derive(Debug, Error)]
-pub enum NexTrustError {
+pub enum StrandTrustError {
     // ── Crypto errors ───────────────────────────────────────────────────
     #[error("key generation failed: {0}")]
     KeyGeneration(String),
@@ -66,4 +66,4 @@ pub enum NexTrustError {
 }
 
 /// Crate-level result alias.
-pub type Result<T> = std::result::Result<T, NexTrustError>;
+pub type Result<T> = std::result::Result<T, StrandTrustError>;

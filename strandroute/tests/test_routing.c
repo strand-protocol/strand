@@ -2,9 +2,9 @@
  * test_routing.c - Routing table CRUD + concurrent read tests
  */
 
-#include "nexroute/routing_table.h"
-#include "nexroute/sad.h"
-#include "nexroute/types.h"
+#include "strandroute/routing_table.h"
+#include "strandroute/sad.h"
+#include "strandroute/types.h"
 
 #include <stdio.h>
 #include <string.h>

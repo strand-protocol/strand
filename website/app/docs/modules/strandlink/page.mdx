@@ -1,0 +1,265 @@
+# StrandLink — L1 AI-Native Frame Protocol
+
+**Language:** Zig | **Layer:** L1 | **Dependencies:** None
+
+StrandLink replaces IEEE 802.3 Ethernet with an AI-native 64-byte fixed frame header designed for tensor data, model inference, and zero-copy processing. It provides the foundational framing layer that all other Strand Protocol modules build upon.
+
+## Overview
+
+StrandLink is the lowest layer of the Strand Protocol stack. Every byte that flows through the network is wrapped in a StrandLink frame. The frame header carries first-class fields for tensor dtype, alignment, 128-bit node IDs, stream multiplexing, QoS class, and TLV-encoded options — none of which exist in traditional Ethernet or IP headers.
+
+Key design constraints:
+
+- **Zero heap allocations** on the hot path after initialization
+- **Lock-free SPSC ring buffer** modeled after io_uring with cache-line-aligned head/tail
+- **CRC-32C (Castagnoli)** integrity checking over the entire frame
+- **Multiple backends:** DPDK, XDP, UDP overlay (port 6477), mock (in-memory loopback)
+
+## Performance Targets
+
+| Operation | Target |
+|-----------|--------|
+| Frame encode | < 200ns |
+| Frame decode | < 300ns |
+| Ring reserve+commit | < 50ns |
+
+## Frame Header (64 bytes)
+
+```
+Bytes  0-3:   version(4b) | flags(8b) | frame_type(16b) | padding(4b)
+Bytes  4-7:   frame_length(32b)
+Bytes  8-11:  stream_id(32b)
+Bytes 12-15:  sequence_number(32b)
+Bytes 16-31:  source_node_id(128b)
+Bytes 32-47:  dest_node_id(128b)
+Bytes 48-51:  priority(4b) | qos_class(4b) | tensor_dtype(8b) | padding(16b)
+Bytes 52-55:  tensor_alignment(16b) | options_length(16b)
+Bytes 56-63:  timestamp(64b)
+```
+
+### FrameHeader struct
+
+```zig
+pub const FrameHeader = struct {
+    version: u4 = STRANDLINK_VERSION,     // Always 1
+    flags: FrameFlags = .{},
+    frame_type: FrameType = .data,
+    frame_length: u32 = 0,
+    stream_id: u32 = 0,
+    sequence_number: u32 = 0,
+    source_node_id: NodeId = .{0} ** 16,
+    dest_node_id: NodeId = .{0} ** 16,
+    priority: u4 = 0,
+    qos_class: QosClass = .best_effort,
+    tensor_dtype: TensorDtype = .none,
+    tensor_alignment: u16 = 0,
+    options_length: u16 = 0,
+    timestamp: u64 = 0,
+};
+```
+
+### Constants
+
+```zig
+STRANDLINK_VERSION: u4 = 1
+HEADER_SIZE: usize = 64
+MAX_OPTIONS_SIZE: usize = 256
+MAX_FRAME_SIZE: usize = 65535
+MIN_FRAME_SIZE: usize = 68   // header + CRC
+CRC_SIZE: usize = 4
+```
+
+## Frame Types
+
+| Code | Name | Description |
+|------|------|-------------|
+| 0x0001 | `data` | Application data frames |
+| 0x0002 | `control` | Protocol control messages |
+| 0x0003 | `heartbeat` | Keep-alive and liveness detection |
+| 0x0004 | `route_advertisement` | Gossip protocol route sharing |
+| 0x0005 | `trust_handshake` | MIC exchange and key negotiation |
+| 0x0006 | `tensor_transfer` | Dedicated tensor data transfer |
+| 0x0007 | `stream_control` | StrandStream connection/stream management |
+
+## Frame Flags
+
+```zig
+pub const FrameFlags = packed struct(u8) {
+    more_fragments: bool = false,
+    compressed: bool = false,
+    encrypted: bool = false,
+    tensor_payload: bool = false,
+    priority_express: bool = false,
+    overlay_encap: bool = false,
+    _reserved: u2 = 0,
+};
+```
+
+## QoS Classes
+
+| Code | Class | StrandStream Mapping |
+|------|-------|---------------------|
+| 0x0 | `best_effort` | BE delivery mode |
+| 0x1 | `reliable_ordered` | RO delivery mode |
+| 0x2 | `reliable_unordered` | RU delivery mode |
+| 0x3 | `probabilistic` | PR delivery mode |
+
+## Tensor Data Types
+
+| Code | Type | Description |
+|------|------|-------------|
+| 0x00 | `none` | No tensor data |
+| 0x01 | `float16` | IEEE 754 half-precision |
+| 0x02 | `bfloat16` | Brain floating-point |
+| 0x03 | `float32` | IEEE 754 single-precision |
+| 0x04 | `float64` | IEEE 754 double-precision |
+| 0x05 | `int8` | 8-bit signed integer |
+| 0x06 | `int4` | 4-bit quantized |
+| 0x07 | `uint8` | 8-bit unsigned integer |
+| 0x08 | `fp8_e4m3` | FP8 E4M3 (NVIDIA) |
+| 0x09 | `fp8_e5m2` | FP8 E5M2 (NVIDIA) |
+
+## TLV Options
+
+Options are TLV-encoded after the 64-byte header, max 256 bytes total. 8 defined option types:
+
+| Code | Option | Description |
+|------|--------|-------------|
+| 0x01 | `fragment_info` | Fragment offset + total fragment count |
+| 0x02 | `compression_alg` | Compression algorithm (LZ4, zstd, Snappy) |
+| 0x03 | `encryption_tag` | AEAD authentication tag |
+| 0x04 | `tensor_shape` | Tensor dimension array |
+| 0x05 | `trace_id` | 128-bit distributed trace ID |
+| 0x06 | `hop_count` | TTL-like hop counter |
+| 0x07 | `semantic_addr` | Inline Semantic Address Descriptor |
+| 0x08 | `gpu_hint` | GPU device ID + memory pool hint |
+
+### OptionBuilder API
+
+```zig
+pub const OptionBuilder = struct {
+    pub fn put(self: *OptionBuilder, opt_type: OptionType, value: []const u8) !void;
+    pub fn putFragmentInfo(self: *OptionBuilder, offset: u32, total: u16) !void;
+    pub fn putCompressionAlg(self: *OptionBuilder, alg: CompressionAlg) !void;
+    pub fn putHopCount(self: *OptionBuilder, count: u8) !void;
+    pub fn putTraceId(self: *OptionBuilder, trace_id: [16]u8) !void;
+    pub fn putTensorShape(self: *OptionBuilder, dims: []const u32) !void;
+    pub fn putGpuHint(self: *OptionBuilder, device_id: u16, pool_hint: u16) !void;
+    pub fn slice(self: *const OptionBuilder) []const u8;
+};
+```
+
+## Frame Encode/Decode API
+
+```zig
+pub fn encode(
+    hdr: *const FrameHeader,
+    options_data: []const u8,
+    payload: []const u8,
+    out_buf: []u8,
+) FrameError!usize
+
+pub fn decode(buf: []const u8) FrameError!Frame
+```
+
+Error types:
+
+```zig
+pub const FrameError = error{
+    BufferTooSmall,
+    InvalidVersion,
+    InvalidFrameLength,
+    CrcMismatch,
+    OptionsTruncated,
+    FrameTooLarge,
+    OptionsTooLarge,
+};
+```
+
+## Ring Buffer
+
+Lock-free SPSC (Single-Producer, Single-Consumer) ring buffer with cache-line-aligned atomics:
+
+```zig
+pub const RingBuffer = struct {
+    pub fn init(allocator: Allocator, num_slots: u32, slot_size: u32) Error!RingBuffer;
+    pub fn deinit(self: *RingBuffer) void;
+    pub fn reserve(self: *RingBuffer) ?[]u8;      // Producer: get writable slot
+    pub fn commit(self: *RingBuffer) void;         // Producer: make slot visible
+    pub fn peek(self: *RingBuffer) ?[]const u8;    // Consumer: read next slot
+    pub fn release(self: *RingBuffer) void;        // Consumer: free slot
+    pub fn count(self: *const RingBuffer) u32;
+    pub fn isEmpty(self: *const RingBuffer) bool;
+    pub fn isFull(self: *const RingBuffer) bool;
+};
+```
+
+## CRC-32C
+
+Castagnoli CRC-32C with a compile-time-generated lookup table:
+
+```zig
+pub fn compute(data: []const u8) u32;
+pub fn update(crc_in: u32, data: []const u8) u32;
+pub fn verify(data: []const u8) bool;
+```
+
+## Overlay Mode
+
+The overlay transport encapsulates StrandLink frames in UDP datagrams on port **6477**:
+
+```zig
+pub const OverlayHeader = struct {
+    magic: u16 = 0x504C,        // "PL"
+    version: u4 = 1,
+    flags: OverlayFlags = .{},
+    reserved: u8 = 0,
+    vni: u32 = 0,               // Virtual Network Identifier
+};
+
+pub fn encapsulate(vni: u32, frame_data: []const u8, out_buf: []u8) !usize;
+pub fn decapsulate(buf: []const u8) !struct { header: OverlayHeader, inner_frame: []const u8 };
+```
+
+## C FFI
+
+StrandLink exports a C API consumed by StrandRoute (C) and StrandStream (Rust via bindgen):
+
+```c
+// Frame operations
+int strandlink_frame_encode(const uint8_t *hdr_buf, const uint8_t *options,
+    uint16_t options_len, const uint8_t *payload, uint32_t payload_len,
+    uint8_t *out_buf, uint32_t out_buf_len, uint32_t *out_frame_len);
+
+int strandlink_frame_decode(const uint8_t *buf, uint32_t buf_len,
+    uint8_t *out_header_buf, const uint8_t **out_payload_ptr,
+    uint32_t *out_payload_len);
+
+// Ring buffer
+strandlink_ring_buffer_t *strandlink_ring_buffer_create(uint32_t num_slots, uint32_t slot_size);
+void strandlink_ring_buffer_destroy(strandlink_ring_buffer_t *rb);
+uint8_t *strandlink_ring_buffer_reserve(strandlink_ring_buffer_t *rb);
+void strandlink_ring_buffer_commit(strandlink_ring_buffer_t *rb);
+const uint8_t *strandlink_ring_buffer_peek(strandlink_ring_buffer_t *rb);
+void strandlink_ring_buffer_release(strandlink_ring_buffer_t *rb);
+
+// CRC
+uint32_t strandlink_crc32c(const uint8_t *data, uint32_t len);
+```
+
+## Build
+
+```bash
+cd strandlink
+zig build                        # Default mock backend
+zig build -Dbackend=overlay      # UDP overlay transport
+zig build -Dbackend=dpdk         # DPDK kernel bypass
+zig build -Dbackend=xdp          # XDP eBPF
+zig build test                   # Run all tests
+```
+
+## Tests
+
+- **frame_test.zig** — encode/decode round-trip, CRC validation, malformed frame rejection
+- **overlay_test.zig** — encapsulate/decapsulate, VNI handling, MTU calculations
+- **ring_buffer_test.zig** — SPSC operations, full/empty detection, concurrent access

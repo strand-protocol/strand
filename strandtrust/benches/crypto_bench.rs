@@ -1,21 +1,21 @@
-// NexTrust cryptographic benchmarks using criterion.
+// StrandTrust cryptographic benchmarks using criterion.
 //
 // Measures:
 //   - Ed25519 key generation
 //   - Ed25519 sign / verify throughput
 //   - ChaCha20-Poly1305 encrypt / decrypt at various payload sizes
 //   - MIC build + serialize
-//   - Full NexTrust handshake latency
+//   - Full StrandTrust handshake latency
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::time::Duration;
 
-use nextrust::crypto::aead::AeadCipher;
-use nextrust::crypto::keys::IdentityKeyPair;
-use nextrust::mic::builder::MICBuilder;
-use nextrust::mic::serializer;
-use nextrust::mic::Capability;
-use nextrust::handshake::protocol::{Initiator, Responder};
+use strandtrust::crypto::aead::AeadCipher;
+use strandtrust::crypto::keys::IdentityKeyPair;
+use strandtrust::mic::builder::MICBuilder;
+use strandtrust::mic::serializer;
+use strandtrust::mic::Capability;
+use strandtrust::handshake::protocol::{Initiator, Responder};
 
 // ---------------------------------------------------------------------------
 // Key generation
@@ -35,7 +35,7 @@ fn bench_keygen(c: &mut Criterion) {
 
 fn bench_sign_verify(c: &mut Criterion) {
     let kp = IdentityKeyPair::generate();
-    let message = b"NexTrust benchmark message for Ed25519 sign/verify throughput testing";
+    let message = b"StrandTrust benchmark message for Ed25519 sign/verify throughput testing";
 
     c.bench_function("ed25519_sign", |b| {
         b.iter(|| {

@@ -1,13 +1,13 @@
 # ============================================================
-# nexus-cloud -- Module-Level Makefile
+# strand-cloud -- Module-Level Makefile
 # ============================================================
 
-MODULE   := github.com/nexus-protocol/nexus/nexus-cloud
-BINARY   := nexus-cloud
-ALLINONE := nexus-allinone
-IMAGE    := nexus-cloud
+MODULE   := github.com/strand-protocol/strand/strand-cloud
+BINARY   := strand-cloud
+ALLINONE := strand-allinone
+IMAGE    := strand-cloud
 TAG      ?= latest
-REGISTRY ?= ghcr.io/nexus-protocol
+REGISTRY ?= ghcr.io/strand-protocol
 
 LDFLAGS  := -s -w
 
@@ -24,12 +24,12 @@ all: build build-allinone
 # -----------------------------------------------------------
 build:
 	@echo "=== Building $(BINARY) ==="
-	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/nexus-cloud
+	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/strand-cloud
 	@echo "=== $(BINARY) built ==="
 
 build-allinone:
 	@echo "=== Building $(ALLINONE) ==="
-	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(ALLINONE) ./cmd/nexus-allinone
+	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(ALLINONE) ./cmd/strand-allinone
 	@echo "=== $(ALLINONE) built ==="
 
 # -----------------------------------------------------------

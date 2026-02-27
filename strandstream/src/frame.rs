@@ -1,12 +1,12 @@
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
-use crate::error::{NexStreamError, Result};
+use crate::error::{StrandStreamError, Result};
 
-/// Frame type identifiers carried inside NexStream.
+/// Frame type identifiers carried inside StrandStream.
 ///
 /// Values 0x01–0x08 are data-path frames. Values 0x10–0x13 are connection
 /// lifecycle control frames. 0x40 is the congestion-signalling frame.
-/// All wire values match the spec (§4.3 NexStream Control Frame Types).
+/// All wire values match the spec (§4.3 StrandStream Control Frame Types).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum FrameType {
@@ -29,7 +29,7 @@ pub enum FrameType {
 }
 
 impl TryFrom<u8> for FrameType {
-    type Error = NexStreamError;
+    type Error = StrandStreamError;
 
     fn try_from(value: u8) -> Result<Self> {
         match value {
@@ -46,7 +46,7 @@ impl TryFrom<u8> for FrameType {
             0x12 => Ok(FrameType::StreamClose),
             0x13 => Ok(FrameType::StreamReset),
             0x40 => Ok(FrameType::Congestion),
-            other => Err(NexStreamError::UnknownFrameType(other)),
+            other => Err(StrandStreamError::UnknownFrameType(other)),
         }
     }
 }
@@ -72,7 +72,7 @@ pub struct SeqRange {
     pub end: u32,
 }
 
-/// NexStream wire frame.
+/// StrandStream wire frame.
 ///
 /// Binary layout (all fields big-endian):
 ///
@@ -304,7 +304,7 @@ impl Frame {
     /// Decode a frame from the given byte buffer.
     pub fn decode(mut data: &[u8]) -> Result<Self> {
         if data.is_empty() {
-            return Err(NexStreamError::FrameTooShort {
+            return Err(StrandStreamError::FrameTooShort {
                 expected: 1,
                 actual: 0,
             });
@@ -430,7 +430,7 @@ impl Frame {
 
     fn ensure_len(data: &[u8], needed: usize, context: &str) -> Result<()> {
         if data.len() < needed {
-            Err(NexStreamError::FrameTooShort {
+            Err(StrandStreamError::FrameTooShort {
                 expected: needed,
                 actual: data.len(),
             })

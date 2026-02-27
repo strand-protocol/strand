@@ -1,19 +1,19 @@
 /*
- * types.h - NexRoute core types
+ * types.h - StrandRoute core types
  *
  * Defines NodeID, SemanticField, SADCapability, RoutingEntry and related
- * constants used throughout the NexRoute semantic routing layer.
+ * constants used throughout the StrandRoute semantic routing layer.
  */
 
-#ifndef NEXROUTE_TYPES_H
-#define NEXROUTE_TYPES_H
+#ifndef STRANDROUTE_TYPES_H
+#define STRANDROUTE_TYPES_H
 
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include "nexroute/nexlink_compat.h"
+#include "strandroute/strandlink_compat.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -111,12 +111,12 @@ typedef struct {
  * -------------------------------------------------------------------------- */
 
 typedef struct {
-    uint8_t  node_id[NEXLINK_NODE_ID_LEN];  /* NexLink Node ID (16 bytes) */
+    uint8_t  node_id[STRANDLINK_NODE_ID_LEN];  /* StrandLink Node ID (16 bytes) */
     sad_t    capabilities;                   /* What this node offers */
     uint32_t latency_us;                     /* Current measured latency (microseconds) */
     float    load_factor;                    /* 0.0 - 1.0 current load */
     uint32_t cost_milli;                     /* Cost per request (millionths of dollar) */
-    uint8_t  trust_level;                    /* NexTrust attestation level */
+    uint8_t  trust_level;                    /* StrandTrust attestation level */
     uint16_t region_code;                    /* ISO 3166-1 numeric */
     uint64_t last_updated;                   /* Timestamp of last gossip update (ns) */
     uint64_t ttl_ns;                         /* Time-to-live for this entry (ns) */
@@ -160,21 +160,21 @@ static inline scoring_weights_t scoring_weights_default(void)
  * Utility: compare two node IDs
  * -------------------------------------------------------------------------- */
 
-static inline bool node_id_equal(const uint8_t a[NEXLINK_NODE_ID_LEN],
-                                 const uint8_t b[NEXLINK_NODE_ID_LEN])
+static inline bool node_id_equal(const uint8_t a[STRANDLINK_NODE_ID_LEN],
+                                 const uint8_t b[STRANDLINK_NODE_ID_LEN])
 {
-    return memcmp(a, b, NEXLINK_NODE_ID_LEN) == 0;
+    return memcmp(a, b, STRANDLINK_NODE_ID_LEN) == 0;
 }
 
-static inline void node_id_copy(uint8_t dst[NEXLINK_NODE_ID_LEN],
-                                const uint8_t src[NEXLINK_NODE_ID_LEN])
+static inline void node_id_copy(uint8_t dst[STRANDLINK_NODE_ID_LEN],
+                                const uint8_t src[STRANDLINK_NODE_ID_LEN])
 {
-    memcpy(dst, src, NEXLINK_NODE_ID_LEN);
+    memcpy(dst, src, STRANDLINK_NODE_ID_LEN);
 }
 
-static inline bool node_id_is_zero(const uint8_t id[NEXLINK_NODE_ID_LEN])
+static inline bool node_id_is_zero(const uint8_t id[STRANDLINK_NODE_ID_LEN])
 {
-    for (int i = 0; i < NEXLINK_NODE_ID_LEN; i++) {
+    for (int i = 0; i < STRANDLINK_NODE_ID_LEN; i++) {
         if (id[i] != 0) return false;
     }
     return true;
@@ -184,4 +184,4 @@ static inline bool node_id_is_zero(const uint8_t id[NEXLINK_NODE_ID_LEN])
 }
 #endif
 
-#endif /* NEXROUTE_TYPES_H */
+#endif /* STRANDROUTE_TYPES_H */

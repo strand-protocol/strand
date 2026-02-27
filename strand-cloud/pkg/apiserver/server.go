@@ -1,4 +1,4 @@
-// Package apiserver implements the Nexus Cloud REST API server.
+// Package apiserver implements the Strand Cloud REST API server.
 package apiserver
 
 import (
@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/ca"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/observability"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/ca"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/observability"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/store"
 )
 
 // Role represents the RBAC role assigned to an API key.
@@ -52,7 +52,7 @@ func DefaultServerOptions() ServerOptions {
 	}
 }
 
-// Server is the Nexus Cloud HTTP API server.
+// Server is the Strand Cloud HTTP API server.
 type Server struct {
 	httpServer *http.Server
 	store      store.Store
@@ -85,13 +85,13 @@ func NewServer(s store.Store, authority *ca.CA, opts ServerOptions) *Server {
 // ListenAndServe starts the HTTP server on the given address.
 func (s *Server) ListenAndServe(addr string) error {
 	s.httpServer.Addr = addr
-	log.Printf("nexus-cloud API server listening on %s", addr)
+	log.Printf("strand-cloud API server listening on %s", addr)
 	return s.httpServer.ListenAndServe()
 }
 
 // GracefulShutdown performs a graceful shutdown of the HTTP server.
 func (s *Server) GracefulShutdown(ctx context.Context) error {
-	log.Println("nexus-cloud API server shutting down")
+	log.Println("strand-cloud API server shutting down")
 	return s.httpServer.Shutdown(ctx)
 }
 

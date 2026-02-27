@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# test-all.sh -- Run all tests across every Nexus Protocol
+# test-all.sh -- Run all tests across every Strand Protocol
 # module.  Collects results and exits non-zero on any failure.
 # ============================================================
 
@@ -39,61 +39,61 @@ run_test() {
 }
 
 # -----------------------------------------------------------
-# NexLink (Zig)
+# StrandLink (Zig)
 # -----------------------------------------------------------
-run_test "nexlink (unit)" "$REPO_ROOT/nexlink" \
+run_test "strandlink (unit)" "$REPO_ROOT/strandlink" \
     zig build test
 
 # -----------------------------------------------------------
-# NexRoute (C / CMake -- assumes already built)
+# StrandRoute (C / CMake -- assumes already built)
 # -----------------------------------------------------------
-if [ -d "$REPO_ROOT/nexroute/build" ]; then
-    run_test "nexroute (unit)" "$REPO_ROOT/nexroute/build" \
+if [ -d "$REPO_ROOT/strandroute/build" ]; then
+    run_test "strandroute (unit)" "$REPO_ROOT/strandroute/build" \
         ctest --output-on-failure
 else
-    echo -e "${YELLOW}--- [nexroute] Skipped (no build/ directory) ---${NC}"
+    echo -e "${YELLOW}--- [strandroute] Skipped (no build/ directory) ---${NC}"
 fi
 
 # -----------------------------------------------------------
-# NexTrust (Rust)
+# StrandTrust (Rust)
 # -----------------------------------------------------------
-run_test "nextrust (unit)" "$REPO_ROOT/nextrust" \
+run_test "strandtrust (unit)" "$REPO_ROOT/strandtrust" \
     cargo test
 
-run_test "nextrust (integration)" "$REPO_ROOT/nextrust" \
+run_test "strandtrust (integration)" "$REPO_ROOT/strandtrust" \
     cargo test --test integration_test
 
 # -----------------------------------------------------------
-# NexStream (Rust)
+# StrandStream (Rust)
 # -----------------------------------------------------------
-run_test "nexstream (unit)" "$REPO_ROOT/nexstream" \
+run_test "strandstream (unit)" "$REPO_ROOT/strandstream" \
     cargo test
 
-run_test "nexstream (integration)" "$REPO_ROOT/nexstream" \
+run_test "strandstream (integration)" "$REPO_ROOT/strandstream" \
     cargo test --test integration_test
 
 # -----------------------------------------------------------
-# NexAPI (Go)
+# StrandAPI (Go)
 # -----------------------------------------------------------
-run_test "nexapi (unit)" "$REPO_ROOT/nexapi" \
+run_test "strandapi (unit)" "$REPO_ROOT/strandapi" \
     go test ./... -v -race -count=1
 
-run_test "nexapi (integration)" "$REPO_ROOT/nexapi" \
+run_test "strandapi (integration)" "$REPO_ROOT/strandapi" \
     go test ./tests/ -tags=integration -v -race -count=1
 
 # -----------------------------------------------------------
-# NexCtl (Go)
+# StrandCtl (Go)
 # -----------------------------------------------------------
-run_test "nexctl (unit)" "$REPO_ROOT/nexctl" \
+run_test "strandctl (unit)" "$REPO_ROOT/strandctl" \
     go test ./... -v -race -count=1
 
 # -----------------------------------------------------------
-# Nexus Cloud (Go)
+# Strand Cloud (Go)
 # -----------------------------------------------------------
-run_test "nexus-cloud (unit)" "$REPO_ROOT/nexus-cloud" \
+run_test "strand-cloud (unit)" "$REPO_ROOT/strand-cloud" \
     go test ./... -v -race -count=1
 
-run_test "nexus-cloud (integration)" "$REPO_ROOT/nexus-cloud" \
+run_test "strand-cloud (integration)" "$REPO_ROOT/strand-cloud" \
     go test ./tests/integration/ -tags=integration -v -race -count=1
 
 # -----------------------------------------------------------

@@ -1,4 +1,4 @@
-// Package client provides the high-level NexAPI client SDK. It wraps a
+// Package client provides the high-level StrandAPI client SDK. It wraps a
 // Transport with typed methods for inference, streaming, and tensor transfer.
 package client
 
@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/protocol"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/transport"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/protocol"
+	"github.com/strand-protocol/strand/strandapi/pkg/transport"
 )
 
 // Option configures a Client during construction.
@@ -23,8 +23,8 @@ func WithTransport(t transport.Transport) Option {
 	}
 }
 
-// Client is the primary entry point for NexAPI consumers. It manages the
-// underlying transport and provides typed helpers for every NexAPI operation.
+// Client is the primary entry point for StrandAPI consumers. It manages the
+// underlying transport and provides typed helpers for every StrandAPI operation.
 type Client struct {
 	transport transport.Transport
 	mu        sync.Mutex
@@ -40,7 +40,7 @@ func Dial(addr string, opts ...Option) (*Client, error) {
 	if c.transport == nil {
 		t, err := transport.DialOverlay(addr)
 		if err != nil {
-			return nil, fmt.Errorf("nexapi client: dial: %w", err)
+			return nil, fmt.Errorf("strandapi client: dial: %w", err)
 		}
 		c.transport = t
 	}
@@ -50,28 +50,28 @@ func Dial(addr string, opts ...Option) (*Client, error) {
 // Infer sends a synchronous inference request and blocks until the complete
 // response arrives. For streaming use StreamTokens instead.
 func (c *Client) Infer(ctx context.Context, req *protocol.InferenceRequest) (*protocol.InferenceResponse, error) {
-	buf := nexbuf.NewBuffer(256)
+	buf := strandbuf.NewBuffer(256)
 	req.Encode(buf)
 
 	if err := c.transport.Send(ctx, protocol.OpInferenceRequest, buf.Bytes()); err != nil {
-		return nil, fmt.Errorf("nexapi client: send inference request: %w", err)
+		return nil, fmt.Errorf("strandapi client: send inference request: %w", err)
 	}
 
 	opcode, payload, err := c.transport.Recv(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("nexapi client: recv inference response: %w", err)
+		return nil, fmt.Errorf("strandapi client: recv inference response: %w", err)
 	}
 	if opcode == protocol.OpError {
-		return nil, fmt.Errorf("nexapi client: server error: %s", string(payload))
+		return nil, fmt.Errorf("strandapi client: server error: %s", string(payload))
 	}
 	if opcode != protocol.OpInferenceResponse {
-		return nil, fmt.Errorf("nexapi client: unexpected opcode 0x%02x, want 0x%02x", opcode, protocol.OpInferenceResponse)
+		return nil, fmt.Errorf("strandapi client: unexpected opcode 0x%02x, want 0x%02x", opcode, protocol.OpInferenceResponse)
 	}
 
 	resp := &protocol.InferenceResponse{}
-	reader := nexbuf.NewReader(payload)
+	reader := strandbuf.NewReader(payload)
 	if err := resp.Decode(reader); err != nil {
-		return nil, fmt.Errorf("nexapi client: decode inference response: %w", err)
+		return nil, fmt.Errorf("strandapi client: decode inference response: %w", err)
 	}
 	return resp, nil
 }
@@ -80,11 +80,11 @@ func (c *Client) Infer(ctx context.Context, req *protocol.InferenceRequest) (*pr
 // yields TokenStreamChunk messages as they arrive. The channel is closed when
 // the stream ends (OpTokenStreamEnd) or an error occurs.
 func (c *Client) StreamTokens(ctx context.Context, req *protocol.InferenceRequest) (<-chan *protocol.TokenStreamChunk, error) {
-	buf := nexbuf.NewBuffer(256)
+	buf := strandbuf.NewBuffer(256)
 	req.Encode(buf)
 
 	if err := c.transport.Send(ctx, protocol.OpInferenceRequest, buf.Bytes()); err != nil {
-		return nil, fmt.Errorf("nexapi client: send stream request: %w", err)
+		return nil, fmt.Errorf("strandapi client: send stream request: %w", err)
 	}
 
 	ch := make(chan *protocol.TokenStreamChunk, 64)
@@ -101,7 +101,7 @@ func (c *Client) StreamTokens(ctx context.Context, req *protocol.InferenceReques
 				continue
 			case protocol.OpTokenStreamChunk:
 				chunk := &protocol.TokenStreamChunk{}
-				reader := nexbuf.NewReader(payload)
+				reader := strandbuf.NewReader(payload)
 				if err := chunk.Decode(reader); err != nil {
 					return
 				}
@@ -122,6 +122,20 @@ func (c *Client) StreamTokens(ctx context.Context, req *protocol.InferenceReques
 	}()
 
 	return ch, nil
+}
+
+// RawSend transmits a single StrandAPI frame with the given opcode and payload.
+// Use this for protocol messages not covered by the typed helpers (e.g. agent
+// delegation, tool invocation, health checks).
+func (c *Client) RawSend(ctx context.Context, opcode byte, payload []byte) error {
+	return c.transport.Send(ctx, opcode, payload)
+}
+
+// RawRecv blocks until a complete StrandAPI frame arrives and returns the raw
+// opcode and payload. Use this for protocol messages not covered by the typed
+// helpers.
+func (c *Client) RawRecv(ctx context.Context) (byte, []byte, error) {
+	return c.transport.Recv(ctx)
 }
 
 // Close shuts down the client transport.

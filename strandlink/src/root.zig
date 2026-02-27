@@ -1,4 +1,4 @@
-// root.zig — NexLink public API root module
+// root.zig — StrandLink public API root module
 //
 // Re-exports all public types and functions for use by dependent modules
 // and the C FFI layer.
@@ -41,14 +41,14 @@ pub const HEADER_SIZE = header.HEADER_SIZE;
 pub const MAX_FRAME_SIZE = header.MAX_FRAME_SIZE;
 pub const MIN_FRAME_SIZE = header.MIN_FRAME_SIZE;
 pub const MAX_OPTIONS_SIZE = header.MAX_OPTIONS_SIZE;
-pub const NEXLINK_VERSION = header.NEXLINK_VERSION;
+pub const STRANDLINK_VERSION = header.STRANDLINK_VERSION;
 
 // ── C FFI exports ──
 
 const std = @import("std");
 
-/// Encode a NexLink frame. Returns 0 on success, negative on error.
-export fn nexlink_frame_encode(
+/// Encode a StrandLink frame. Returns 0 on success, negative on error.
+export fn strandlink_frame_encode(
     hdr_buf: ?[*]const u8,
     options_ptr: ?[*]const u8,
     options_len: u16,
@@ -85,8 +85,8 @@ export fn nexlink_frame_encode(
     return 0;
 }
 
-/// Decode a NexLink frame. Returns 0 on success, negative on error.
-export fn nexlink_frame_decode(
+/// Decode a StrandLink frame. Returns 0 on success, negative on error.
+export fn strandlink_frame_decode(
     buf: ?[*]const u8,
     buf_len: u32,
     out_header_buf: ?[*]u8,
@@ -112,7 +112,7 @@ export fn nexlink_frame_decode(
 }
 
 /// Create a ring buffer. Returns opaque pointer, or null on failure.
-export fn nexlink_ring_buffer_create(
+export fn strandlink_ring_buffer_create(
     num_slots: u32,
     slot_size: u32,
 ) callconv(.c) ?*RingBuffer {
@@ -125,7 +125,7 @@ export fn nexlink_ring_buffer_create(
 }
 
 /// Destroy a ring buffer.
-export fn nexlink_ring_buffer_destroy(rb: ?*RingBuffer) callconv(.c) void {
+export fn strandlink_ring_buffer_destroy(rb: ?*RingBuffer) callconv(.c) void {
     if (rb) |r| {
         r.deinit();
         std.heap.c_allocator.destroy(r);
@@ -133,7 +133,7 @@ export fn nexlink_ring_buffer_destroy(rb: ?*RingBuffer) callconv(.c) void {
 }
 
 /// Reserve a slot in the ring buffer. Returns pointer to slot, or null if full.
-export fn nexlink_ring_buffer_reserve(rb: ?*RingBuffer) callconv(.c) ?[*]u8 {
+export fn strandlink_ring_buffer_reserve(rb: ?*RingBuffer) callconv(.c) ?[*]u8 {
     if (rb) |r| {
         if (r.reserve()) |slot| return slot.ptr;
     }
@@ -141,12 +141,12 @@ export fn nexlink_ring_buffer_reserve(rb: ?*RingBuffer) callconv(.c) ?[*]u8 {
 }
 
 /// Commit a reserved slot.
-export fn nexlink_ring_buffer_commit(rb: ?*RingBuffer) callconv(.c) void {
+export fn strandlink_ring_buffer_commit(rb: ?*RingBuffer) callconv(.c) void {
     if (rb) |r| r.commit();
 }
 
 /// Peek at the next readable slot. Returns pointer, or null if empty.
-export fn nexlink_ring_buffer_peek(rb: ?*RingBuffer) callconv(.c) ?[*]const u8 {
+export fn strandlink_ring_buffer_peek(rb: ?*RingBuffer) callconv(.c) ?[*]const u8 {
     if (rb) |r| {
         if (r.peek()) |slot| return slot.ptr;
     }
@@ -154,12 +154,12 @@ export fn nexlink_ring_buffer_peek(rb: ?*RingBuffer) callconv(.c) ?[*]const u8 {
 }
 
 /// Release a consumed slot.
-export fn nexlink_ring_buffer_release(rb: ?*RingBuffer) callconv(.c) void {
+export fn strandlink_ring_buffer_release(rb: ?*RingBuffer) callconv(.c) void {
     if (rb) |r| r.release();
 }
 
 /// Compute CRC-32C over a buffer. Returns 0 if data is null.
-export fn nexlink_crc32c(data: ?[*]const u8, len: u32) callconv(.c) u32 {
+export fn strandlink_crc32c(data: ?[*]const u8, len: u32) callconv(.c) u32 {
     const d = data orelse return 0;
     return crc.compute(d[0..len]);
 }

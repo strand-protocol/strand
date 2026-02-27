@@ -1,4 +1,4 @@
-//! NexStream -- Layer 3 Hybrid Transport Protocol for the Nexus Protocol stack.
+//! StrandStream -- Layer 3 Hybrid Transport Protocol for the Strand Protocol stack.
 //!
 //! Provides four delivery modes multiplexed over a single connection:
 //! - **Reliable-Ordered**: TCP-equivalent in-order, exactly-once delivery
@@ -20,7 +20,7 @@ pub mod transport;
 
 // Re-export key public types at crate root.
 pub use connection::{Connection, ConnectionConfig, ConnectionState};
-pub use error::{NexStreamError, Result};
+pub use error::{StrandStreamError, Result};
 pub use flow_control::FlowController;
 pub use frame::Frame;
 pub use mux::Multiplexer;

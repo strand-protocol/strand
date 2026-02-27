@@ -1,5 +1,5 @@
 /*
- * test_main.c - NexRoute test runner
+ * test_main.c - StrandRoute test runner
  *
  * Minimal test framework: each test file registers test functions.
  * We run them all and report pass/fail counts.
@@ -67,7 +67,7 @@ int main(int argc, char **argv)
     register_sad_tests();
     register_routing_tests();
 
-    printf("NexRoute Test Suite: %d tests\n", g_num_tests);
+    printf("StrandRoute Test Suite: %d tests\n", g_num_tests);
     printf("========================================\n");
 
     int passed = 0;

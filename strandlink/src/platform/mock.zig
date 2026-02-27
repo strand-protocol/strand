@@ -1,4 +1,4 @@
-// platform/mock.zig — Mock platform backend for NexLink unit testing
+// platform/mock.zig — Mock platform backend for StrandLink unit testing
 //
 // Provides an in-memory loopback NIC interface. send() places a frame into
 // a ring buffer, recv() reads from it. This simulates the NIC TX/RX path
@@ -116,7 +116,7 @@ test "mock_platform send/recv loopback" {
     var mock = try MockPlatform.init(testing.allocator);
     defer mock.deinit();
 
-    const data = "Hello, NexLink!";
+    const data = "Hello, StrandLink!";
     try mock.send(data);
 
     try testing.expectEqual(@as(u32, 1), mock.pendingCount());
@@ -191,7 +191,7 @@ test "mock_platform end-to-end with frame encode/decode" {
     var mock = try MockPlatform.init(testing.allocator);
     defer mock.deinit();
 
-    // Encode a NexLink frame
+    // Encode a StrandLink frame
     var hdr = frame_mod.FrameHeader.init(.data);
     hdr.stream_id = 100;
     hdr.sequence_number = 1;

@@ -1,4 +1,4 @@
-// ring_buffer.zig — Lock-free SPSC ring buffer for NexLink frame I/O
+// ring_buffer.zig — Lock-free SPSC ring buffer for StrandLink frame I/O
 //
 // Single-Producer, Single-Consumer ring buffer using atomic head/tail indices.
 // Inspired by the io_uring submission/completion queue design (Linux kernel).

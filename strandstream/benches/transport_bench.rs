@@ -1,4 +1,4 @@
-// NexStream transport-layer benchmarks using criterion.
+// StrandStream transport-layer benchmarks using criterion.
 //
 // Measures:
 //   - Frame encode / decode throughput
@@ -9,11 +9,11 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use std::time::Duration;
 
 use bytes::Bytes;
-use nexstream::congestion::cubic::Cubic;
-use nexstream::congestion::CongestionController;
-use nexstream::frame::{DataFlags, Frame, SeqRange};
-use nexstream::mux::Multiplexer;
-use nexstream::transport::TransportMode;
+use strandstream::congestion::cubic::Cubic;
+use strandstream::congestion::CongestionController;
+use strandstream::frame::{DataFlags, Frame, SeqRange};
+use strandstream::mux::Multiplexer;
+use strandstream::transport::TransportMode;
 
 // ---------------------------------------------------------------------------
 // Frame encode throughput

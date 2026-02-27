@@ -1,4 +1,4 @@
-// Command inference is a mock NexAPI inference server that splits the prompt
+// Command inference is a mock StrandAPI inference server that splits the prompt
 // into word-level "tokens" and streams them back one at a time, simulating a
 // real LLM token-by-token generation process.
 package main
@@ -12,8 +12,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/protocol"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/server"
+	"github.com/strand-protocol/strand/strandapi/pkg/protocol"
+	"github.com/strand-protocol/strand/strandapi/pkg/server"
 )
 
 // mockStreamHandler splits the prompt into words and sends each as a token.
@@ -67,7 +67,7 @@ func main() {
 		srv.Stop()
 	}()
 
-	log.Printf("NexAPI mock inference server listening on %s", addr)
+	log.Printf("StrandAPI mock inference server listening on %s", addr)
 	if err := srv.ListenAndServe(addr); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

@@ -1,6 +1,6 @@
-// header.zig — NexLink L1 Frame Protocol Header (64 bytes)
+// header.zig — StrandLink L1 Frame Protocol Header (64 bytes)
 //
-// Defines the 64-byte fixed frame header for the NexLink AI-native frame protocol.
+// Defines the 64-byte fixed frame header for the StrandLink AI-native frame protocol.
 // The header is serialized in big-endian (network byte order) for wire compatibility.
 // We do NOT use a Zig packed struct for the wire format because the spec has sub-byte
 // fields (4-bit version, 4-bit priority, 4-bit qos_class) that pack across byte
@@ -13,7 +13,7 @@ const mem = std.mem;
 const testing = std.testing;
 
 /// Protocol version. Current = 1.
-pub const NEXLINK_VERSION: u4 = 1;
+pub const STRANDLINK_VERSION: u4 = 1;
 
 /// Fixed header size in bytes.
 pub const HEADER_SIZE: usize = 64;
@@ -85,13 +85,13 @@ pub const TensorDtype = enum(u8) {
     _,
 };
 
-/// 128-bit node identifier (derived from NexTrust identity key).
+/// 128-bit node identifier (derived from StrandTrust identity key).
 pub const NodeId = [16]u8;
 
-/// Semantic representation of a NexLink frame header.
+/// Semantic representation of a StrandLink frame header.
 /// NOT a packed struct — use `serialize` / `deserialize` for wire format.
 pub const FrameHeader = struct {
-    version: u4 = NEXLINK_VERSION,
+    version: u4 = STRANDLINK_VERSION,
     flags: FrameFlags = .{},
     frame_type: FrameType = .data,
     frame_length: u32 = 0,
@@ -251,7 +251,7 @@ pub const FrameHeader = struct {
     /// Create a zeroed header with sensible defaults.
     pub fn init(frame_type: FrameType) FrameHeader {
         return FrameHeader{
-            .version = NEXLINK_VERSION,
+            .version = STRANDLINK_VERSION,
             .frame_type = frame_type,
         };
     }
@@ -317,7 +317,7 @@ test "header version zero rejected" {
 
 test "header init sets correct defaults" {
     const hdr = FrameHeader.init(.heartbeat);
-    try testing.expectEqual(NEXLINK_VERSION, hdr.version);
+    try testing.expectEqual(STRANDLINK_VERSION, hdr.version);
     try testing.expectEqual(FrameType.heartbeat, hdr.frame_type);
     try testing.expectEqual(@as(u32, 0), hdr.frame_length);
 }

@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/client"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/protocol"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/server"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/transport"
+	"github.com/strand-protocol/strand/strandapi/pkg/client"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/protocol"
+	"github.com/strand-protocol/strand/strandapi/pkg/server"
+	"github.com/strand-protocol/strand/strandapi/pkg/transport"
 )
 
 // --------------------------------------------------------------------------
@@ -109,7 +109,7 @@ func startChannelServer(t *testing.T, handler server.Handler, serverT *channelTr
 			switch opcode {
 			case protocol.OpInferenceRequest:
 				req := &protocol.InferenceRequest{}
-				reader := nexbuf.NewReader(payload)
+				reader := strandbuf.NewReader(payload)
 				if err := req.Decode(reader); err != nil {
 					errMsg := fmt.Sprintf("decode error: %v", err)
 					_ = serverT.Send(ctx, protocol.OpError, []byte(errMsg))
@@ -120,7 +120,7 @@ func startChannelServer(t *testing.T, handler server.Handler, serverT *channelTr
 					_ = serverT.Send(ctx, protocol.OpError, []byte(err.Error()))
 					continue
 				}
-				buf := nexbuf.NewBuffer(256)
+				buf := strandbuf.NewBuffer(256)
 				resp.Encode(buf)
 				_ = serverT.Send(ctx, protocol.OpInferenceResponse, buf.Bytes())
 
@@ -144,9 +144,9 @@ func startChannelServer(t *testing.T, handler server.Handler, serverT *channelTr
 // Tests
 // --------------------------------------------------------------------------
 
-// TestNexAPIEchoServer starts a NexAPI echo server via channel transport,
+// TestStrandAPIEchoServer starts a StrandAPI echo server via channel transport,
 // connects a client, sends an InferenceRequest, and verifies the response.
-func TestNexAPIEchoServer(t *testing.T) {
+func TestStrandAPIEchoServer(t *testing.T) {
 	clientT, serverT := newChannelTransportPair()
 	stop := startChannelServer(t, &echoHandler{}, serverT)
 	defer stop()
@@ -159,7 +159,7 @@ func TestNexAPIEchoServer(t *testing.T) {
 
 	req := &protocol.InferenceRequest{
 		ID:          [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
-		Prompt:      "Hello Nexus",
+		Prompt:      "Hello Strand",
 		MaxTokens:   100,
 		Temperature: 0.7,
 		Metadata:    map[string]string{"test": "true"},
@@ -176,17 +176,17 @@ func TestNexAPIEchoServer(t *testing.T) {
 	if resp.ID != req.ID {
 		t.Errorf("response ID mismatch: got %v, want %v", resp.ID, req.ID)
 	}
-	if resp.Text != "echo: Hello Nexus" {
-		t.Errorf("response text: got %q, want %q", resp.Text, "echo: Hello Nexus")
+	if resp.Text != "echo: Hello Strand" {
+		t.Errorf("response text: got %q, want %q", resp.Text, "echo: Hello Strand")
 	}
 	if resp.FinishReason != "stop" {
 		t.Errorf("finish reason: got %q, want %q", resp.FinishReason, "stop")
 	}
 }
 
-// TestNexAPIConcurrentRequests sends 10 concurrent inference requests over
+// TestStrandAPIConcurrentRequests sends 10 concurrent inference requests over
 // separate channel transport pairs and verifies all responses.
-func TestNexAPIConcurrentRequests(t *testing.T) {
+func TestStrandAPIConcurrentRequests(t *testing.T) {
 	const numGoroutines = 10
 	var wg sync.WaitGroup
 	var successCount atomic.Int32
@@ -248,9 +248,9 @@ func TestNexAPIConcurrentRequests(t *testing.T) {
 	}
 }
 
-// TestNexAPITimeout verifies that the client times out when the server does
+// TestStrandAPITimeout verifies that the client times out when the server does
 // not respond within the deadline.
-func TestNexAPITimeout(t *testing.T) {
+func TestStrandAPITimeout(t *testing.T) {
 	// Use a slow handler that sleeps longer than the client deadline.
 	slowHandler := server.HandlerFunc(func(ctx context.Context, req *protocol.InferenceRequest) (*protocol.InferenceResponse, error) {
 		time.Sleep(2 * time.Second)
@@ -284,9 +284,9 @@ func TestNexAPITimeout(t *testing.T) {
 	}
 }
 
-// TestNexAPIGracefulShutdown verifies the server shuts down gracefully after
+// TestStrandAPIGracefulShutdown verifies the server shuts down gracefully after
 // handling a request.
-func TestNexAPIGracefulShutdown(t *testing.T) {
+func TestStrandAPIGracefulShutdown(t *testing.T) {
 	clientT, serverT := newChannelTransportPair()
 	stop := startChannelServer(t, &echoHandler{}, serverT)
 
@@ -325,9 +325,9 @@ func TestNexAPIGracefulShutdown(t *testing.T) {
 	}
 }
 
-// TestNexAPIMultipleSequentialRequests verifies multiple sequential requests
+// TestStrandAPIMultipleSequentialRequests verifies multiple sequential requests
 // on the same connection work correctly.
-func TestNexAPIMultipleSequentialRequests(t *testing.T) {
+func TestStrandAPIMultipleSequentialRequests(t *testing.T) {
 	clientT, serverT := newChannelTransportPair()
 	stop := startChannelServer(t, &echoHandler{}, serverT)
 	defer stop()
@@ -360,8 +360,8 @@ func TestNexAPIMultipleSequentialRequests(t *testing.T) {
 	}
 }
 
-// TestNexAPILargePrompt verifies that a large prompt can be sent and received.
-func TestNexAPILargePrompt(t *testing.T) {
+// TestStrandAPILargePrompt verifies that a large prompt can be sent and received.
+func TestStrandAPILargePrompt(t *testing.T) {
 	clientT, serverT := newChannelTransportPair()
 	stop := startChannelServer(t, &echoHandler{}, serverT)
 	defer stop()

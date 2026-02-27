@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/apiserver"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/ca"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/controller"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/apiserver"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/ca"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/controller"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/store"
 )
 
-// setupTestServer creates a Nexus Cloud API test server backed by in-memory stores.
+// setupTestServer creates a Strand Cloud API test server backed by in-memory stores.
 func setupTestServer(t *testing.T) (*httptest.Server, store.Store) {
 	t.Helper()
 

@@ -1,4 +1,4 @@
-package nexbuf
+package strandbuf
 
 import (
 	"encoding/binary"
@@ -8,10 +8,10 @@ import (
 
 var (
 	// ErrShortBuffer is returned when the Reader has fewer bytes than required.
-	ErrShortBuffer = errors.New("nexbuf: insufficient data in buffer")
+	ErrShortBuffer = errors.New("strandbuf: insufficient data in buffer")
 )
 
-// Reader provides sequential, zero-copy decoding of NexBuf-encoded data.
+// Reader provides sequential, zero-copy decoding of StrandBuf-encoded data.
 type Reader struct {
 	data   []byte
 	offset int

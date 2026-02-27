@@ -1,10 +1,10 @@
 #!/bin/bash
 ##############################################################################
-# VPP Post-Start Setup Script for Nexus Protocol
+# VPP Post-Start Setup Script for Strand Protocol
 #
 # Waits for VPP to finish initializing, then:
 #   1. Creates TAP interfaces tap0, tap1, tap2
-#   2. Configures L2 bridge domain for NexLink EtherType 0x9100
+#   2. Configures L2 bridge domain for StrandLink EtherType 0x9100
 #   3. Assigns IP addresses
 #   4. Installs routes for 172.21.0.0/24
 #
@@ -12,7 +12,7 @@
 # command is guarded against existing-interface errors where necessary.
 #
 # Usage: called automatically by the container CMD, or manually:
-#   docker exec nexus-vpp /setup.sh
+#   docker exec strand-vpp /setup.sh
 ##############################################################################
 
 set -euo pipefail
@@ -63,8 +63,8 @@ ${VPPCTL} show version
 # Create TAP interfaces
 #
 # tap0 : VPP gateway interface, one end in VPP, other end (vpp0) in Linux NS.
-# tap1 : Peer interface for nexus-node-1 (172.21.0.1).
-# tap2 : Peer interface for nexus-node-2 (172.21.0.2).
+# tap1 : Peer interface for strand-node-1 (172.21.0.1).
+# tap2 : Peer interface for strand-node-2 (172.21.0.2).
 #
 # Each host-name becomes the Linux tap device visible in `ip link show`.
 # --------------------------------------------------------------------------
@@ -85,8 +85,8 @@ vpp set interface state tapcli-2 up
 # Assign IP addresses (Layer 3 side)
 #
 # tap0  = 172.21.0.254/24  (VPP gateway; /24 covers the full data-net range)
-# tap1  = 172.21.0.1/32    (point-to-point address for nexus-node-1)
-# tap2  = 172.21.0.2/32    (point-to-point address for nexus-node-2)
+# tap1  = 172.21.0.1/32    (point-to-point address for strand-node-1)
+# tap2  = 172.21.0.2/32    (point-to-point address for strand-node-2)
 # --------------------------------------------------------------------------
 
 echo "[setup.sh] Assigning IP addresses..."
@@ -96,9 +96,9 @@ vpp set interface ip address tapcli-1 172.21.0.1/32
 vpp set interface ip address tapcli-2 172.21.0.2/32
 
 # --------------------------------------------------------------------------
-# L2 Bridge Domain for NexLink EtherType 0x9100
+# L2 Bridge Domain for StrandLink EtherType 0x9100
 #
-# Bridge domain 1 groups tap1 and tap2 so that NexLink frames arriving
+# Bridge domain 1 groups tap1 and tap2 so that StrandLink frames arriving
 # on either interface are L2-flooded/forwarded to the other.
 # tap0 (gateway) is NOT added to the bridge domain so that routed traffic
 # from the gateway is handled via L3, not L2 flood.
@@ -110,7 +110,7 @@ vpp set interface ip address tapcli-2 172.21.0.2/32
 #   - arp-term : ARP termination on the BVI if needed
 # --------------------------------------------------------------------------
 
-echo "[setup.sh] Configuring L2 bridge domain 1 for NexLink (EtherType 0x9100)..."
+echo "[setup.sh] Configuring L2 bridge domain 1 for StrandLink (EtherType 0x9100)..."
 
 # Create bridge domain 1 with learning + forwarding + flooding
 vpp set bridge-domain learn   1 enable

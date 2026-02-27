@@ -1,6 +1,6 @@
 # ============================================================
-# nexapi -- Multi-stage Docker build
-# Produces the NexAPI inference and echo example binaries.
+# strandapi -- Multi-stage Docker build
+# Produces the StrandAPI inference and echo example binaries.
 # ============================================================
 
 # -----------------------------------------------------------
@@ -22,23 +22,31 @@ COPY . .
 # Build the inference example server (static, stripped).
 RUN CGO_ENABLED=0 go build \
     -ldflags "-s -w" \
-    -o /nexapi-inference \
+    -o /strandapi-inference \
     ./examples/inference
 
 # Build the echo example server (static, stripped).
 RUN CGO_ENABLED=0 go build \
     -ldflags "-s -w" \
-    -o /nexapi-echo \
+    -o /strandapi-echo \
     ./examples/echo
+
+# Build the HTTP bridge (OpenAI-compatible REST frontend).
+RUN CGO_ENABLED=0 go build \
+    -ldflags "-s -w" \
+    -o /strandapi-httpbridge \
+    ./examples/httpbridge
 
 # -----------------------------------------------------------
 # Stage 2: Minimal runtime
 # -----------------------------------------------------------
 FROM gcr.io/distroless/static-debian12
 
-COPY --from=builder /nexapi-inference /nexapi-inference
-COPY --from=builder /nexapi-echo /nexapi-echo
+COPY --from=builder /strandapi-inference /strandapi-inference
+COPY --from=builder /strandapi-echo /strandapi-echo
+COPY --from=builder /strandapi-httpbridge /strandapi-httpbridge
 
 EXPOSE 9000
+EXPOSE 9001
 
-ENTRYPOINT ["/nexapi-inference"]
+ENTRYPOINT ["/strandapi-inference"]

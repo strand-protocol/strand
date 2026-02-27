@@ -1,4 +1,4 @@
-// C FFI bindings for NexTrust core operations.
+// C FFI bindings for StrandTrust core operations.
 //
 // All functions return 0 on success, -1 on error.
 // Buffers are caller-allocated; lengths are checked.
@@ -20,7 +20,7 @@ use crate::mic::validator;
 ///
 /// Returns 0 on success.
 #[no_mangle]
-pub unsafe extern "C" fn nextrust_keypair_generate(
+pub unsafe extern "C" fn strandtrust_keypair_generate(
     public_key_out: *mut u8,
     secret_key_out: *mut u8,
 ) -> i32 {
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn nextrust_keypair_generate(
 ///
 /// Returns 0 on success, -1 on error.
 #[no_mangle]
-pub unsafe extern "C" fn nextrust_mic_create(
+pub unsafe extern "C" fn strandtrust_mic_create(
     secret_key: *const u8,
     model_hash: *const u8,
     valid_from: u64,
@@ -102,7 +102,7 @@ pub unsafe extern "C" fn nextrust_mic_create(
 ///
 /// Returns 0 if valid, -1 if invalid.
 #[no_mangle]
-pub unsafe extern "C" fn nextrust_mic_verify(
+pub unsafe extern "C" fn strandtrust_mic_verify(
     mic_data: *const u8,
     mic_len: usize,
     now: u64,
@@ -130,7 +130,7 @@ pub unsafe extern "C" fn nextrust_mic_verify(
 ///
 /// Returns 0 on success.
 #[no_mangle]
-pub unsafe extern "C" fn nextrust_handshake_init(
+pub unsafe extern "C" fn strandtrust_handshake_init(
     ephemeral_pub_out: *mut u8,
     ephemeral_secret_out: *mut u8,
 ) -> i32 {
@@ -167,7 +167,7 @@ pub unsafe extern "C" fn nextrust_handshake_init(
 ///
 /// Returns 0 on success, -1 on error.
 #[no_mangle]
-pub unsafe extern "C" fn nextrust_encrypt(
+pub unsafe extern "C" fn strandtrust_encrypt(
     key: *const u8,
     nonce: *const u8,
     plaintext: *const u8,
@@ -225,7 +225,7 @@ pub unsafe extern "C" fn nextrust_encrypt(
 ///
 /// Returns 0 on success, -1 on error.
 #[no_mangle]
-pub unsafe extern "C" fn nextrust_decrypt(
+pub unsafe extern "C" fn strandtrust_decrypt(
     key: *const u8,
     nonce: *const u8,
     ciphertext: *const u8,

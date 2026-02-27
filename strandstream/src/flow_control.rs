@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use crate::error::{NexStreamError, Result};
+use crate::error::{StrandStreamError, Result};
 
 /// Default per-stream window: 64 KB.
 const DEFAULT_STREAM_WINDOW: usize = 64 * 1024;
@@ -58,7 +58,7 @@ impl FlowController {
         let w = self
             .stream_windows
             .get_mut(&stream_id)
-            .ok_or(NexStreamError::StreamNotFound(stream_id))?;
+            .ok_or(StrandStreamError::StreamNotFound(stream_id))?;
         let new_val = (*w as isize + delta).max(0) as usize;
         *w = new_val;
         Ok(())
@@ -86,7 +86,7 @@ impl FlowController {
     pub fn consume(&mut self, stream_id: u32, bytes: usize) -> Result<()> {
         let avail = self.available(stream_id);
         if bytes > avail {
-            return Err(NexStreamError::FlowControlBlocked(stream_id));
+            return Err(StrandStreamError::FlowControlBlocked(stream_id));
         }
 
         if let Some(w) = self.stream_windows.get_mut(&stream_id) {

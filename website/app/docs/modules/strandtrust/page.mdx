@@ -1,0 +1,248 @@
+# StrandTrust — L4 Model Identity & Crypto
+
+**Language:** Rust | **Layer:** L4 | **Dependencies:** None (standalone)
+
+StrandTrust replaces X.509 certificates and TLS with Model Identity Certificates (MICs) and a 1-RTT mutual authentication handshake. Instead of proving domain ownership, MICs prove what a node is running — model architecture, parameter count, training provenance, and safety evaluations.
+
+## Overview
+
+TLS tells you "this server owns example.com." StrandTrust tells you "this node is running a 70B parameter transformer with verified training provenance and a safety evaluation score above 0.95." MICs bind Ed25519 identity keys to attestation claims about model properties, enabling trust decisions based on what matters for AI infrastructure.
+
+Key features:
+
+- **Ed25519 identity keys** with 128-bit Node IDs derived from SHA-256
+- **Model Identity Certificates** with 7 attestation claim types
+- **1-RTT mutual authentication** handshake (TRUST_HELLO → TRUST_ACCEPT → TRUST_FINISH)
+- **X25519 key exchange** with HKDF-SHA256 key derivation
+- **AES-256-GCM and ChaCha20-Poly1305** session encryption
+- **C FFI exports** via cbindgen for Go CGo consumption
+
+## Identity Keys
+
+```rust
+pub type NodeId = [u8; 16];  // First 128 bits of SHA-256(Ed25519 pubkey)
+
+pub struct IdentityKeyPair {
+    pub fn generate() -> Self;
+    pub fn from_seed(seed: &[u8; 32]) -> Self;
+    pub fn node_id(&self) -> &NodeId;
+    pub fn public_key_bytes(&self) -> [u8; 32];
+    pub fn secret_key_bytes(&self) -> [u8; 32];
+    pub fn sign(&self, data: &[u8]) -> [u8; 64];
+    pub fn verify(&self, data: &[u8], signature: &[u8; 64]) -> Result<()>;
+}
+
+pub fn derive_node_id(pubkey: &VerifyingKey) -> NodeId;
+pub fn verify_signature(pubkey_bytes: &[u8; 32], message: &[u8], signature: &[u8; 64]) -> Result<()>;
+```
+
+Node IDs are deterministic: `NodeId = SHA-256(Ed25519_public_key)[0..16]`. This means you can independently verify that a Node ID corresponds to a given public key.
+
+## Model Identity Certificates (MICs)
+
+### MIC Structure
+
+```rust
+pub struct MIC {
+    pub node_id: [u8; 32],
+    pub model_hash: [u8; 32],           // SHA-256 of model weights
+    pub capabilities: Vec<Capability>,   // Attestation claims
+    pub training_provenance: Option<Provenance>,
+    pub valid_from: u64,                 // Unix timestamp
+    pub valid_until: u64,                // Unix timestamp
+    pub signature: [u8; 64],            // Ed25519 issuer signature
+    pub issuer_public_key: [u8; 32],    // Issuer's Ed25519 public key
+}
+```
+
+### Capability Claims
+
+```rust
+pub enum Capability {
+    TextGeneration,
+    CodeGeneration,
+    ImageUnderstanding,
+    ToolUse,
+    Rag,
+    Embedding,
+    Custom(String),
+}
+```
+
+Each capability has a wire-format tag byte for binary serialization.
+
+### Training Provenance
+
+Optional Merkle tree tracking model lineage:
+
+```rust
+pub struct Provenance {
+    pub description: String,        // Human-readable description
+    pub dataset_hash: [u8; 32],    // SHA-256 of training data
+    pub timestamp: u64,            // Training completion timestamp
+}
+```
+
+### MIC Builder
+
+```rust
+// Building a MIC
+let identity = IdentityKeyPair::generate();
+let mic = MicBuilder::new()
+    .node_id(identity.node_id())
+    .model_hash(&model_weights_hash)
+    .capability(Capability::CodeGeneration)
+    .capability(Capability::ToolUse)
+    .valid_from(now)
+    .valid_until(now + 86400 * 365)
+    .provenance(Provenance {
+        description: "Fine-tuned on code corpus".into(),
+        dataset_hash: dataset_hash,
+        timestamp: now,
+    })
+    .sign(&issuer_key)
+    .build()?;
+```
+
+### MIC Validation
+
+The validator checks:
+
+1. Signature validity against `issuer_public_key`
+2. `valid_from <= now <= valid_until` (temporal validity)
+3. `node_id` matches the public key derivation
+4. All capability tags are recognized
+5. Provenance chain integrity (if present)
+
+## Handshake Protocol
+
+1-RTT mutual authentication:
+
+```
+Client                              Server
+  │                                   │
+  │── TRUST_HELLO ──────────────────>│
+  │   (cipher suites, ephemeral      │
+  │    X25519 pubkey, client caps)    │
+  │                                   │
+  │<────────────── TRUST_ACCEPT ─────│
+  │   (selected cipher, ephemeral    │
+  │    X25519 pubkey, server MIC)     │
+  │                                   │
+  │── TRUST_FINISH ─────────────────>│
+  │   (client MIC, verification      │
+  │    HMAC over transcript)          │
+  │                                   │
+  │  ══════ ESTABLISHED ══════════   │
+  │  (AES-256-GCM or ChaCha20       │
+  │   encrypted from here on)         │
+```
+
+### Key Exchange
+
+1. Both sides generate ephemeral X25519 keypairs
+2. Shared secret: `X25519(client_ephemeral_secret, server_ephemeral_public)`
+3. Key derivation: `HKDF-SHA256(shared_secret, transcript_hash)` → session keys
+4. Separate keys for client-to-server and server-to-client directions
+
+### Handshake State Machine
+
+```rust
+// States: Initial → HelloSent → AcceptSent → Established → Failed
+// Client path: Initial → HelloSent → Established
+// Server path: Initial → AcceptSent → Established
+```
+
+## Cipher Suites
+
+| ID | Suite |
+|----|-------|
+| 0x0001 | `STRAND_X25519_ED25519_AES256GCM_SHA256` |
+| 0x0002 | `STRAND_X25519_ED25519_CHACHA20POLY1305_SHA256` |
+
+Both suites use:
+
+- **Key exchange:** X25519 ephemeral Diffie-Hellman
+- **Identity:** Ed25519 signatures
+- **Encryption:** AES-256-GCM (suite 1) or ChaCha20-Poly1305 (suite 2)
+- **Key derivation:** HKDF-SHA256
+
+## Crypto Modules
+
+| Module | Description |
+|--------|-------------|
+| `crypto::keys` | Ed25519 keypair generation, Node ID derivation, signature operations |
+| `crypto::x25519` | X25519 key exchange for handshake |
+| `crypto::aead` | AES-256-GCM and ChaCha20-Poly1305 authenticated encryption |
+| `crypto::hash` | SHA-256 hashing, HKDF key derivation |
+
+## Error Types
+
+```rust
+pub enum StrandTrustError {
+    // Crypto
+    KeyGeneration(String),
+    InvalidKey(String),
+    SignatureVerification,
+    Encryption(String),
+    Decryption(String),
+
+    // MIC
+    MicBuild(String),
+    MicSerialization(String),
+    MicDeserialization(String),
+    MicExpired { not_after: u64, now: u64 },
+    MicNotYetValid { not_before: u64, now: u64 },
+    InvalidCapability(String),
+
+    // Handshake
+    Handshake(String),
+    InvalidStateTransition { from: String, to: String },
+    HandshakeTimeout,
+}
+```
+
+## C FFI
+
+StrandTrust exports a C API via cbindgen, consumed by StrandAPI and Strand Cloud via CGo:
+
+```c
+// In strandtrust.h (generated by cbindgen)
+// Key generation, MIC operations, handshake, AEAD encrypt/decrypt
+```
+
+The Go CGo directive:
+
+```go
+// #cgo LDFLAGS: -L${SRCDIR}/../strandtrust/target/release -lstrandtrust
+// #cgo CFLAGS: -I${SRCDIR}/../strandtrust/target
+// #include "strandtrust.h"
+import "C"
+```
+
+## Rust Crate Dependencies
+
+| Crate | Usage |
+|-------|-------|
+| `ed25519-dalek` | Ed25519 signatures |
+| `x25519-dalek` | X25519 key exchange |
+| `aes-gcm` | AES-256-GCM AEAD |
+| `chacha20poly1305` | ChaCha20-Poly1305 AEAD |
+| `hkdf` | HKDF key derivation |
+| `sha2` | SHA-256 hashing |
+
+## Build
+
+```bash
+cd strandtrust
+cargo build                         # Debug build
+cargo build --release               # Optimized (produces libstrandtrust.a)
+cargo test                          # All tests
+cargo bench --bench crypto_bench    # Crypto benchmarks
+```
+
+## Tests
+
+- **crypto_tests.rs** — Key generation, signing, verification, AEAD round-trip, HKDF
+- **handshake_tests.rs** — Full 1-RTT handshake, state transitions, cipher suite negotiation
+- **mic_tests.rs** — MIC build/serialize/validate, expiry checks, capability parsing, provenance chains

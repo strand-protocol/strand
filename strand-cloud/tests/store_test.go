@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/store"
 )
 
 // ---------------------------------------------------------------------------
@@ -207,7 +207,7 @@ func TestFirmwareStore_CRUD(t *testing.T) {
 		Platform:  "arm64",
 		Size:      1024000,
 		Checksum:  "sha256:abcdef",
-		URL:       "https://firmware.nexus.dev/v2.0.0/arm64.bin",
+		URL:       "https://firmware.strand.dev/v2.0.0/arm64.bin",
 		CreatedAt: time.Now(),
 	}
 	if err := fs.Create(fw); err != nil {

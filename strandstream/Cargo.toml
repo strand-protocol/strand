@@ -1,9 +1,9 @@
 [package]
-name = "nexstream"
+name = "strandstream"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.75"
-description = "NexStream L3 hybrid transport layer for the Nexus Protocol stack"
+description = "StrandStream L3 hybrid transport layer for the Strand Protocol stack"
 
 [dependencies]
 tokio = { version = "1.35", features = ["full", "rt-multi-thread", "macros", "net", "io-util", "sync", "time"] }

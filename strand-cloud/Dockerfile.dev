@@ -1,5 +1,5 @@
 # ============================================================
-# nexus-cloud -- Development Dockerfile
+# strand-cloud -- Development Dockerfile
 # Uses the full Go toolchain for source-mounted hot reload.
 # ============================================================
 
@@ -18,4 +18,4 @@ COPY . .
 
 EXPOSE 8080
 
-CMD ["go", "run", "./cmd/nexus-cloud", "-addr", "0.0.0.0:8080"]
+CMD ["go", "run", "./cmd/strand-cloud", "-addr", "0.0.0.0:8080"]

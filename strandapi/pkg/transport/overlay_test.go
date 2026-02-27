@@ -3,6 +3,8 @@ package transport
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
+	"net"
 	"testing"
 	"time"
 )
@@ -29,7 +31,7 @@ func TestOverlayLoopback(t *testing.T) {
 
 	// Send a frame from sender to listener.
 	opcode := byte(0x01)
-	payload := []byte("hello nexapi overlay")
+	payload := []byte("hello strandapi overlay")
 	if err := sender.Send(ctx, opcode, payload); err != nil {
 		t.Fatalf("Send: %v", err)
 	}
@@ -145,6 +147,145 @@ func TestOverlayClose(t *testing.T) {
 	ctx := context.Background()
 	if err := listener.Send(ctx, 0x01, nil); err != ErrTransportClosed {
 		t.Errorf("Send after close: got %v, want ErrTransportClosed", err)
+	}
+}
+
+func TestOverlayInvalidMagic(t *testing.T) {
+	listener, err := ListenOverlay("127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("ListenOverlay: %v", err)
+	}
+	defer listener.Close()
+
+	// Send raw UDP with wrong magic bytes (0x0000 instead of 0x504C).
+	addr := listener.LocalAddr().(*net.UDPAddr)
+	conn, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		t.Fatalf("DialUDP: %v", err)
+	}
+	defer conn.Close()
+
+	frame := make([]byte, 10)
+	// Wrong magic
+	frame[0] = 0x00
+	frame[1] = 0x00
+	frame[2] = OverlayVersion
+	frame[3] = 0
+	binary.LittleEndian.PutUint32(frame[4:8], 2)
+	frame[8] = 0x01
+	frame[9] = 0x42
+	conn.Write(frame)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, _, recvErr := listener.Recv(ctx)
+	if recvErr != ErrInvalidMagic {
+		t.Errorf("expected ErrInvalidMagic, got %v", recvErr)
+	}
+}
+
+func TestOverlayVersionMismatch(t *testing.T) {
+	listener, err := ListenOverlay("127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("ListenOverlay: %v", err)
+	}
+	defer listener.Close()
+
+	addr := listener.LocalAddr().(*net.UDPAddr)
+	conn, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		t.Fatalf("DialUDP: %v", err)
+	}
+	defer conn.Close()
+
+	frame := make([]byte, 10)
+	binary.BigEndian.PutUint16(frame[0:2], OverlayMagic)
+	frame[2] = 99 // unsupported version
+	frame[3] = 0
+	binary.LittleEndian.PutUint32(frame[4:8], 2)
+	frame[8] = 0x01
+	frame[9] = 0x42
+	conn.Write(frame)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, _, recvErr := listener.Recv(ctx)
+	if recvErr != ErrVersionMismatch {
+		t.Errorf("expected ErrVersionMismatch, got %v", recvErr)
+	}
+}
+
+func TestOverlayTruncatedFrame(t *testing.T) {
+	listener, err := ListenOverlay("127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("ListenOverlay: %v", err)
+	}
+	defer listener.Close()
+
+	addr := listener.LocalAddr().(*net.UDPAddr)
+	conn, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		t.Fatalf("DialUDP: %v", err)
+	}
+	defer conn.Close()
+
+	// Send only 5 bytes — less than overlayHdrSize (8) + 1 opcode byte.
+	conn.Write([]byte{0x50, 0x4C, 0x01, 0x00, 0x01})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, _, recvErr := listener.Recv(ctx)
+	if recvErr == nil {
+		t.Error("expected error for truncated frame, got nil")
+	}
+}
+
+func TestOverlayDeclaredLengthExceedsPacket(t *testing.T) {
+	listener, err := ListenOverlay("127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("ListenOverlay: %v", err)
+	}
+	defer listener.Close()
+
+	addr := listener.LocalAddr().(*net.UDPAddr)
+	conn, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		t.Fatalf("DialUDP: %v", err)
+	}
+	defer conn.Close()
+
+	// Valid header but declared length (1000) exceeds actual payload (2 bytes).
+	frame := make([]byte, 10)
+	binary.BigEndian.PutUint16(frame[0:2], OverlayMagic)
+	frame[2] = OverlayVersion
+	frame[3] = 0
+	binary.LittleEndian.PutUint32(frame[4:8], 1000) // claims 1000 bytes
+	frame[8] = 0x01
+	frame[9] = 0x42
+	conn.Write(frame)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, _, recvErr := listener.Recv(ctx)
+	if recvErr == nil {
+		t.Error("expected error for oversized declared length, got nil")
+	}
+}
+
+func TestOverlayContextCancellation(t *testing.T) {
+	listener, err := ListenOverlay("127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("ListenOverlay: %v", err)
+	}
+	defer listener.Close()
+
+	// Use a pre-cancelled context.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, _, recvErr := listener.Recv(ctx)
+	if recvErr == nil {
+		t.Error("expected error from cancelled context, got nil")
 	}
 }
 

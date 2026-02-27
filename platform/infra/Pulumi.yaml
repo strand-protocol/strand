@@ -1,0 +1,7 @@
+name: strand-platform
+runtime: nodejs
+description: Strand Protocol bare metal infrastructure on PhoenixNAP BMC
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: strand-platform

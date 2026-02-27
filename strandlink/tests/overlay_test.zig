@@ -1,23 +1,23 @@
-// tests/overlay_test.zig — Integration tests for NexLink UDP overlay encapsulation
+// tests/overlay_test.zig — Integration tests for StrandLink UDP overlay encapsulation
 //
 // Tests encap/decap roundtrip, header validation, MTU calculation,
-// and end-to-end overlay wrapping of NexLink frames.
+// and end-to-end overlay wrapping of StrandLink frames.
 
 const std = @import("std");
 const testing = std.testing;
 const mem = std.mem;
-const nexlink = @import("nexlink");
+const strandlink = @import("strandlink");
 
-const OverlayHeader = nexlink.OverlayHeader;
-const FrameHeader = nexlink.FrameHeader;
-const FrameType = nexlink.FrameType;
+const OverlayHeader = strandlink.OverlayHeader;
+const FrameHeader = strandlink.FrameHeader;
+const FrameType = strandlink.FrameType;
 
-const OVERLAY_MAGIC = nexlink.overlay.OVERLAY_MAGIC;
-const OVERLAY_VERSION = nexlink.overlay.OVERLAY_VERSION;
-const OVERLAY_HEADER_SIZE = nexlink.overlay.OVERLAY_HEADER_SIZE;
-const OVERLAY_OVERHEAD_IPV4 = nexlink.overlay.OVERLAY_OVERHEAD_IPV4;
-const OVERLAY_OVERHEAD_IPV6 = nexlink.overlay.OVERLAY_OVERHEAD_IPV6;
-const DEFAULT_INNER_MTU = nexlink.overlay.DEFAULT_INNER_MTU;
+const OVERLAY_MAGIC = strandlink.overlay.OVERLAY_MAGIC;
+const OVERLAY_VERSION = strandlink.overlay.OVERLAY_VERSION;
+const OVERLAY_HEADER_SIZE = strandlink.overlay.OVERLAY_HEADER_SIZE;
+const OVERLAY_OVERHEAD_IPV4 = strandlink.overlay.OVERLAY_OVERHEAD_IPV4;
+const OVERLAY_OVERHEAD_IPV6 = strandlink.overlay.OVERLAY_OVERHEAD_IPV6;
+const DEFAULT_INNER_MTU = strandlink.overlay.DEFAULT_INNER_MTU;
 
 // ── Overlay header tests ──
 
@@ -59,36 +59,36 @@ test "overlay: header max VNI" {
 // ── Encapsulation/decapsulation roundtrip ──
 
 test "overlay: encapsulate/decapsulate raw data" {
-    const inner = "raw NexLink frame bytes here";
+    const inner = "raw StrandLink frame bytes here";
     var buf: [256]u8 = undefined;
 
-    const n = try nexlink.encapsulate(12345, inner, &buf);
+    const n = try strandlink.encapsulate(12345, inner, &buf);
     try testing.expectEqual(OVERLAY_HEADER_SIZE + inner.len, n);
 
-    const result = try nexlink.decapsulate(buf[0..n]);
+    const result = try strandlink.decapsulate(buf[0..n]);
     try testing.expectEqual(@as(u32, 12345), result.header.vni);
     try testing.expectEqualSlices(u8, inner, result.inner_frame);
 }
 
-test "overlay: encapsulate/decapsulate NexLink frame" {
-    // Step 1: Encode a NexLink frame
+test "overlay: encapsulate/decapsulate StrandLink frame" {
+    // Step 1: Encode a StrandLink frame
     var hdr = FrameHeader.init(.data);
     hdr.stream_id = 77;
     const payload = "tensor gradient data";
 
     var frame_buf: [512]u8 = undefined;
-    const frame_len = try nexlink.encode(&hdr, &.{}, payload, &frame_buf);
+    const frame_len = try strandlink.encode(&hdr, &.{}, payload, &frame_buf);
 
     // Step 2: Encapsulate in overlay
     var overlay_buf: [1024]u8 = undefined;
-    const overlay_len = try nexlink.encapsulate(9999, frame_buf[0..frame_len], &overlay_buf);
+    const overlay_len = try strandlink.encapsulate(9999, frame_buf[0..frame_len], &overlay_buf);
 
     // Step 3: Decapsulate
-    const result = try nexlink.decapsulate(overlay_buf[0..overlay_len]);
+    const result = try strandlink.decapsulate(overlay_buf[0..overlay_len]);
     try testing.expectEqual(@as(u32, 9999), result.header.vni);
 
-    // Step 4: Decode inner NexLink frame
-    const inner_frame = try nexlink.decode(result.inner_frame);
+    // Step 4: Decode inner StrandLink frame
+    const inner_frame = try strandlink.decode(result.inner_frame);
     try testing.expectEqual(FrameType.data, inner_frame.header.frame_type);
     try testing.expectEqual(@as(u32, 77), inner_frame.header.stream_id);
     try testing.expectEqualSlices(u8, payload, inner_frame.payload);
@@ -98,8 +98,8 @@ test "overlay: VNI zero" {
     const inner = "data";
     var buf: [64]u8 = undefined;
 
-    const n = try nexlink.encapsulate(0, inner, &buf);
-    const result = try nexlink.decapsulate(buf[0..n]);
+    const n = try strandlink.encapsulate(0, inner, &buf);
+    const result = try strandlink.decapsulate(buf[0..n]);
     try testing.expectEqual(@as(u32, 0), result.header.vni);
 }
 
@@ -126,34 +126,34 @@ test "overlay: version zero rejected" {
 test "overlay: buffer too small for encapsulate" {
     const inner = "some data that needs encapsulation";
     var small: [4]u8 = undefined;
-    try testing.expectError(error.BufferTooSmall, nexlink.encapsulate(1, inner, &small));
+    try testing.expectError(error.BufferTooSmall, strandlink.encapsulate(1, inner, &small));
 }
 
 test "overlay: buffer too small for decapsulate" {
     var small: [4]u8 = .{0} ** 4;
-    try testing.expectError(error.BufferTooSmall, nexlink.decapsulate(&small));
+    try testing.expectError(error.BufferTooSmall, strandlink.decapsulate(&small));
 }
 
 // ── MTU calculation tests ──
 
 test "overlay: MTU calculation IPv4" {
-    const inner_mtu = nexlink.overlay.maxInnerFrameSize(1500, false);
+    const inner_mtu = strandlink.overlay.maxInnerFrameSize(1500, false);
     try testing.expectEqual(@as(usize, 1450), inner_mtu);
 }
 
 test "overlay: MTU calculation IPv6" {
-    const inner_mtu = nexlink.overlay.maxInnerFrameSize(1500, true);
+    const inner_mtu = strandlink.overlay.maxInnerFrameSize(1500, true);
     try testing.expectEqual(@as(usize, 1430), inner_mtu);
 }
 
 test "overlay: MTU calculation jumbo frame" {
-    const inner_mtu = nexlink.overlay.maxInnerFrameSize(9000, false);
+    const inner_mtu = strandlink.overlay.maxInnerFrameSize(9000, false);
     try testing.expectEqual(@as(usize, 8950), inner_mtu);
 }
 
 test "overlay: MTU calculation tiny" {
-    try testing.expectEqual(@as(usize, 0), nexlink.overlay.maxInnerFrameSize(10, false));
-    try testing.expectEqual(@as(usize, 0), nexlink.overlay.maxInnerFrameSize(0, false));
+    try testing.expectEqual(@as(usize, 0), strandlink.overlay.maxInnerFrameSize(10, false));
+    try testing.expectEqual(@as(usize, 0), strandlink.overlay.maxInnerFrameSize(0, false));
 }
 
 test "overlay: overhead constants correct" {
@@ -170,9 +170,9 @@ test "overlay: wire format magic bytes" {
     var buf: [OVERLAY_HEADER_SIZE]u8 = undefined;
     try oh.serialize(&buf);
 
-    // Verify magic bytes are 'N' 'X' in big-endian
-    try testing.expectEqual(@as(u8, 0x4E), buf[0]); // 'N'
-    try testing.expectEqual(@as(u8, 0x58), buf[1]); // 'X'
+    // Verify magic bytes are 'P' 'L' in big-endian
+    try testing.expectEqual(@as(u8, 0x50), buf[0]); // 'P'
+    try testing.expectEqual(@as(u8, 0x4C), buf[1]); // 'L'
 }
 
 test "overlay: wire format VNI byte order" {

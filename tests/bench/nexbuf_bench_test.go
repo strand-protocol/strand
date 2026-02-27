@@ -3,23 +3,24 @@ package bench
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"testing"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/protocol"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/sad"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/transport"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/protocol"
+	"github.com/strand-protocol/strand/strandapi/pkg/sad"
+	"github.com/strand-protocol/strand/strandapi/pkg/transport"
 )
 
 // --------------------------------------------------------------------------
-// NexBuf encode benchmarks
+// StrandBuf encode benchmarks
 // --------------------------------------------------------------------------
 
-// BenchmarkNexBufEncodeSmall benchmarks encoding a small InferenceRequest.
-func BenchmarkNexBufEncodeSmall(b *testing.B) {
+// BenchmarkStrandBufEncodeSmall benchmarks encoding a small InferenceRequest.
+func BenchmarkStrandBufEncodeSmall(b *testing.B) {
 	req := &protocol.InferenceRequest{
 		ID:          [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 		Prompt:      "What is the capital of France?",
@@ -28,7 +29,7 @@ func BenchmarkNexBufEncodeSmall(b *testing.B) {
 		Metadata:    map[string]string{"user": "bench"},
 	}
 
-	buf := nexbuf.NewBuffer(256)
+	buf := strandbuf.NewBuffer(256)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -39,8 +40,8 @@ func BenchmarkNexBufEncodeSmall(b *testing.B) {
 	b.SetBytes(int64(buf.Len()))
 }
 
-// BenchmarkNexBufEncodeLarge benchmarks encoding a large TensorTransfer.
-func BenchmarkNexBufEncodeLarge(b *testing.B) {
+// BenchmarkStrandBufEncodeLarge benchmarks encoding a large TensorTransfer.
+func BenchmarkStrandBufEncodeLarge(b *testing.B) {
 	data := make([]byte, 1024*1024) // 1 MiB tensor
 	rng := rand.New(rand.NewSource(42))
 	rng.Read(data)
@@ -52,7 +53,7 @@ func BenchmarkNexBufEncodeLarge(b *testing.B) {
 		Data:  data,
 	}
 
-	buf := nexbuf.NewBuffer(len(data) + 256)
+	buf := strandbuf.NewBuffer(len(data) + 256)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -64,11 +65,11 @@ func BenchmarkNexBufEncodeLarge(b *testing.B) {
 }
 
 // --------------------------------------------------------------------------
-// NexBuf decode benchmarks
+// StrandBuf decode benchmarks
 // --------------------------------------------------------------------------
 
-// BenchmarkNexBufDecode benchmarks decoding an InferenceRequest.
-func BenchmarkNexBufDecode(b *testing.B) {
+// BenchmarkStrandBufDecode benchmarks decoding an InferenceRequest.
+func BenchmarkStrandBufDecode(b *testing.B) {
 	req := &protocol.InferenceRequest{
 		ID:          [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 		ModelSAD:    []byte("sad:llm:gpt4:128k"),
@@ -82,7 +83,7 @@ func BenchmarkNexBufDecode(b *testing.B) {
 		},
 	}
 
-	buf := nexbuf.NewBuffer(512)
+	buf := strandbuf.NewBuffer(512)
 	req.Encode(buf)
 	encoded := make([]byte, buf.Len())
 	copy(encoded, buf.Bytes())
@@ -91,7 +92,7 @@ func BenchmarkNexBufDecode(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		decoded := &protocol.InferenceRequest{}
-		reader := nexbuf.NewReader(encoded)
+		reader := strandbuf.NewReader(encoded)
 		if err := decoded.Decode(reader); err != nil {
 			b.Fatalf("decode: %v", err)
 		}
@@ -99,8 +100,8 @@ func BenchmarkNexBufDecode(b *testing.B) {
 	b.SetBytes(int64(len(encoded)))
 }
 
-// BenchmarkNexBufDecodeResponse benchmarks decoding an InferenceResponse.
-func BenchmarkNexBufDecodeResponse(b *testing.B) {
+// BenchmarkStrandBufDecodeResponse benchmarks decoding an InferenceResponse.
+func BenchmarkStrandBufDecodeResponse(b *testing.B) {
 	resp := &protocol.InferenceResponse{
 		ID:               [16]byte{0xFF, 0xFE},
 		Text:             "Paris is the capital of France. It is known for the Eiffel Tower and rich cultural heritage.",
@@ -109,7 +110,7 @@ func BenchmarkNexBufDecodeResponse(b *testing.B) {
 		CompletionTokens: 20,
 	}
 
-	buf := nexbuf.NewBuffer(256)
+	buf := strandbuf.NewBuffer(256)
 	resp.Encode(buf)
 	encoded := make([]byte, buf.Len())
 	copy(encoded, buf.Bytes())
@@ -118,7 +119,7 @@ func BenchmarkNexBufDecodeResponse(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		decoded := &protocol.InferenceResponse{}
-		reader := nexbuf.NewReader(encoded)
+		reader := strandbuf.NewReader(encoded)
 		if err := decoded.Decode(reader); err != nil {
 			b.Fatalf("decode: %v", err)
 		}
@@ -214,7 +215,7 @@ func BenchmarkSADParse(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		s := &sad.SAD{}
-		reader := nexbuf.NewReader(sadBytes)
+		reader := strandbuf.NewReader(sadBytes)
 		if err := s.Decode(reader); err != nil {
 			b.Fatalf("decode: %v", err)
 		}
@@ -252,7 +253,7 @@ func BenchmarkFrameWriteRead(b *testing.B) {
 // Benchmark various message sizes
 // --------------------------------------------------------------------------
 
-func BenchmarkNexBufEncodeVarySizes(b *testing.B) {
+func BenchmarkStrandBufEncodeVarySizes(b *testing.B) {
 	sizes := []int{64, 1024, 64 * 1024}
 
 	for _, size := range sizes {
@@ -263,7 +264,7 @@ func BenchmarkNexBufEncodeVarySizes(b *testing.B) {
 				Shape: []uint32{uint32(size)},
 				Data:  data,
 			}
-			buf := nexbuf.NewBuffer(size + 128)
+			buf := strandbuf.NewBuffer(size + 128)
 
 			b.ResetTimer()
 			b.ReportAllocs()
@@ -274,6 +275,117 @@ func BenchmarkNexBufEncodeVarySizes(b *testing.B) {
 			b.SetBytes(int64(buf.Len()))
 		})
 	}
+}
+
+// --------------------------------------------------------------------------
+// StrandBuf vs JSON comparison benchmarks (verify "3x faster" claim)
+// --------------------------------------------------------------------------
+
+// jsonInferenceRequest mirrors InferenceRequest for fair JSON comparison.
+type jsonInferenceRequest struct {
+	ID          [16]byte          `json:"id"`
+	ModelSAD    []byte            `json:"model_sad"`
+	Prompt      string            `json:"prompt"`
+	MaxTokens   uint32            `json:"max_tokens"`
+	Temperature float32           `json:"temperature"`
+	Metadata    map[string]string `json:"metadata"`
+}
+
+// jsonInferenceResponse mirrors InferenceResponse for fair JSON comparison.
+type jsonInferenceResponse struct {
+	ID               [16]byte `json:"id"`
+	Text             string   `json:"text"`
+	FinishReason     string   `json:"finish_reason"`
+	PromptTokens     uint32   `json:"prompt_tokens"`
+	CompletionTokens uint32   `json:"completion_tokens"`
+}
+
+func BenchmarkJSONEncodeInference(b *testing.B) {
+	req := jsonInferenceRequest{
+		ID:          [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+		ModelSAD:    []byte("sad:llm:gpt4:128k"),
+		Prompt:      "Explain quantum computing in simple terms.",
+		MaxTokens:   2048,
+		Temperature: 0.8,
+		Metadata: map[string]string{
+			"user":    "bench",
+			"session": "sess-abc123",
+			"model":   "gpt-4",
+		},
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		data, err := json.Marshal(req)
+		if err != nil {
+			b.Fatalf("marshal: %v", err)
+		}
+		_ = data
+	}
+}
+
+func BenchmarkJSONDecodeInference(b *testing.B) {
+	req := jsonInferenceRequest{
+		ID:          [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+		ModelSAD:    []byte("sad:llm:gpt4:128k"),
+		Prompt:      "Explain quantum computing in simple terms.",
+		MaxTokens:   2048,
+		Temperature: 0.8,
+		Metadata: map[string]string{
+			"user":    "bench",
+			"session": "sess-abc123",
+			"model":   "gpt-4",
+		},
+	}
+	encoded, _ := json.Marshal(req)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		decoded := jsonInferenceRequest{}
+		if err := json.Unmarshal(encoded, &decoded); err != nil {
+			b.Fatalf("unmarshal: %v", err)
+		}
+	}
+	b.SetBytes(int64(len(encoded)))
+}
+
+func BenchmarkJSONEncodeResponse(b *testing.B) {
+	resp := jsonInferenceResponse{
+		ID:               [16]byte{0xFF, 0xFE},
+		Text:             "Paris is the capital of France. It is known for the Eiffel Tower and rich cultural heritage.",
+		FinishReason:     "stop",
+		PromptTokens:     15,
+		CompletionTokens: 20,
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		data, err := json.Marshal(resp)
+		if err != nil {
+			b.Fatalf("marshal: %v", err)
+		}
+		_ = data
+	}
+}
+
+func BenchmarkJSONDecodeResponse(b *testing.B) {
+	resp := jsonInferenceResponse{
+		ID:               [16]byte{0xFF, 0xFE},
+		Text:             "Paris is the capital of France. It is known for the Eiffel Tower and rich cultural heritage.",
+		FinishReason:     "stop",
+		PromptTokens:     15,
+		CompletionTokens: 20,
+	}
+	encoded, _ := json.Marshal(resp)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		decoded := jsonInferenceResponse{}
+		if err := json.Unmarshal(encoded, &decoded); err != nil {
+			b.Fatalf("unmarshal: %v", err)
+		}
+	}
+	b.SetBytes(int64(len(encoded)))
 }
 
 // Ensure transport package is used (prevents import error if benchmark

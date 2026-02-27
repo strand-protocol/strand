@@ -1,13 +1,13 @@
-// backends/xdp.zig — NexLink AF_XDP userspace backend
+// backends/xdp.zig — StrandLink AF_XDP userspace backend
 //
-// This backend implements the NexLink platform interface using the Linux
+// This backend implements the StrandLink platform interface using the Linux
 // AF_XDP (Address Family eXpress Data Path) mechanism.  AF_XDP provides
 // near-zero-copy packet I/O by memory-mapping a shared "UMEM" region between
 // the kernel and userspace, bypassing most of the kernel networking stack.
 //
 // Architecture overview:
 //
-//   Kernel:   eBPF XDP program (xdp_kern.c) redirects NexLink UDP frames
+//   Kernel:   eBPF XDP program (xdp_kern.c) redirects StrandLink UDP frames
 //             → XSKMAP → AF_XDP socket RX ring.
 //   Userspace (this file):
 //     - Allocates a 8 MiB hugepage-backed UMEM split into 4 KiB frames.
@@ -41,7 +41,7 @@ const std     = @import("std");
 const mem     = std.mem;
 const linux   = std.os.linux;
 const assert  = std.debug.assert;
-const log     = std.log.scoped(.nexlink_xdp);
+const log     = std.log.scoped(.strandlink_xdp);
 
 // ---------------------------------------------------------------------------
 // Compile-time platform guard
@@ -360,7 +360,7 @@ pub const XskSocket = struct {
         self.next_free_frame = avail % NUM_FRAMES;
     }
 
-    /// Receive one NexLink frame from the RX ring.
+    /// Receive one StrandLink frame from the RX ring.
     ///
     /// Copies the frame payload into `out_buf`.  Returns the number of bytes
     /// copied, or `error.NoFrame` if the ring is empty.
@@ -405,7 +405,7 @@ pub const XskSocket = struct {
         return copy_len;
     }
 
-    /// Send one NexLink frame.
+    /// Send one StrandLink frame.
     ///
     /// Copies `frame_data` into a free UMEM slot, places a TX descriptor into
     /// the TX ring, then kicks the kernel via `sendto` with `MSG_DONTWAIT`.
@@ -507,13 +507,13 @@ pub const XskSocket = struct {
 };
 
 // ---------------------------------------------------------------------------
-// XDP backend (implements the NexLink Backend interface)
+// XDP backend (implements the StrandLink Backend interface)
 // ---------------------------------------------------------------------------
 
-/// NexLink AF_XDP platform backend.
+/// StrandLink AF_XDP platform backend.
 ///
 /// Implements the same `send` / `recv` interface as `MockPlatform` (see
-/// platform/mock.zig) so that the upper layers (frame.zig, nexapi CGo path)
+/// platform/mock.zig) so that the upper layers (frame.zig, strandapi CGo path)
 /// are backend-agnostic.
 ///
 /// Typical usage:
@@ -528,10 +528,10 @@ pub const XskSocket = struct {
 /// //   The actual xdp_kern.o loading calls bpf_prog_load / bpf_set_link_xdp_fd
 /// //   and is handled by a dedicated bpf_loader.zig helper.
 ///
-/// // Send a NexLink frame.
+/// // Send a StrandLink frame.
 /// try backend.send(encoded_frame);
 ///
-/// // Receive a NexLink frame.
+/// // Receive a StrandLink frame.
 /// var buf: [FRAME_SIZE]u8 = undefined;
 /// const n = try backend.recv(&buf);
 /// ```
@@ -562,7 +562,7 @@ pub const XdpBackend = struct {
         self.* = undefined;
     }
 
-    /// Send a NexLink frame to the wire.
+    /// Send a StrandLink frame to the wire.
     ///
     /// Copies `frame_data` into a UMEM slot and queues it in the TX ring.
     /// The kernel drains the TX ring asynchronously; this call returns as
@@ -571,7 +571,7 @@ pub const XdpBackend = struct {
         try self.socket.send(frame_data);
     }
 
-    /// Receive one NexLink frame from the wire.
+    /// Receive one StrandLink frame from the wire.
     ///
     /// Returns the number of bytes written into `out_buf`, or `error.NoFrame`
     /// if no packet is available.  Does not block — poll(2) the socket fd

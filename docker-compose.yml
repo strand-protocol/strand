@@ -1,5 +1,5 @@
 # ==========================================================
-# Nexus Protocol -- Full Stack Docker Compose
+# Strand Protocol -- Full Stack Docker Compose
 # ==========================================================
 #
 # Usage:
@@ -14,17 +14,17 @@
 
 services:
   # --------------------------------------------------------
-  # nexus-cloud: Control-plane API server
+  # strand-cloud: Control-plane API server
   # --------------------------------------------------------
-  nexus-cloud:
+  strand-cloud:
     build:
-      context: ./nexus-cloud
+      context: ./strand-cloud
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
     environment:
-      - NEXUS_ADDR=0.0.0.0:8080
-      - NEXUS_STORE_TYPE=memory
+      - STRAND_ADDR=0.0.0.0:8080
+      - STRAND_STORE_TYPE=memory
     healthcheck:
       test: ["CMD", "/healthcheck"]
       interval: 5s
@@ -33,14 +33,14 @@ services:
     restart: unless-stopped
 
   # --------------------------------------------------------
-  # nexus-allinone: All-in-one binary (control plane + agent + CA)
+  # strand-allinone: All-in-one binary (control plane + agent + CA)
   # Activated with: docker compose --profile allinone up
   # --------------------------------------------------------
-  nexus-allinone:
+  strand-allinone:
     build:
-      context: ./nexus-cloud
+      context: ./strand-cloud
       dockerfile: Dockerfile
-    command: ["/nexus-allinone"]
+    command: ["/strand-allinone"]
     ports:
       - "8081:8080"
     profiles:
@@ -48,34 +48,50 @@ services:
     restart: unless-stopped
 
   # --------------------------------------------------------
-  # nexapi-inference: Mock inference server (example)
+  # strandapi-inference: Mock inference server (example)
   # --------------------------------------------------------
-  nexapi-inference:
+  strandapi-inference:
     build:
-      context: ./nexapi
+      context: ./strandapi
       dockerfile: Dockerfile
     ports:
       - "9000:9000"
     environment:
-      - NEXAPI_ADDR=0.0.0.0:9000
+      - STRANDAPI_ADDR=0.0.0.0:9000
     depends_on:
-      nexus-cloud:
+      strand-cloud:
         condition: service_healthy
     restart: unless-stopped
 
   # --------------------------------------------------------
-  # nexapi-echo: Echo server (example)
+  # strandapi-echo: Echo server (example)
   # Activated with: docker compose --profile examples up
   # --------------------------------------------------------
-  nexapi-echo:
+  strandapi-echo:
     build:
-      context: ./nexapi
+      context: ./strandapi
       dockerfile: Dockerfile
-    command: ["/nexapi-echo"]
+    command: ["/strandapi-echo"]
     ports:
-      - "9001:9000"
+      - "9002:9000"
     environment:
-      - NEXAPI_ADDR=0.0.0.0:9000
+      - STRANDAPI_ADDR=0.0.0.0:9000
     profiles:
       - examples
+    restart: unless-stopped
+
+  # --------------------------------------------------------
+  # strandapi-httpbridge: OpenAI-compatible HTTP frontend
+  # Browse to http://localhost:9001 to interact via the UI.
+  # --------------------------------------------------------
+  strandapi-httpbridge:
+    build:
+      context: ./strandapi
+      dockerfile: Dockerfile
+    entrypoint: ["/strandapi-httpbridge", "0.0.0.0:9001"]
+    ports:
+      - "9001:9001"
+    depends_on:
+      strand-cloud:
+        condition: service_healthy
     restart: unless-stopped

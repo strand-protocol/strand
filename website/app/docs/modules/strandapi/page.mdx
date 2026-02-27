@@ -1,0 +1,301 @@
+# StrandAPI — L5 AI Application Protocol
+
+**Language:** Go | **Layer:** L5 | **Dependencies:** StrandStream + StrandTrust (CGo) or pure-Go overlay
+
+StrandAPI replaces HTTP/REST/gRPC/WebSocket with 18 AI-native message types, StrandBuf zero-copy serialization, and both a pure-Go overlay transport and a CGo production path. It provides the client SDK, server SDK, and wire protocol that applications use to send inference requests, stream tokens, transfer tensors, and delegate agent tasks.
+
+## Overview
+
+Traditional AI APIs are built on HTTP + JSON — a protocol designed for web pages serving a serialization format designed for human readability. StrandAPI is purpose-built for AI:
+
+- **18 message types** covering inference, token streaming, tensor transfer, tool use, and agent delegation
+- **StrandBuf serialization** — zero-copy binary format, 7x faster encode and 13x faster decode vs JSON
+- **Two transport paths** — pure-Go overlay (zero CGo) and CGo production path
+- **Semantic addressing** — route requests by model capabilities via SADs, not URLs
+- **HTTP bridge** — OpenAI-compatible REST translation for gradual adoption
+
+## Message Types
+
+| Code | Opcode Constant | Description |
+|------|----------------|-------------|
+| 0x01 | `OpInferenceRequest` | Inference request with SAD model selector |
+| 0x02 | `OpInferenceResponse` | Complete inference response |
+| 0x03 | `OpTokenStreamStart` | Begin streaming tokens |
+| 0x04 | `OpTokenStreamChunk` | Individual token with sequence number and logprob |
+| 0x05 | `OpTokenStreamEnd` | End of token stream with usage stats |
+| 0x06 | `OpTensorTransfer` | Tensor data with dtype metadata |
+| 0x07 | `OpAgentNegotiation` | Legacy agent negotiation |
+| 0x08 | `OpHeartbeat` | Connection keepalive |
+| 0x09 | `OpAgentNegotiate` | Agent capability negotiation |
+| 0x0A | `OpAgentDelegate` | Delegate task to another agent |
+| 0x0B | `OpAgentResult` | Agent task result |
+| 0x0C | `OpContextShare` | Share conversation context |
+| 0x0D | `OpContextAck` | Acknowledge context receipt |
+| 0x0E | `OpToolInvoke` | Tool/function invocation during inference |
+| 0x0F | `OpToolResult` | Tool execution result |
+| 0x10 | `OpHealthCheck` | Health check request |
+| 0x11 | `OpHealthStatus` | Health status response |
+| 0x12 | `OpCancel` | Cancel in-flight request |
+| 0xFF | `OpError` | Error response |
+
+## Message Structs
+
+### InferenceRequest
+
+```go
+type InferenceRequest struct {
+    ID          [16]byte          // Unique request UUID
+    ModelSAD    []byte            // Semantic Address Descriptor
+    Prompt      string            // User prompt text
+    MaxTokens   uint32            // Maximum tokens to generate
+    Temperature float32           // Sampling temperature
+    Metadata    map[string]string // Custom key-value metadata
+}
+```
+
+### InferenceResponse
+
+```go
+type InferenceResponse struct {
+    ID               [16]byte   // Matches request ID
+    Text             string     // Generated text
+    FinishReason     string     // "stop", "length", "tool_use"
+    PromptTokens     uint32     // Input token count
+    CompletionTokens uint32     // Output token count
+}
+```
+
+### TokenStreamChunk
+
+```go
+type TokenStreamChunk struct {
+    RequestID [16]byte   // Matches request ID
+    SeqNum    uint32     // Sequence number for ordering
+    Token     string     // Generated token text
+    Logprob   float32    // Log probability of this token
+}
+```
+
+All message types implement `Encode(buf *strandbuf.Buffer)` and `Decode(r *strandbuf.Reader) error` for StrandBuf serialization.
+
+## Error Codes
+
+| Code | Constant | Description |
+|------|----------|-------------|
+| 0x0000 | `ErrOK` | Success |
+| 0x0001 | `ErrUnknown` | Unknown error |
+| 0x0002 | `ErrTimeout` | Request timeout |
+| 0x0003 | `ErrNotFound` | Resource not found |
+| 0x0004 | `ErrAlreadyExists` | Resource already exists |
+| 0x0005 | `ErrInternal` | Internal server error |
+| 0x0006 | `ErrInvalidRequest` | Malformed request |
+| 0x0007 | `ErrCapabilities` | No matching capabilities |
+| 0x0008 | `ErrContextTooLong` | Context exceeds maximum |
+| 0x0009 | `ErrModelUnavail` | Model unavailable |
+| 0x000A | `ErrRateLimited` | Rate limit exceeded |
+| 0x000B | `ErrTrustViolation` | Trust/MIC verification failed |
+| 0x000C | `ErrCancelled` | Request cancelled |
+
+## Client SDK
+
+```go
+// Connect to a StrandAPI server
+client, err := strandapi.Dial("127.0.0.1:6477")
+defer client.Close()
+
+// Send an inference request and get a complete response
+resp, err := client.Infer(ctx, &protocol.InferenceRequest{
+    Prompt:    "Explain quantum computing",
+    MaxTokens: 512,
+    ModelSAD:  sadBytes,
+})
+fmt.Println(resp.Text)
+
+// Stream tokens
+chunks, err := client.StreamTokens(ctx, &protocol.InferenceRequest{
+    Prompt:    "Write a sorting algorithm",
+    MaxTokens: 1024,
+})
+for chunk := range chunks {
+    fmt.Print(chunk.Token)
+}
+
+// Low-level raw send/receive
+err = client.RawSend(ctx, protocol.OpHealthCheck, payload)
+opcode, data, err := client.RawRecv(ctx)
+```
+
+### Client API
+
+```go
+func Dial(addr string, opts ...Option) (*Client, error)
+
+func (c *Client) Infer(ctx context.Context, req *protocol.InferenceRequest) (*protocol.InferenceResponse, error)
+
+func (c *Client) StreamTokens(ctx context.Context, req *protocol.InferenceRequest) (<-chan *protocol.TokenStreamChunk, error)
+
+func (c *Client) RawSend(ctx context.Context, opcode byte, payload []byte) error
+
+func (c *Client) RawRecv(ctx context.Context) (byte, []byte, error)
+
+func (c *Client) Close() error
+```
+
+## Server SDK
+
+```go
+server := strandapi.New(handler,
+    strandapi.WithStreamHandler(streamHandler),
+    strandapi.WithAgentHandler(agentHandler),
+    strandapi.WithShutdownTimeout(10 * time.Second),
+)
+err := server.ListenAndServe("0.0.0.0:6477")
+```
+
+### Handler Interface
+
+```go
+type Handler interface {
+    HandleInference(ctx context.Context, req *protocol.InferenceRequest) (*protocol.InferenceResponse, error)
+}
+
+type StreamHandler interface {
+    HandleStream(ctx context.Context, req *protocol.InferenceRequest, stream TokenStream) error
+}
+```
+
+### Server API
+
+```go
+func New(handler Handler, opts ...ServerOption) *Server
+
+func (s *Server) ListenAndServe(addr string) error
+
+func (s *Server) Stop()
+```
+
+### Server Options
+
+```go
+func WithStreamHandler(sh StreamHandler) ServerOption
+func WithAgentHandler(fn func(ctx context.Context, msg *protocol.AgentDelegate) (*protocol.AgentResult, error)) ServerOption
+func WithShutdownTimeout(d time.Duration) ServerOption
+```
+
+## StrandBuf Serialization
+
+FlatBuffers-inspired zero-copy binary format. Fields are identified by struct tags:
+
+```go
+type InferenceRequest struct {
+    ID        [16]byte          `strandbuf:"1"`
+    Prompt    string            `strandbuf:"2"`
+    MaxTokens uint32            `strandbuf:"3"`
+    Metadata  map[string]string `strandbuf:"4"`
+}
+```
+
+### Wire Types
+
+| Code | Type | Description |
+|------|------|-------------|
+| 1 | `TypeUint8` | 8-bit unsigned integer |
+| 2 | `TypeUint16` | 16-bit unsigned integer |
+| 3 | `TypeUint32` | 32-bit unsigned integer |
+| 4 | `TypeUint64` | 64-bit unsigned integer |
+| 5 | `TypeFloat32` | IEEE 754 single-precision |
+| 6 | `TypeFloat64` | IEEE 754 double-precision |
+| 7 | `TypeString` | Length-prefixed UTF-8 string |
+| 8 | `TypeBytes` | Length-prefixed byte array |
+| 9 | `TypeList` | Length-prefixed list of typed values |
+| 10 | `TypeMap` | Length-prefixed key-value pairs |
+
+### Benchmarks
+
+StrandBuf vs JSON encoding/decoding on typical InferenceRequest:
+
+| Operation | StrandBuf | JSON | Speedup |
+|-----------|----------|------|---------|
+| Encode | ~180ns | ~1.3μs | **7x** |
+| Decode | ~120ns | ~1.6μs | **13x** |
+
+## Transport
+
+### Pure-Go Overlay
+
+Zero CGo dependencies. Re-implements in pure Go:
+
+- StrandLink 64-byte frame header encode/decode + CRC-32C
+- StrandStream Reliable-Ordered mode (simplified)
+- StrandTrust handshake + AES-256-GCM encryption
+- UDP transport on port 6477
+
+This path enables `go get` adoption with no native dependencies.
+
+### CGo Production Path
+
+Links against native Zig/Rust libraries via CGo for full performance:
+
+- StrandLink DPDK/XDP backends for line-rate framing
+- All four StrandStream delivery modes
+- Full StrandTrust handshake with hardware-accelerated crypto
+
+## HTTP Bridge
+
+OpenAI-compatible REST API that translates to native StrandAPI messages:
+
+```bash
+# Start the bridge
+go run ./strandapi/examples/httpbridge/
+
+# OpenAI-compatible request
+curl -X POST http://localhost:9000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "strand-mock-v1",
+    "messages": [{"role": "user", "content": "Hello"}],
+    "stream": true,
+    "max_tokens": 512
+  }'
+```
+
+## Examples
+
+```bash
+# End-to-end demo: client → server → inference → token streaming
+go run ./strandapi/examples/e2e_demo/
+
+# Agent delegation: multi-agent task routing
+go run ./strandapi/examples/agent_delegation/
+
+# Tool use: function calling over StrandAPI
+go run ./strandapi/examples/tool_use/
+
+# Semantic routing: SAD-based route resolution
+go run ./strandapi/examples/routing/
+
+# HTTP bridge: OpenAI-compatible REST translation
+go run ./strandapi/examples/httpbridge/
+
+# Runtime configuration management
+go run ./strandapi/examples/config/
+```
+
+## Install
+
+```bash
+go get github.com/strand-protocol/strand/strandapi
+```
+
+## Build
+
+```bash
+cd strandapi
+
+# Pure-Go overlay (default, zero CGo)
+go build ./...
+go test ./...
+
+# CGo production path
+CGO_ENABLED=1 go build ./...
+```

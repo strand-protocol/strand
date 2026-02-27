@@ -1,5 +1,5 @@
 ##############################################################################
-# VPP Container Image for Nexus Protocol
+# VPP Container Image for Strand Protocol
 #
 # Base: FD.io official VPP 24.06 release image.
 # Mode: container-mode (no PCI / DPDK), uses TAP virtual interfaces.

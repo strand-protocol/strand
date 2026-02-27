@@ -1,0 +1,239 @@
+# StrandStream — L3 Hybrid Transport
+
+**Language:** Rust | **Layer:** L3 | **Dependencies:** StrandLink (C FFI), StrandTrust (crate)
+
+StrandStream replaces TCP and UDP with four delivery modes multiplexed on a single connection. AI workloads need TCP-like reliability for control planes, exactly-once delivery for token streaming, fire-and-forget for telemetry, and lossy-but-fast delivery for tensor streaming — all on the same connection.
+
+## Overview
+
+StrandStream provides a connection-oriented transport layer that multiplexes multiple streams, each with an independently chosen delivery mode. The connection lifecycle follows a state machine (CONN_INIT → CONN_ACCEPT → ESTABLISHED → CONN_CLOSE), and each stream has its own state machine within the connection.
+
+Key features:
+
+- **4 delivery modes** on a single connection
+- **32-bit stream IDs** with client/server partitioning
+- **CUBIC congestion control** (default, RFC 8312) with a pluggable trait for BBR
+- **Selective acknowledgment** (SACK) for efficient retransmission
+- **Per-stream flow control** with window updates
+- **RTT estimation** via Jacobson/Karels EWMA (RFC 6298)
+
+## Delivery Modes
+
+| Mode | Code | Guarantee | Use Case |
+|------|------|-----------|----------|
+| Reliable-Ordered | 0x01 | TCP-like byte stream, in-order, SACK + retransmit | Control plane, inference requests |
+| Reliable-Unordered | 0x02 | Exactly-once, any order | Token streaming |
+| Best-Effort | 0x03 | Fire-and-forget, no retransmit | Telemetry, non-critical updates |
+| Probabilistic | 0x04 | Configurable delivery probability + FEC | Tensor streaming |
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum TransportMode {
+    ReliableOrdered = 0x01,
+    ReliableUnordered = 0x02,
+    BestEffort = 0x03,
+    Probabilistic = 0x04,
+}
+```
+
+## Stream IDs
+
+32-bit stream identifiers with client/server partitioning:
+
+| Range | Owner |
+|-------|-------|
+| 0x00000001 – 0x7FFFFFFF | Client-initiated (odd) |
+| 0x80000000 – 0xFFFFFFFE | Server-initiated (even) |
+| 0x00000000 | Reserved (connection-level) |
+| 0xFFFFFFFF | Reserved |
+
+## Connection
+
+### Connection State Machine
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectionState {
+    Idle,         // Initial state
+    Connecting,   // CONN_INIT sent, waiting for CONN_ACCEPT
+    Open,         // ESTABLISHED, can create streams
+    Closing,      // CONN_CLOSE sent, draining
+    Closed,       // Terminal state
+}
+```
+
+### Connection Config
+
+```rust
+pub struct ConnectionConfig {
+    pub max_streams: u32,          // Default: 1024
+    pub connection_window: usize,  // Default: 1MB
+    pub stream_window: usize,      // Default: 64KB
+}
+```
+
+### Connection API
+
+```rust
+pub struct Connection {
+    pub fn new(config: ConnectionConfig) -> Self;
+    pub fn connect(&mut self) -> Result<()>;
+    pub fn accept(&mut self) -> Result<()>;
+    pub fn open_stream(&mut self, mode: TransportMode) -> Result<StreamId>;
+    pub fn send(&mut self, stream_id: StreamId, data: Bytes) -> Result<()>;
+}
+```
+
+## Stream
+
+### Stream State Machine
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StreamState {
+    Idle,             // Created but not opened
+    Open,             // Active, can send/receive
+    HalfClosedLocal,  // Local FIN sent
+    HalfClosedRemote, // Remote FIN received
+    Closed,           // Terminal state
+}
+```
+
+### Stream API
+
+```rust
+pub struct Stream {
+    pub fn new(id: u32, mode: TransportMode) -> Self;
+    pub fn new_probabilistic(id: u32, probability: f64) -> Self;
+    pub fn id(&self) -> u32;
+    pub fn mode(&self) -> TransportMode;
+    pub fn state(&self) -> StreamState;
+}
+```
+
+## Frame Types
+
+13 frame types covering data path, connection lifecycle, and congestion signaling:
+
+### Data Path (0x01–0x08)
+
+| Code | Frame | Description |
+|------|-------|-------------|
+| 0x01 | `Data` | Application data with stream_id, sequence number, flags, payload |
+| 0x02 | `Ack` | Acknowledgment with SACK ranges |
+| 0x03 | `Nack` | Negative acknowledgment for missing ranges |
+| 0x04 | `Fin` | Stream-level finish (half-close) |
+| 0x05 | `Rst` | Stream-level reset with error code |
+| 0x06 | `Ping` | Connection-level keepalive |
+| 0x07 | `Pong` | Ping response |
+| 0x08 | `WindowUpdate` | Flow control window increment |
+
+### Connection Lifecycle (0x10–0x13)
+
+| Code | Frame | Description |
+|------|-------|-------------|
+| 0x10 | `StreamOpen` | Open new stream with transport mode |
+| 0x11 | `StreamAck` | Acknowledge stream open |
+| 0x12 | `StreamClose` | Graceful stream close |
+| 0x13 | `StreamReset` | Forceful stream reset with error code |
+
+### Congestion (0x40)
+
+| Code | Frame | Description |
+|------|-------|-------------|
+| 0x40 | `Congestion` | Congestion window and RTT feedback |
+
+### Data Frame Flags
+
+```rust
+pub struct DataFlags(pub u8);
+impl DataFlags {
+    pub const NONE: Self = Self(0x00);
+    pub const FIN: Self = Self(0x01);      // Final data in stream
+    pub const KEY_FRAME: Self = Self(0x02); // Key frame (no delta dependency)
+}
+```
+
+## Transport Traits
+
+StrandStream uses pluggable sender/receiver traits for each delivery mode:
+
+```rust
+pub trait TransportSender: Send {
+    fn send(&mut self, stream_id: u32, data: Bytes) -> Result<Vec<Frame>>;
+    fn on_ack(&mut self, seq: u32);
+    fn retransmit(&mut self) -> Vec<Frame>;
+}
+
+pub trait TransportReceiver: Send {
+    fn receive(&mut self, frame: &Frame) -> Result<Vec<Bytes>>;
+}
+```
+
+## Congestion Control
+
+Pluggable via the `CongestionController` trait:
+
+```rust
+pub trait CongestionController: Send {
+    fn on_packet_sent(&mut self, bytes: usize);
+    fn on_ack(&mut self, bytes: usize);
+    fn on_loss(&mut self, bytes: usize);
+    fn window(&self) -> usize;
+    fn bytes_in_flight(&self) -> usize;
+    fn can_send(&self, bytes: usize) -> bool {
+        self.bytes_in_flight() + bytes <= self.window()
+    }
+}
+```
+
+### CUBIC (Default)
+
+RFC 8312 implementation with:
+
+- Cubic window growth function: `W(t) = C * (t - K)^3 + W_max`
+- Fast convergence for window reduction
+- Slow start with exponential growth until `ssthresh`
+- Constants: `C = 0.4`, `BETA = 0.7`
+
+### Loss Detection
+
+- **Packet threshold:** 3 duplicate ACKs trigger fast retransmit
+- **Time threshold:** 9/8 x SRTT
+- **RTT estimation:** Jacobson/Karels EWMA (RFC 6298) with SRTT and RTTVAR tracking
+
+## Error Types
+
+```rust
+pub enum StrandStreamError {
+    FrameTooShort { expected: usize, actual: usize },
+    UnknownFrameType(u8),
+    InvalidTransportMode(u8),
+    StreamNotFound(u32),
+    StreamAlreadyExists(u32),
+    StreamClosed(u32),
+    ConnectionClosed,
+    MaxStreamsExceeded(u32),
+    InvalidStreamId(u32),
+    FlowControlViolation,
+    InvalidStateTransition { from: String, to: String },
+}
+```
+
+## Build
+
+```bash
+cd strandstream
+cargo build                    # Debug build
+cargo build --release          # Optimized build
+cargo test                     # All tests
+cargo bench                    # Transport benchmarks
+```
+
+## Tests
+
+- **frame_tests.rs** — Frame encode/decode round-trip, unknown type handling
+- **mux_tests.rs** — Stream multiplexer, concurrent stream operations, window management
+- **cubic_tests.rs** — CUBIC congestion control, slow start, fast convergence
+- **transport_tests.rs** — Per-mode sender/receiver, retransmission, flow control

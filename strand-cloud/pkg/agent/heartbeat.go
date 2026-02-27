@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
 )
 
 // sendHeartbeat POSTs to /api/v1/nodes/{id}/heartbeat, optionally including

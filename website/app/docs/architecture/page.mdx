@@ -1,0 +1,205 @@
+# Architecture
+
+Strand Protocol is a five-layer network protocol stack with a Kubernetes-style control plane. Every layer replaces a component of the traditional TCP/IP stack with an AI-native alternative.
+
+## Stack Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  L5  StrandAPI       AI Application Protocol           Go   │
+├─────────────────────────────────────────────────────────────┤
+│  L4  StrandTrust     Model Identity & Crypto          Rust  │
+├─────────────────────────────────────────────────────────────┤
+│  L3  StrandStream    Hybrid Transport (4 modes)       Rust  │
+├─────────────────────────────────────────────────────────────┤
+│  L2  StrandRoute     Semantic Routing               C + P4  │
+├─────────────────────────────────────────────────────────────┤
+│  L1  StrandLink      AI-Native Framing                Zig   │
+└─────────────────────────────────────────────────────────────┘
+
+Control Plane:  StrandCtl (CLI)  +  Strand Cloud (Fleet Management)
+```
+
+## Design Principles
+
+### AI-native, not retrofitted
+
+Every layer is designed from scratch for AI workloads. Not adapted from general-purpose networking. StrandLink frames carry tensor metadata natively. StrandRoute addresses models by capability, not IP. StrandStream multiplexes four delivery modes because AI workloads need reliability for control planes but can tolerate loss for tensor streaming.
+
+### Zero-copy hot path
+
+No heap allocations after initialization on the data path. Lock-free SPSC ring buffers modeled after io_uring. Cache-line-aligned structures. StrandBuf serialization is zero-copy with struct-tag-driven field IDs. Performance targets: frame encode under 200ns, decode under 300ns, ring operations under 50ns.
+
+### Semantic addressing
+
+Route by what you need — model architecture, capabilities, latency bounds, cost limits, trust level — not where it lives. Semantic Address Descriptors (SADs) encode up to 16 constraint fields. A weighted multi-constraint scoring function resolves the best match from 100K+ routing table entries in under 10 microseconds.
+
+### Cryptographic model identity
+
+Model Identity Certificates (MICs) prove *what* a node is running, not just that it has a valid domain certificate. MICs bind Ed25519 keys to attestation claims like architecture hash, parameter count, training dataset hash, and quantization scheme. A 1-RTT mutual authentication handshake establishes encrypted sessions.
+
+### Mixed delivery
+
+Four transport modes on a single connection, selectable per-stream:
+
+| Mode | Guarantee | Use Case |
+|------|-----------|----------|
+| Reliable-Ordered (RO) | TCP-like byte stream with SACK | Control plane, inference requests |
+| Reliable-Unordered (RU) | Exactly-once, any order | Token streaming |
+| Best-Effort (BE) | Fire-and-forget | Telemetry, non-critical updates |
+| Probabilistic (PR) | Configurable delivery probability + FEC | Tensor streaming |
+
+## Dependency Graph
+
+Modules must be built in dependency order. A module in a later phase may only depend on modules from earlier phases.
+
+```
+Phase 1    StrandLink ─────────────── (no dependencies)
+             │
+Phase 2    StrandRoute                (links libstrandlink.a)
+             │
+Phase 3a   StrandTrust ──────────── (standalone)
+             │                │
+Phase 3b   StrandStream ─────┘       (StrandLink FFI + StrandTrust crate)
+             │
+Phase 4    StrandAPI                  (StrandStream + StrandTrust via CGo,
+             │                        or pure-Go overlay)
+Phase 5    StrandCtl                  (StrandAPI client SDK)
+           Strand Cloud               (StrandAPI + StrandTrust FFI)
+```
+
+## Two Transport Paths
+
+Strand Protocol supports two transport paths, both wire-compatible:
+
+### Pure-Go overlay
+
+Zero CGo dependencies. Runs over UDP on port 6477. Re-implements:
+
+- StrandLink frame header encode/decode (64-byte header + TLV options + CRC-32C)
+- StrandStream Reliable-Ordered mode (simplified)
+- StrandTrust handshake + AES-256-GCM encryption
+
+This is the `go get` path for developer adoption. Compiles anywhere Go compiles.
+
+### CGo production path
+
+Links against native StrandLink (Zig), StrandStream (Rust), and StrandTrust (Rust) libraries via CGo/FFI. Full performance with:
+
+- DPDK and XDP kernel bypass for line-rate framing
+- All four StrandStream delivery modes with CUBIC/BBR congestion control
+- Hardware-accelerated P4 SAD matching via StrandRoute
+
+## Wire Format
+
+### StrandLink Frame Header (64 bytes)
+
+```
+Bytes  0-3:   version(4b) | flags(8b) | frame_type(16b) | padding(4b)
+Bytes  4-7:   frame_length(32b)
+Bytes  8-11:  stream_id(32b)
+Bytes 12-15:  sequence_number(32b)
+Bytes 16-31:  source_node_id(128b)
+Bytes 32-47:  dest_node_id(128b)
+Bytes 48-51:  priority(4b) | qos_class(4b) | tensor_dtype(8b) | padding(16b)
+Bytes 52-55:  tensor_alignment(16b) | options_length(16b)
+Bytes 56-63:  timestamp(64b)
+```
+
+### Frame Types
+
+| Code | Type | Description |
+|------|------|-------------|
+| 0x0001 | Data | Application data frames |
+| 0x0002 | Control | Protocol control messages |
+| 0x0003 | Heartbeat | Keep-alive and liveness |
+| 0x0004 | RouteAdvertisement | Gossip protocol route sharing |
+| 0x0005 | TrustHandshake | MIC exchange and key negotiation |
+| 0x0006 | TensorTransfer | Dedicated tensor data transfer |
+| 0x0007 | StreamControl | StrandStream connection/stream management |
+
+### QoS Classes
+
+| Code | Class | Mapping |
+|------|-------|---------|
+| 0x0 | BestEffort | BE delivery mode |
+| 0x1 | ReliableOrdered | RO delivery mode |
+| 0x2 | ReliableUnordered | RU delivery mode |
+| 0x3 | Probabilistic | PR delivery mode |
+
+### StrandAPI Message Types
+
+StrandAPI defines 18 message types serialized with StrandBuf (zero-copy binary, 7-13x faster than JSON):
+
+| Code | Type | Description |
+|------|------|-------------|
+| 0x0001 | INFERENCE_REQUEST | Inference request with SAD |
+| 0x0002 | INFERENCE_RESPONSE | Complete inference response |
+| 0x0003 | TOKEN_STREAM_START | Begin streaming tokens |
+| 0x0004 | TOKEN_STREAM_CHUNK | Token with sequence number |
+| 0x0005 | TOKEN_STREAM_END | End of token stream |
+| 0x0006 | TENSOR_TRANSFER | Tensor data with dtype metadata |
+| 0x0007 | CONTEXT_SHARE | Share context between agents |
+| 0x0008 | CONTEXT_ACK | Acknowledge context receipt |
+| 0x0009 | TOOL_INVOKE | Tool/function invocation |
+| 0x000A | TOOL_RESULT | Tool result |
+| 0x000B | AGENT_NEGOTIATE | Agent capability negotiation |
+| 0x000C | AGENT_DELEGATE | Delegate task to agent |
+| 0x000D | AGENT_RESULT | Agent task result |
+| 0x000E | HEALTH_CHECK | Health check request |
+| 0x000F | HEALTH_STATUS | Health status response |
+| 0x0010 | METRICS_REPORT | Metrics report |
+| 0x0011 | CANCEL | Cancel in-flight request |
+| 0x0012 | ERROR | Error response |
+
+### Key Constants
+
+| Constant | Value |
+|----------|-------|
+| Overlay UDP port | 6477 |
+| Frame header size | 64 bytes |
+| Max TLV options | 256 bytes |
+| Max SAD fields | 16 |
+| Max SAD size | 512 bytes |
+| Node ID size | 128 bits (16 bytes) |
+| Cipher suite 1 | STRAND_X25519_ED25519_AES256GCM_SHA256 (0x0001) |
+| Cipher suite 2 | STRAND_X25519_ED25519_CHACHA20POLY1305_SHA256 (0x0002) |
+
+## Cross-Module FFI
+
+### StrandLink → StrandRoute (Zig exports C, C consumes)
+
+StrandLink produces `libstrandlink.a` + `include/strandlink.h`. StrandRoute links against it for frame encode/decode in the forwarding path.
+
+### StrandLink → StrandStream (Zig exports C, Rust consumes via bindgen)
+
+StrandStream's `build.rs` runs `bindgen` against `strandlink.h` to generate Rust FFI bindings for ring buffer integration.
+
+### StrandTrust → StrandStream (Rust crate dependency)
+
+Direct Rust crate dependency — `strandtrust = { path = "../strandtrust" }`. No FFI needed.
+
+### StrandTrust → StrandAPI (Rust exports C via cbindgen, Go consumes via CGo)
+
+StrandTrust produces `libstrandtrust.a` + `strandtrust.h` for MIC operations and AEAD encryption in the Go layer.
+
+### StrandStream → StrandAPI (Rust exports C via cbindgen, Go consumes via CGo)
+
+StrandStream produces `libstrandstream.a` + `strandstream.h` for connection management and stream multiplexing in Go.
+
+## Testing Strategy
+
+| Scope | Command | Description |
+|-------|---------|-------------|
+| All tests | `make test` | Runs every module's tests |
+| Unit only | `make test-unit` | Fast, no external dependencies |
+| Integration | `make test-integration` | Cross-module tests, requires built modules |
+| Fuzz | `make test-fuzz` | Long-running fuzz tests (frame parsers, SADs, MICs) |
+| Benchmarks | `cargo bench` / `go test -bench` | Per-module performance benchmarks |
+
+Cross-module integration test scenarios:
+
+1. StrandLink frame encode → StrandRoute forwarding → StrandLink frame output
+2. StrandTrust handshake → StrandStream encrypted RO stream → data exchange
+3. StrandAPI client → overlay transport → StrandAPI server → inference response
+4. StrandCtl CLI → Strand Cloud API server → state store round-trip

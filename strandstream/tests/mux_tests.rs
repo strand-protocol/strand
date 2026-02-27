@@ -1,10 +1,10 @@
 //! Multiplexer tests: multiple streams.
 
 use bytes::Bytes;
-use nexstream::frame::{DataFlags, Frame};
-use nexstream::mux::Multiplexer;
-use nexstream::stream::StreamState;
-use nexstream::transport::TransportMode;
+use strandstream::frame::{DataFlags, Frame};
+use strandstream::mux::Multiplexer;
+use strandstream::stream::StreamState;
+use strandstream::transport::TransportMode;
 
 #[test]
 fn create_multiple_streams() {

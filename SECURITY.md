@@ -1,6 +1,6 @@
 # Security Policy
 
-The Nexus Protocol team takes security seriously. We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
+The Strand Protocol team takes security seriously. We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
 
 ## Supported Versions
 
@@ -16,14 +16,14 @@ As new major or minor versions are released, security support for older versions
 
 Instead, please report them via email to:
 
-**security@nexus-protocol.io**
+**security@strandprotocol.com**
 
 Please include the following information in your report:
 
 - **Description** of the vulnerability
 - **Steps to reproduce** the issue, including any proof-of-concept code
 - **Impact assessment** — what an attacker could achieve by exploiting this vulnerability
-- **Affected module(s)** — which Nexus Protocol module(s) are affected (NexLink, NexRoute, NexStream, NexTrust, NexAPI, NexCtl, Nexus Cloud)
+- **Affected module(s)** — which Strand Protocol module(s) are affected (StrandLink, StrandRoute, StrandStream, StrandTrust, StrandAPI, StrandCtl, Strand Cloud)
 - **Affected version(s)** — which version(s) you tested against
 - **Your contact information** so we can follow up
 
@@ -58,21 +58,21 @@ We are planning a formal bug bounty program for future releases. In the meantime
 
 The following areas are in scope for security reports:
 
-- **NexTrust (L4)**: Model identity, cryptographic operations, certificate handling, key management
-- **NexStream (L3)**: Transport security, connection handling, data integrity
-- **NexRoute (L2)**: Routing table poisoning, semantic address spoofing
-- **NexLink (L1)**: Frame injection, buffer overflows, memory safety issues
-- **NexAPI (L5)**: Authentication bypass, authorization flaws, injection attacks
-- **NexCtl**: Privilege escalation, credential handling
-- **Nexus Cloud**: Control plane security, multi-tenancy isolation, API security
+- **StrandTrust (L4)**: Model identity, cryptographic operations, certificate handling, key management
+- **StrandStream (L3)**: Transport security, connection handling, data integrity
+- **StrandRoute (L2)**: Routing table poisoning, semantic address spoofing
+- **StrandLink (L1)**: Frame injection, buffer overflows, memory safety issues
+- **StrandAPI (L5)**: Authentication bypass, authorization flaws, injection attacks
+- **StrandCtl**: Privilege escalation, credential handling
+- **Strand Cloud**: Control plane security, multi-tenancy isolation, API security
 
 ## Security-Related Configuration
 
-For guidance on securely configuring Nexus Protocol deployments, refer to the [Security Hardening Guide](docs/security-hardening.md) (coming soon).
+For guidance on securely configuring Strand Protocol deployments, refer to the [Security Hardening Guide](docs/security-hardening.md) (coming soon).
 
 ## Contact
 
-- **Email**: security@nexus-protocol.io
+- **Email**: security@strandprotocol.com
 - **PGP Key**: Available upon request
 
-Thank you for helping keep Nexus Protocol and its users safe.
+Thank you for helping keep Strand Protocol and its users safe.

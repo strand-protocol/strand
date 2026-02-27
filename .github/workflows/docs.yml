@@ -4,15 +4,15 @@ on:
   push:
     branches: [main]
     paths:
-      - "nexlink/src/**"
-      - "nexlink/include/**"
-      - "nexroute/src/**"
-      - "nexroute/include/**"
-      - "nexstream/src/**"
-      - "nextrust/src/**"
-      - "nexapi/**/*.go"
-      - "nexctl/**/*.go"
-      - "nexus-cloud/**/*.go"
+      - "strandlink/src/**"
+      - "strandlink/include/**"
+      - "strandroute/src/**"
+      - "strandroute/include/**"
+      - "strandstream/src/**"
+      - "strandtrust/src/**"
+      - "strandapi/**/*.go"
+      - "strandctl/**/*.go"
+      - "strand-cloud/**/*.go"
       - "docs/**"
       - "*.md"
 
@@ -46,34 +46,34 @@ jobs:
         run: go install golang.org/x/tools/cmd/godoc@latest
 
       - name: Create docs output directory
-        run: mkdir -p _site/rust _site/go/nexapi _site/go/nexctl _site/go/nexus-cloud
+        run: mkdir -p _site/rust _site/go/strandapi _site/go/strandctl _site/go/strand-cloud
 
       # ---- Rust documentation ----
-      - name: "nextrust: generate docs"
-        working-directory: nextrust
+      - name: "strandtrust: generate docs"
+        working-directory: strandtrust
         run: cargo doc --no-deps --document-private-items
 
-      - name: "nexstream: generate docs"
-        working-directory: nexstream
+      - name: "strandstream: generate docs"
+        working-directory: strandstream
         run: cargo doc --no-deps --document-private-items
 
       - name: Collect Rust docs
         run: |
-          cp -r nextrust/target/doc/* _site/rust/
-          cp -r nexstream/target/doc/* _site/rust/
+          cp -r strandtrust/target/doc/* _site/rust/
+          cp -r strandstream/target/doc/* _site/rust/
 
       # ---- Go documentation ----
-      - name: "nexapi: generate docs"
-        working-directory: nexapi
-        run: go doc -all ./... > ../_site/go/nexapi/index.txt
+      - name: "strandapi: generate docs"
+        working-directory: strandapi
+        run: go doc -all ./... > ../_site/go/strandapi/index.txt
 
-      - name: "nexctl: generate docs"
-        working-directory: nexctl
-        run: go doc -all ./... > ../_site/go/nexctl/index.txt
+      - name: "strandctl: generate docs"
+        working-directory: strandctl
+        run: go doc -all ./... > ../_site/go/strandctl/index.txt
 
-      - name: "nexus-cloud: generate docs"
-        working-directory: nexus-cloud
-        run: go doc -all ./... > ../_site/go/nexus-cloud/index.txt
+      - name: "strand-cloud: generate docs"
+        working-directory: strand-cloud
+        run: go doc -all ./... > ../_site/go/strand-cloud/index.txt
 
       # ---- Landing page ----
       - name: Generate index page
@@ -83,7 +83,7 @@ jobs:
           <html lang="en">
           <head>
             <meta charset="utf-8">
-            <title>Nexus Protocol - API Documentation</title>
+            <title>Strand Protocol - API Documentation</title>
             <style>
               body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #333; }
               h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
@@ -97,30 +97,30 @@ jobs:
             </style>
           </head>
           <body>
-            <h1>Nexus Protocol Documentation</h1>
-            <p>Auto-generated API documentation for the Nexus Protocol monorepo.</p>
+            <h1>Strand Protocol Documentation</h1>
+            <p>Auto-generated API documentation for the Strand Protocol monorepo.</p>
 
             <h2>Rust Modules</h2>
             <div class="module">
-              <h3><span class="lang rust">Rust</span> <a href="rust/nextrust/">nextrust</a></h3>
+              <h3><span class="lang rust">Rust</span> <a href="rust/strandtrust/">strandtrust</a></h3>
               <p>L4 - Model Identity, Cryptographic Trust &amp; Attestation</p>
             </div>
             <div class="module">
-              <h3><span class="lang rust">Rust</span> <a href="rust/nexstream/">nexstream</a></h3>
+              <h3><span class="lang rust">Rust</span> <a href="rust/strandstream/">strandstream</a></h3>
               <p>L3 - Hybrid Transport Layer</p>
             </div>
 
             <h2>Go Modules</h2>
             <div class="module">
-              <h3><span class="lang go">Go</span> <a href="go/nexapi/">nexapi</a></h3>
+              <h3><span class="lang go">Go</span> <a href="go/strandapi/">strandapi</a></h3>
               <p>L5 - API Gateway &amp; Orchestration</p>
             </div>
             <div class="module">
-              <h3><span class="lang go">Go</span> <a href="go/nexctl/">nexctl</a></h3>
-              <p>CLI Tool for Nexus Protocol</p>
+              <h3><span class="lang go">Go</span> <a href="go/strandctl/">strandctl</a></h3>
+              <p>CLI Tool for Strand Protocol</p>
             </div>
             <div class="module">
-              <h3><span class="lang go">Go</span> <a href="go/nexus-cloud/">nexus-cloud</a></h3>
+              <h3><span class="lang go">Go</span> <a href="go/strand-cloud/">strand-cloud</a></h3>
               <p>Cloud Platform Services</p>
             </div>
           </body>

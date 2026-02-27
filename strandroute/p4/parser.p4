@@ -1,24 +1,24 @@
 /*
- * parser.p4 - P4_16 parser for NexLink frames with NexRoute SAD extraction
+ * parser.p4 - P4_16 parser for StrandLink frames with StrandRoute SAD extraction
  *
  * Parses:
- *   Ethernet -> NexLink (64B fixed) -> SAD header + first 3 fields
+ *   Ethernet -> StrandLink (64B fixed) -> SAD header + first 3 fields
  */
 
-#ifndef __NEXROUTE_PARSER_P4__
-#define __NEXROUTE_PARSER_P4__
+#ifndef __STRANDROUTE_PARSER_P4__
+#define __STRANDROUTE_PARSER_P4__
 
 #include "headers.p4"
 
 /* --------------------------------------------------------------------------
- * NexLink frame type constants
+ * StrandLink frame type constants
  * -------------------------------------------------------------------------- */
 
-const bit<8> NEXLINK_FRAME_DATA      = 0x01;
-const bit<8> NEXLINK_FRAME_CONTROL   = 0x02;
-const bit<8> NEXLINK_FRAME_HEARTBEAT = 0x03;
-const bit<8> NEXLINK_FRAME_DISCOVERY = 0x04;
-const bit<8> NEXLINK_FRAME_GOSSIP    = 0x10;
+const bit<8> STRANDLINK_FRAME_DATA      = 0x01;
+const bit<8> STRANDLINK_FRAME_CONTROL   = 0x02;
+const bit<8> STRANDLINK_FRAME_HEARTBEAT = 0x03;
+const bit<8> STRANDLINK_FRAME_DISCOVERY = 0x04;
+const bit<8> STRANDLINK_FRAME_GOSSIP    = 0x10;
 
 /* SAD field type constants */
 const bit<8> SAD_FIELD_MODEL_ARCH     = 0x01;
@@ -29,33 +29,33 @@ const bit<8> SAD_FIELD_CONTEXT_WINDOW = 0x03;
  * Parser
  * -------------------------------------------------------------------------- */
 
-parser NexRouteParser(packet_in packet,
+parser StrandRouteParser(packet_in packet,
                       out headers_t hdr,
-                      inout nexroute_metadata_t meta,
+                      inout strandroute_metadata_t meta,
                       inout standard_metadata_t standard_metadata) {
 
     state start {
         packet.extract(hdr.ethernet);
         transition select(hdr.ethernet.ether_type) {
-            ETHERTYPE_NEXLINK: parse_nexlink;
+            ETHERTYPE_STRANDLINK: parse_strandlink;
             default:           accept;
         }
     }
 
-    state parse_nexlink {
-        packet.extract(hdr.nexlink);
-        transition select(hdr.nexlink.frame_type) {
-            NEXLINK_FRAME_DATA: check_options;
+    state parse_strandlink {
+        packet.extract(hdr.strandlink);
+        transition select(hdr.strandlink.frame_type) {
+            STRANDLINK_FRAME_DATA: check_options;
             default:            accept;
         }
     }
 
     /*
-     * Check if the NexLink frame carries options (SAD data).
+     * Check if the StrandLink frame carries options (SAD data).
      * If options_length > 0, parse the SAD header.
      */
     state check_options {
-        transition select(hdr.nexlink.options_length) {
+        transition select(hdr.strandlink.options_length) {
             0:       accept;
             default: parse_sad_header;
         }
@@ -105,10 +105,10 @@ parser NexRouteParser(packet_in packet,
  * Deparser - reassemble headers on egress
  * -------------------------------------------------------------------------- */
 
-control NexRouteDeparser(packet_out packet, in headers_t hdr) {
+control StrandRouteDeparser(packet_out packet, in headers_t hdr) {
     apply {
         packet.emit(hdr.ethernet);
-        packet.emit(hdr.nexlink);
+        packet.emit(hdr.strandlink);
         packet.emit(hdr.sad_header);
         packet.emit(hdr.sad_field0);
         packet.emit(hdr.sad_field1);
@@ -116,4 +116,4 @@ control NexRouteDeparser(packet_out packet, in headers_t hdr) {
     }
 }
 
-#endif /* __NEXROUTE_PARSER_P4__ */
+#endif /* __STRANDROUTE_PARSER_P4__ */

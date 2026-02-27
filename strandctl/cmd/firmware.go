@@ -8,7 +8,7 @@ import (
 
 var firmwareCmd = &cobra.Command{
 	Use:   "firmware",
-	Short: "Manage NexLink firmware",
+	Short: "Manage StrandLink firmware",
 	Long:  "List available firmware, flash devices, and check firmware status.",
 }
 

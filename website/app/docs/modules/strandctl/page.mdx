@@ -1,0 +1,236 @@
+# StrandCtl — CLI Tool
+
+**Language:** Go | **Dependencies:** StrandAPI client SDK
+
+StrandCtl is a kubectl-like CLI for Strand Protocol operators. Single static binary under 30MB, cross-platform, with a built-in TUI dashboard. Manage nodes, routes, MICs, firmware, streams, and diagnostics from the command line.
+
+## Installation
+
+```bash
+go install github.com/strand-protocol/strand/strandctl@latest
+strandctl version
+```
+
+Or build from source:
+
+```bash
+cd strandctl
+go build -o strandctl .
+```
+
+Supported platforms: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64.
+
+## Global Flags
+
+All commands support these flags:
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--config` | | `~/.strand/config.yaml` | Config file path |
+| `--output` | `-o` | `table` | Output format: `table`, `json`, `yaml`, `wide` |
+| `--server` | | from config | Strand Cloud API server URL |
+| `--dry-run` | | `false` | Print actions without executing |
+| `--yes` | | `false` | Skip confirmation prompts |
+
+## Commands
+
+### Node Management
+
+```bash
+# List all registered nodes
+strandctl node list
+strandctl node list -o json
+strandctl node list -o wide
+
+# Get details for a specific node
+strandctl node get NODE_ID
+
+# Describe node with full metrics
+strandctl node describe NODE_ID
+
+# Drain a node (graceful removal)
+strandctl node drain NODE_ID
+```
+
+### Route Management
+
+```bash
+# List active routes
+strandctl route list
+
+# Get route details
+strandctl route get ROUTE_ID
+
+# Create a new route
+strandctl route create --sad "capability=code-gen,latency<100ms"
+
+# Delete a route
+strandctl route delete ROUTE_ID
+```
+
+### Trust / MIC Management
+
+```bash
+# List Model Identity Certificates
+strandctl trust list
+
+# Get MIC details
+strandctl trust get MIC_ID
+
+# Verify a MIC's signature and validity
+strandctl trust verify MIC_ID
+
+# Issue a new MIC (requires admin)
+strandctl trust issue --node NODE_ID --capabilities "code-gen,tool-use"
+
+# Revoke a MIC
+strandctl trust revoke MIC_ID
+```
+
+### Firmware Management
+
+```bash
+# List firmware images
+strandctl firmware list
+
+# Upload a new firmware image
+strandctl firmware upload --file firmware.bin --platform linux/amd64
+
+# Rollout firmware to a node or fleet
+strandctl firmware rollout --version 1.2.0 --target NODE_ID
+```
+
+### Diagnostics
+
+```bash
+# Ping a node (StrandLink-level connectivity test)
+strandctl diagnose ping NODE_ID
+
+# Trace the route to a node
+strandctl diagnose trace NODE_ID
+
+# Run performance probe
+strandctl diagnose perf NODE_ID
+```
+
+### Metrics
+
+```bash
+# Show node metrics
+strandctl metrics NODE_ID
+
+# Show cluster-wide metrics
+strandctl metrics --all
+```
+
+### Dashboard (TUI)
+
+```bash
+# Launch interactive terminal dashboard
+strandctl dashboard
+```
+
+The TUI dashboard displays real-time:
+
+- Node status table with health indicators
+- Active stream metrics
+- Route table with SAD matching scores
+- Built with bubbletea/lipgloss for rich terminal rendering
+
+### Version
+
+```bash
+strandctl version
+```
+
+### Shell Completion
+
+```bash
+# Generate completion scripts
+strandctl completion bash > /etc/bash_completion.d/strandctl
+strandctl completion zsh > "${fpath[1]}/_strandctl"
+strandctl completion fish > ~/.config/fish/completions/strandctl.fish
+strandctl completion powershell > strandctl.ps1
+```
+
+## Configuration
+
+Config file: `~/.strand/config.yaml`
+
+```yaml
+current-context: production
+
+contexts:
+  production:
+    server: https://strand-cloud.example.com:8080
+    token: "your-api-key"
+    tls:
+      ca-cert: /path/to/ca.pem
+  development:
+    server: http://localhost:8080
+  staging:
+    server: https://staging.strand-cloud.example.com:8080
+    token: "staging-key"
+```
+
+### Config Commands
+
+```bash
+# View current config
+strandctl config view
+
+# Set current context
+strandctl config use-context production
+
+# Set server URL for current context
+strandctl config set server https://strand-cloud.example.com:8080
+```
+
+## Output Formats
+
+### Table (default)
+
+```
+NAME              STATUS    ADDRESS           LAST SEEN
+node-gpu-a100-01  online    10.0.1.10:6477   2m ago
+node-gpu-a100-02  online    10.0.1.11:6477   5m ago
+node-cpu-01       degraded  10.0.1.20:6477   1h ago
+```
+
+### JSON
+
+```bash
+strandctl node list -o json
+```
+
+```json
+[
+  {
+    "id": "node-gpu-a100-01",
+    "status": "online",
+    "address": "10.0.1.10:6477",
+    "last_seen": "2025-01-15T10:30:00Z"
+  }
+]
+```
+
+### YAML
+
+```bash
+strandctl node list -o yaml
+```
+
+### Wide
+
+Extended table with additional columns (firmware version, metrics, capabilities).
+
+## Architecture
+
+Built with:
+
+- **cobra** — Command framework with subcommands, flags, and completion
+- **viper** — Configuration management with file, env, and flag binding
+- **bubbletea** — Terminal UI framework for the dashboard
+- **lipgloss** — Terminal styling and layout
+
+The CLI communicates with Strand Cloud via the StrandAPI client SDK over the REST API.

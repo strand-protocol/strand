@@ -3,7 +3,7 @@ package sad
 import (
 	"errors"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
 )
 
 // Builder provides a fluent interface for constructing SAD descriptors.
@@ -56,7 +56,7 @@ func (b *Builder) Build() ([]byte, error) {
 	if b.sad.ModelType == "" {
 		return nil, errors.New("sad: model type is required")
 	}
-	buf := nexbuf.NewBuffer(64)
+	buf := strandbuf.NewBuffer(64)
 	b.sad.Encode(buf)
 	return buf.Bytes(), nil
 }

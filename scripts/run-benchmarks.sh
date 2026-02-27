@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run-benchmarks.sh
 #
-# Runs Go and Rust benchmarks across the Nexus Protocol monorepo and
+# Runs Go and Rust benchmarks across the Strand Protocol monorepo and
 # outputs a summary.
 #
 # Usage: ./scripts/run-benchmarks.sh
@@ -33,30 +33,30 @@ source "$HOME/.cargo/env" 2>/dev/null || true
 log_header "Go Benchmarks (tests/bench)"
 
 echo -e "${YELLOW}Running Go benchmarks...${NC}"
-(cd "$REPO_ROOT/tests/bench" && go test -bench=. -benchmem -count=1 -timeout 300s ./...) 2>&1 | tee /tmp/nexus_go_bench.txt
+(cd "$REPO_ROOT/tests/bench" && go test -bench=. -benchmem -count=1 -timeout 300s ./...) 2>&1 | tee /tmp/strand_go_bench.txt
 
 # ------------------------------------------------------------------
-# Rust benchmarks (NexTrust)
+# Rust benchmarks (StrandTrust)
 # ------------------------------------------------------------------
-log_header "Rust Benchmarks: NexTrust (nextrust)"
+log_header "Rust Benchmarks: StrandTrust (strandtrust)"
 
-echo -e "${YELLOW}Running NexTrust criterion benchmarks...${NC}"
-if (cd "$REPO_ROOT" && cargo bench --package nextrust 2>&1) | tee /tmp/nexus_nextrust_bench.txt; then
-    echo -e "${GREEN}NexTrust benchmarks complete.${NC}"
+echo -e "${YELLOW}Running StrandTrust criterion benchmarks...${NC}"
+if (cd "$REPO_ROOT" && cargo bench --package strandtrust 2>&1) | tee /tmp/strand_strandtrust_bench.txt; then
+    echo -e "${GREEN}StrandTrust benchmarks complete.${NC}"
 else
-    echo -e "${YELLOW}NexTrust benchmarks failed or criterion not installed.${NC}"
+    echo -e "${YELLOW}StrandTrust benchmarks failed or criterion not installed.${NC}"
 fi
 
 # ------------------------------------------------------------------
-# Rust benchmarks (NexStream)
+# Rust benchmarks (StrandStream)
 # ------------------------------------------------------------------
-log_header "Rust Benchmarks: NexStream (nexstream)"
+log_header "Rust Benchmarks: StrandStream (strandstream)"
 
-echo -e "${YELLOW}Running NexStream criterion benchmarks...${NC}"
-if (cd "$REPO_ROOT" && cargo bench --package nexstream 2>&1) | tee /tmp/nexus_nexstream_bench.txt; then
-    echo -e "${GREEN}NexStream benchmarks complete.${NC}"
+echo -e "${YELLOW}Running StrandStream criterion benchmarks...${NC}"
+if (cd "$REPO_ROOT" && cargo bench --package strandstream 2>&1) | tee /tmp/strand_strandstream_bench.txt; then
+    echo -e "${GREEN}StrandStream benchmarks complete.${NC}"
 else
-    echo -e "${YELLOW}NexStream benchmarks failed or criterion not installed.${NC}"
+    echo -e "${YELLOW}StrandStream benchmarks failed or criterion not installed.${NC}"
 fi
 
 # ------------------------------------------------------------------
@@ -65,15 +65,15 @@ fi
 log_header "Benchmark Summary"
 
 echo ""
-echo "Go benchmark results:       /tmp/nexus_go_bench.txt"
-echo "NexTrust benchmark results: /tmp/nexus_nextrust_bench.txt"
-echo "NexStream benchmark results:/tmp/nexus_nexstream_bench.txt"
+echo "Go benchmark results:          /tmp/strand_go_bench.txt"
+echo "StrandTrust benchmark results:  /tmp/strand_strandtrust_bench.txt"
+echo "StrandStream benchmark results: /tmp/strand_strandstream_bench.txt"
 echo ""
 
 # Extract key stats from Go benchmarks if available.
-if [ -f /tmp/nexus_go_bench.txt ]; then
+if [ -f /tmp/strand_go_bench.txt ]; then
     echo -e "${BOLD}Go benchmark highlights:${NC}"
-    grep -E '^Benchmark' /tmp/nexus_go_bench.txt | head -20 || true
+    grep -E '^Benchmark' /tmp/strand_go_bench.txt | head -20 || true
 fi
 
 echo ""

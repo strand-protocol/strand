@@ -11,10 +11,10 @@ permissions:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Build nexctl binaries for all platforms
+  # Build strandctl binaries for all platforms
   # ---------------------------------------------------------------------------
-  build-nexctl:
-    name: Build nexctl (${{ matrix.goos }}/${{ matrix.goarch }})
+  build-strandctl:
+    name: Build strandctl (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -51,35 +51,35 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: go-release-${{ runner.os }}-${{ hashFiles('nexctl/go.sum') }}
+          key: go-release-${{ runner.os }}-${{ hashFiles('strandctl/go.sum') }}
           restore-keys: |
             go-release-${{ runner.os }}-
 
       - name: Create dist directory
         run: mkdir -p dist
 
-      - name: Build nexctl
-        working-directory: nexctl
+      - name: Build strandctl
+        working-directory: strandctl
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
         run: |
-          go build -ldflags="-s -w -X github.com/nexus-protocol/nexctl/cmd.nexctlVersion=${{ github.ref_name }}" \
-            -o ../dist/nexctl-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} .
+          go build -ldflags="-s -w -X github.com/strand-protocol/strandctl/cmd.strandctlVersion=${{ github.ref_name }}" \
+            -o ../dist/strandctl-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nexctl-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/nexctl-*
+          name: strandctl-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/strandctl-*
           retention-days: 1
 
   # ---------------------------------------------------------------------------
-  # Build nexus-cloud Docker images (linux/amd64 + linux/arm64)
+  # Build strand-cloud Docker images (linux/amd64 + linux/arm64)
   # ---------------------------------------------------------------------------
-  build-nexus-cloud:
-    name: Build nexus-cloud Docker images
+  build-strand-cloud:
+    name: Build strand-cloud Docker images
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -102,7 +102,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/nexus-cloud
+          images: ghcr.io/${{ github.repository }}/strand-cloud
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -111,8 +111,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ./nexus-cloud
-          file: ./nexus-cloud/Dockerfile
+          context: ./strand-cloud
+          file: ./strand-cloud/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -126,24 +126,24 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-nexctl, build-nexus-cloud]
+    needs: [build-strandctl, build-strand-cloud]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Download all nexctl artifacts
+      - name: Download all strandctl artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
-          pattern: nexctl-*
+          pattern: strandctl-*
           merge-multiple: true
 
       - name: Generate checksums
         working-directory: dist
         run: |
-          sha256sum nexctl-* > checksums-sha256.txt
+          sha256sum strandctl-* > checksums-sha256.txt
           cat checksums-sha256.txt
 
       - name: Generate changelog
@@ -165,7 +165,7 @@ jobs:
               echo "## Docker Images"
               echo ""
               echo '```'
-              echo "docker pull ghcr.io/${{ github.repository }}/nexus-cloud:${{ github.ref_name }}"
+              echo "docker pull ghcr.io/${{ github.repository }}/strand-cloud:${{ github.ref_name }}"
               echo '```'
               echo "CHANGELOG_EOF"
             } >> "$GITHUB_OUTPUT"
@@ -176,7 +176,7 @@ jobs:
         with:
           body: ${{ steps.changelog.outputs.body }}
           files: |
-            dist/nexctl-*
+            dist/strandctl-*
             dist/checksums-sha256.txt
           generate_release_notes: true
           draft: false

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
 )
 
 // ---------------------------------------------------------------------------
@@ -18,11 +18,11 @@ func TestAgentNegotiateRoundTrip(t *testing.T) {
 		Version:      1,
 	}
 
-	buf := nexbuf.NewBuffer(128)
+	buf := strandbuf.NewBuffer(128)
 	orig.Encode(buf)
 
 	decoded := &AgentNegotiate{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
@@ -50,11 +50,11 @@ func TestAgentNegotiateEmptyCapabilities(t *testing.T) {
 		Version:      1,
 	}
 
-	buf := nexbuf.NewBuffer(32)
+	buf := strandbuf.NewBuffer(32)
 	orig.Encode(buf)
 
 	decoded := &AgentNegotiate{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
@@ -70,8 +70,8 @@ func TestAgentNegotiateViaFrame(t *testing.T) {
 		Version:      1,
 	}
 
-	// Encode into a NexBuf buffer, then wrap in a protocol frame.
-	payload := nexbuf.NewBuffer(64)
+	// Encode into a StrandBuf buffer, then wrap in a protocol frame.
+	payload := strandbuf.NewBuffer(64)
 	orig.Encode(payload)
 
 	var frameBuf bytes.Buffer
@@ -88,7 +88,7 @@ func TestAgentNegotiateViaFrame(t *testing.T) {
 	}
 
 	decoded := &AgentNegotiate{}
-	if err := decoded.Decode(nexbuf.NewReader(raw)); err != nil {
+	if err := decoded.Decode(strandbuf.NewReader(raw)); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
 	if decoded.SessionID != orig.SessionID {
@@ -108,11 +108,11 @@ func TestAgentDelegateRoundTrip(t *testing.T) {
 		TimeoutMS:    5000,
 	}
 
-	buf := nexbuf.NewBuffer(128)
+	buf := strandbuf.NewBuffer(128)
 	orig.Encode(buf)
 
 	decoded := &AgentDelegate{}
-	reader := nexbuf.NewReader(buf.Bytes())
+	reader := strandbuf.NewReader(buf.Bytes())
 	if err := decoded.Decode(reader); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
@@ -139,11 +139,11 @@ func TestAgentDelegateEmptyPayload(t *testing.T) {
 		TimeoutMS:    0,
 	}
 
-	buf := nexbuf.NewBuffer(64)
+	buf := strandbuf.NewBuffer(64)
 	orig.Encode(buf)
 
 	decoded := &AgentDelegate{}
-	if err := decoded.Decode(nexbuf.NewReader(buf.Bytes())); err != nil {
+	if err := decoded.Decode(strandbuf.NewReader(buf.Bytes())); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
 	if len(decoded.TaskPayload) != 0 {
@@ -162,7 +162,7 @@ func TestAgentDelegateViaFrame(t *testing.T) {
 		TimeoutMS:    1000,
 	}
 
-	payload := nexbuf.NewBuffer(128)
+	payload := strandbuf.NewBuffer(128)
 	orig.Encode(payload)
 
 	var frameBuf bytes.Buffer
@@ -179,7 +179,7 @@ func TestAgentDelegateViaFrame(t *testing.T) {
 	}
 
 	decoded := &AgentDelegate{}
-	if err := decoded.Decode(nexbuf.NewReader(raw)); err != nil {
+	if err := decoded.Decode(strandbuf.NewReader(raw)); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
 	if !bytes.Equal(orig.TaskPayload, decoded.TaskPayload) {
@@ -199,11 +199,11 @@ func TestAgentResultRoundTripSuccess(t *testing.T) {
 		ErrorMsg:      "",
 	}
 
-	buf := nexbuf.NewBuffer(128)
+	buf := strandbuf.NewBuffer(128)
 	orig.Encode(buf)
 
 	decoded := &AgentResult{}
-	if err := decoded.Decode(nexbuf.NewReader(buf.Bytes())); err != nil {
+	if err := decoded.Decode(strandbuf.NewReader(buf.Bytes())); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
 
@@ -229,11 +229,11 @@ func TestAgentResultRoundTripError(t *testing.T) {
 		ErrorMsg:      "upstream model timed out after 5000ms",
 	}
 
-	buf := nexbuf.NewBuffer(64)
+	buf := strandbuf.NewBuffer(64)
 	orig.Encode(buf)
 
 	decoded := &AgentResult{}
-	if err := decoded.Decode(nexbuf.NewReader(buf.Bytes())); err != nil {
+	if err := decoded.Decode(strandbuf.NewReader(buf.Bytes())); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
 
@@ -257,7 +257,7 @@ func TestAgentResultViaFrame(t *testing.T) {
 		ErrorMsg:      "",
 	}
 
-	payload := nexbuf.NewBuffer(64)
+	payload := strandbuf.NewBuffer(64)
 	orig.Encode(payload)
 
 	var frameBuf bytes.Buffer
@@ -274,7 +274,7 @@ func TestAgentResultViaFrame(t *testing.T) {
 	}
 
 	decoded := &AgentResult{}
-	if err := decoded.Decode(nexbuf.NewReader(raw)); err != nil {
+	if err := decoded.Decode(strandbuf.NewReader(raw)); err != nil {
 		t.Fatalf("Decode: %v", err)
 	}
 	if !bytes.Equal(orig.ResultPayload, decoded.ResultPayload) {

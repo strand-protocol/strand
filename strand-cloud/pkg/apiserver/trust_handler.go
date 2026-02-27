@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
 )
 
 func (s *Server) handleListMICs(w http.ResponseWriter, r *http.Request) {

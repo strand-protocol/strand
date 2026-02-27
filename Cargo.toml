@@ -1,9 +1,9 @@
 [workspace]
-members = ["nextrust", "nexstream"]
+members = ["strandtrust", "strandstream"]
 resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/nexus-protocol/nexus"
+repository = "https://github.com/strand-protocol/strand"

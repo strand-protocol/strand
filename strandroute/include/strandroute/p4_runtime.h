@@ -1,5 +1,5 @@
 /**
- * p4_runtime.h - P4Runtime / BMv2 Thrift control-plane client for NexRoute
+ * p4_runtime.h - P4Runtime / BMv2 Thrift control-plane client for StrandRoute
  *
  * Provides a C API for managing P4 table entries in the BMv2 simple_switch
  * process.  Two compilation modes are supported:
@@ -29,8 +29,8 @@
  * to call from multiple threads.
  */
 
-#ifndef NEXROUTE_P4_RUNTIME_H
-#define NEXROUTE_P4_RUNTIME_H
+#ifndef STRANDROUTE_P4_RUNTIME_H
+#define STRANDROUTE_P4_RUNTIME_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,8 +38,8 @@ extern "C" {
 
 #include <stdint.h>
 
-/* Forward declaration: defined in nexroute/include/nexroute/sad.h */
-typedef struct nexroute_sad nexroute_sad_t;
+/* Forward declaration: defined in strandroute/include/strandroute/sad.h */
+typedef struct strandroute_sad strandroute_sad_t;
 
 /* --------------------------------------------------------------------------
  * Return codes
@@ -122,7 +122,7 @@ void p4rt_close(void);
  *
  * Returns P4RT_OK on success, P4RT_ERR_* on failure.
  */
-int p4rt_sad_table_add(const nexroute_sad_t *sad, const uint8_t node_id[16]);
+int p4rt_sad_table_add(const strandroute_sad_t *sad, const uint8_t node_id[16]);
 
 /**
  * p4rt_sad_table_delete - Remove a SAD entry from simple_switch.
@@ -131,7 +131,7 @@ int p4rt_sad_table_add(const nexroute_sad_t *sad, const uint8_t node_id[16]);
  *
  * Returns P4RT_OK on success, P4RT_ERR_NOT_FOUND if no matching entry exists.
  */
-int p4rt_sad_table_delete(const nexroute_sad_t *sad);
+int p4rt_sad_table_delete(const strandroute_sad_t *sad);
 
 /* --------------------------------------------------------------------------
  * Node ID forwarding table management
@@ -181,4 +181,4 @@ int p4rt_is_connected(void);
 } /* extern "C" */
 #endif
 
-#endif /* NEXROUTE_P4_RUNTIME_H */
+#endif /* STRANDROUTE_P4_RUNTIME_H */

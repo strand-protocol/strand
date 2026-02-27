@@ -1,6 +1,6 @@
 const std = @import("std");
 
-/// Supported platform backends for NexLink frame I/O.
+/// Supported platform backends for StrandLink frame I/O.
 ///
 /// - mock:    In-memory loopback ring buffer.  Default.  Works everywhere.
 /// - overlay: UDP encapsulation over an existing IP network (port 6477).
@@ -17,7 +17,7 @@ pub fn build(b: *std.Build) void {
     const backend = b.option(
         Backend,
         "backend",
-        "Platform backend for NexLink frame I/O (mock | overlay | xdp | dpdk). Default: mock.",
+        "Platform backend for StrandLink frame I/O (mock | overlay | xdp | dpdk). Default: mock.",
     ) orelse .mock;
 
     // Reject XDP on non-Linux targets immediately so the error is a friendly
@@ -35,7 +35,7 @@ pub fn build(b: *std.Build) void {
 
     // ── Shared module definition (used by lib, tests, and dependents) ──
 
-    const nexlink_mod = b.createModule(.{
+    const strandlink_mod = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
@@ -45,15 +45,15 @@ pub fn build(b: *std.Build) void {
     // source files can import it with `@import("options").backend`.
     const build_options = b.addOptions();
     build_options.addOption(Backend, "backend", backend);
-    nexlink_mod.addOptions("options", build_options);
+    strandlink_mod.addOptions("options", build_options);
 
     // ── Static library ──
 
     const lib = b.addLibrary(.{
-        .name = "nexlink",
-        .root_module = nexlink_mod,
+        .name = "strandlink",
+        .root_module = strandlink_mod,
     });
-    lib.installHeader(b.path("include/nexlink.h"), "nexlink.h");
+    lib.installHeader(b.path("include/strandlink.h"), "strandlink.h");
     b.installArtifact(lib);
 
     // ── Unit tests (all source-level tests via root.zig comptime imports) ──
@@ -75,7 +75,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    frame_test_mod.addImport("nexlink", nexlink_mod);
+    frame_test_mod.addImport("strandlink", strandlink_mod);
     const frame_test = b.addTest(.{ .root_module = frame_test_mod });
     const run_frame_test = b.addRunArtifact(frame_test);
 
@@ -84,7 +84,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    ring_buffer_test_mod.addImport("nexlink", nexlink_mod);
+    ring_buffer_test_mod.addImport("strandlink", strandlink_mod);
     const ring_buffer_test = b.addTest(.{ .root_module = ring_buffer_test_mod });
     const run_ring_buffer_test = b.addRunArtifact(ring_buffer_test);
 
@@ -93,13 +93,13 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    overlay_test_mod.addImport("nexlink", nexlink_mod);
+    overlay_test_mod.addImport("strandlink", strandlink_mod);
     const overlay_test = b.addTest(.{ .root_module = overlay_test_mod });
     const run_overlay_test = b.addRunArtifact(overlay_test);
 
     // ── Test step ──
 
-    const test_step = b.step("test", "Run all NexLink tests");
+    const test_step = b.step("test", "Run all StrandLink tests");
     test_step.dependOn(&run_unit_tests.step);
     test_step.dependOn(&run_frame_test.step);
     test_step.dependOn(&run_ring_buffer_test.step);
@@ -110,11 +110,11 @@ pub fn build(b: *std.Build) void {
     // `zig build backend-info` prints which backend is compiled in.
     const backend_info = b.step(
         "backend-info",
-        "Print the selected NexLink platform backend",
+        "Print the selected StrandLink platform backend",
     );
     const print_backend = b.addSystemCommand(&.{
         "echo",
-        b.fmt("NexLink backend: {s}", .{@tagName(backend)}),
+        b.fmt("StrandLink backend: {s}", .{@tagName(backend)}),
     });
     backend_info.dependOn(&print_backend.step);
 }

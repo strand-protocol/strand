@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/model"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/model"
 )
 
 func (s *Server) handleListRoutes(w http.ResponseWriter, r *http.Request) {
@@ -39,9 +39,9 @@ func (s *Server) handleCreateRoute(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
 		return
 	}
-	if route.ID == "" {
+	if err := ValidateRoute(&route); err != nil {
 		s.metrics.IncError()
-		writeError(w, http.StatusBadRequest, "route id is required")
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	route.CreatedAt = time.Now()

@@ -6,14 +6,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nexus-protocol/nexus/nexctl/pkg/api"
+	"github.com/strand-protocol/strand/strandctl/pkg/api"
 	"github.com/spf13/cobra"
 )
 
 var nodeCmd = &cobra.Command{
 	Use:   "node",
-	Short: "Manage Nexus nodes",
-	Long:  "List, inspect, and manage nodes in the Nexus network.",
+	Short: "Manage Strand nodes",
+	Long:  "List, inspect, and manage nodes in the Strand network.",
 }
 
 var nodeListCmd = &cobra.Command{

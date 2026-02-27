@@ -1,11 +1,11 @@
 // Package sad implements the Semantic Address Descriptor (SAD) type used by
-// NexRoute for AI-model-aware routing. A SAD is a compact binary descriptor
+// StrandRoute for AI-model-aware routing. A SAD is a compact binary descriptor
 // that encodes model capabilities, context window size, latency SLA, and other
 // routing-relevant properties.
 package sad
 
 import (
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
 )
 
 // Capability bit flags used in a SAD to advertise or request model abilities.
@@ -31,7 +31,7 @@ type SAD struct {
 // Encode writes the binary representation of the SAD to buf. The format is:
 //
 //	[2B version][4B capabilities][4B context_window][4B latency_sla][string model_type]
-func (s *SAD) Encode(buf *nexbuf.Buffer) {
+func (s *SAD) Encode(buf *strandbuf.Buffer) {
 	buf.WriteUint16(s.Version)
 	buf.WriteUint32(s.Capabilities)
 	buf.WriteUint32(s.ContextWindow)
@@ -39,8 +39,8 @@ func (s *SAD) Encode(buf *nexbuf.Buffer) {
 	buf.WriteString(s.ModelType)
 }
 
-// Decode populates the SAD from a NexBuf reader.
-func (s *SAD) Decode(r *nexbuf.Reader) error {
+// Decode populates the SAD from a StrandBuf reader.
+func (s *SAD) Decode(r *strandbuf.Reader) error {
 	var err error
 	s.Version, err = r.ReadUint16()
 	if err != nil {

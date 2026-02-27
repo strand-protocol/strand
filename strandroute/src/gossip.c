@@ -9,8 +9,8 @@
  * Reliable Gossip-Based Broadcast", DSN 2007.
  */
 
-#include "nexroute/types.h"
-#include "nexroute/routing_table.h"
+#include "strandroute/types.h"
+#include "strandroute/routing_table.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -50,7 +50,7 @@ typedef enum {
  * -------------------------------------------------------------------------- */
 
 typedef struct {
-    uint8_t  node_id[NEXLINK_NODE_ID_LEN];
+    uint8_t  node_id[STRANDLINK_NODE_ID_LEN];
     uint16_t port;              /* overlay port for gossip */
     uint64_t last_seen;         /* monotonic ns timestamp */
     bool     active;            /* true if slot is in use */
@@ -63,8 +63,8 @@ typedef struct {
 typedef struct __attribute__((packed)) {
     uint8_t  msg_type;
     uint8_t  ttl;
-    uint8_t  sender_id[NEXLINK_NODE_ID_LEN];
-    uint8_t  origin_id[NEXLINK_NODE_ID_LEN];  /* original initiator */
+    uint8_t  sender_id[STRANDLINK_NODE_ID_LEN];
+    uint8_t  origin_id[STRANDLINK_NODE_ID_LEN];  /* original initiator */
     uint16_t payload_len;
     /* Ed25519 signature over all preceding fields (msg_type..payload_len).
      * Populated when gossip_set_auth_fn() has been called.
@@ -78,7 +78,7 @@ typedef struct __attribute__((packed)) {
  * -------------------------------------------------------------------------- */
 
 typedef struct {
-    uint8_t         self_id[NEXLINK_NODE_ID_LEN];
+    uint8_t         self_id[STRANDLINK_NODE_ID_LEN];
     gossip_peer_t   active_view[GOSSIP_MAX_ACTIVE];
     gossip_peer_t   passive_view[GOSSIP_MAX_PASSIVE];
     int             active_count;
@@ -90,11 +90,11 @@ typedef struct {
     routing_table_t *routing_table;   /* owned externally */
 
     /* Callback for sending gossip messages */
-    int (*send_fn)(const uint8_t dst_node_id[NEXLINK_NODE_ID_LEN],
+    int (*send_fn)(const uint8_t dst_node_id[STRANDLINK_NODE_ID_LEN],
                    const void *msg, size_t msg_len, void *ctx);
     void *send_ctx;
 
-    /* Authentication callbacks for NexTrust integration (spec NR-G-005).
+    /* Authentication callbacks for StrandTrust integration (spec NR-G-005).
      * When set, outgoing messages are signed and incoming messages are
      * verified before processing.  A failed verification causes rejection. */
     int (*sign_fn)(const void *msg, size_t msg_len,
@@ -151,7 +151,7 @@ static int gossip_rand_range(int max)
  * -------------------------------------------------------------------------- */
 
 static gossip_peer_t *find_peer(gossip_peer_t *view, int count,
-                                 const uint8_t node_id[NEXLINK_NODE_ID_LEN])
+                                 const uint8_t node_id[STRANDLINK_NODE_ID_LEN])
 {
     for (int i = 0; i < count; i++) {
         if (view[i].active && node_id_equal(view[i].node_id, node_id))
@@ -161,13 +161,13 @@ static gossip_peer_t *find_peer(gossip_peer_t *view, int count,
 }
 
 static bool view_contains(gossip_peer_t *view, int count,
-                           const uint8_t node_id[NEXLINK_NODE_ID_LEN])
+                           const uint8_t node_id[STRANDLINK_NODE_ID_LEN])
 {
     return find_peer(view, count, node_id) != NULL;
 }
 
 static int view_add(gossip_peer_t *view, int *count, int max_count,
-                     const uint8_t node_id[NEXLINK_NODE_ID_LEN],
+                     const uint8_t node_id[STRANDLINK_NODE_ID_LEN],
                      uint16_t port)
 {
     if (*count >= max_count) return -1;
@@ -194,7 +194,7 @@ static void view_remove_at(gossip_peer_t *view, int *count, int idx)
 }
 
 static int find_peer_idx(gossip_peer_t *view, int count,
-                          const uint8_t node_id[NEXLINK_NODE_ID_LEN])
+                          const uint8_t node_id[STRANDLINK_NODE_ID_LEN])
 {
     for (int i = 0; i < count; i++) {
         if (view[i].active && node_id_equal(view[i].node_id, node_id))
@@ -225,7 +225,7 @@ static int gossip_sign_header(gossip_state_t *gs, gossip_msg_header_t *hdr)
  * -------------------------------------------------------------------------- */
 
 void gossip_init(gossip_state_t *gs,
-                 const uint8_t self_id[NEXLINK_NODE_ID_LEN],
+                 const uint8_t self_id[STRANDLINK_NODE_ID_LEN],
                  routing_table_t *rt)
 {
     memset(gs, 0, sizeof(*gs));
@@ -243,7 +243,7 @@ void gossip_set_send_fn(gossip_state_t *gs,
     gs->send_ctx = ctx;
 }
 
-/* Install NexTrust authentication callbacks (spec NR-G-005).
+/* Install StrandTrust authentication callbacks (spec NR-G-005).
  * sign_fn:   called to sign outgoing message headers.
  * verify_fn: called to verify incoming message headers; returns 0 on success.
  * ctx:       opaque context passed to both callbacks.
@@ -268,7 +268,7 @@ void gossip_set_auth_fn(gossip_state_t *gs,
  * -------------------------------------------------------------------------- */
 
 int gossip_handle_join(gossip_state_t *gs,
-                       const uint8_t new_node[NEXLINK_NODE_ID_LEN],
+                       const uint8_t new_node[STRANDLINK_NODE_ID_LEN],
                        uint16_t port)
 {
     if (node_id_equal(gs->self_id, new_node))
@@ -328,8 +328,8 @@ int gossip_handle_join(gossip_state_t *gs,
  * -------------------------------------------------------------------------- */
 
 int gossip_handle_forward_join(gossip_state_t *gs,
-                               const uint8_t sender[NEXLINK_NODE_ID_LEN],
-                               const uint8_t origin[NEXLINK_NODE_ID_LEN],
+                               const uint8_t sender[STRANDLINK_NODE_ID_LEN],
+                               const uint8_t origin[STRANDLINK_NODE_ID_LEN],
                                uint8_t ttl)
 {
     (void)sender;
@@ -385,7 +385,7 @@ int gossip_handle_forward_join(gossip_state_t *gs,
  * -------------------------------------------------------------------------- */
 
 int gossip_handle_disconnect(gossip_state_t *gs,
-                             const uint8_t peer_id[NEXLINK_NODE_ID_LEN])
+                             const uint8_t peer_id[STRANDLINK_NODE_ID_LEN])
 {
     int idx = find_peer_idx(gs->active_view, gs->active_count, peer_id);
     if (idx >= 0) {
@@ -421,7 +421,7 @@ int gossip_do_shuffle(gossip_state_t *gs)
     gossip_peer_t *target = &gs->active_view[target_idx];
 
     /* Build shuffle set: pick from passive view */
-    uint8_t shuffle_set[GOSSIP_SHUFFLE_LEN][NEXLINK_NODE_ID_LEN];
+    uint8_t shuffle_set[GOSSIP_SHUFFLE_LEN][STRANDLINK_NODE_ID_LEN];
     int shuffle_count = 0;
 
     for (int i = 0; i < GOSSIP_SHUFFLE_LEN && i < gs->passive_count; i++) {
@@ -439,7 +439,7 @@ int gossip_do_shuffle(gossip_state_t *gs)
     /* Send shuffle message */
     if (gs->send_fn && shuffle_count > 0) {
         /* Build message: header + array of node IDs */
-        size_t payload_len = (size_t)shuffle_count * NEXLINK_NODE_ID_LEN;
+        size_t payload_len = (size_t)shuffle_count * STRANDLINK_NODE_ID_LEN;
         size_t msg_len = sizeof(gossip_msg_header_t) + payload_len;
         uint8_t *msg = malloc(msg_len);
         if (msg) {
@@ -472,14 +472,14 @@ int gossip_do_shuffle(gossip_state_t *gs)
  * -------------------------------------------------------------------------- */
 
 int gossip_handle_shuffle(gossip_state_t *gs,
-                          const uint8_t sender[NEXLINK_NODE_ID_LEN],
+                          const uint8_t sender[STRANDLINK_NODE_ID_LEN],
                           const uint8_t *payload, uint16_t payload_len)
 {
-    int num_entries = payload_len / NEXLINK_NODE_ID_LEN;
+    int num_entries = payload_len / STRANDLINK_NODE_ID_LEN;
 
     /* Incorporate received entries into passive view */
     for (int i = 0; i < num_entries; i++) {
-        const uint8_t *nid = &payload[i * NEXLINK_NODE_ID_LEN];
+        const uint8_t *nid = &payload[i * STRANDLINK_NODE_ID_LEN];
         if (node_id_equal(nid, gs->self_id))
             continue;
 
@@ -497,7 +497,7 @@ int gossip_handle_shuffle(gossip_state_t *gs,
     /* Send shuffle reply with our own entries */
     if (gs->send_fn) {
         int reply_count = 0;
-        uint8_t reply_set[GOSSIP_SHUFFLE_LEN][NEXLINK_NODE_ID_LEN];
+        uint8_t reply_set[GOSSIP_SHUFFLE_LEN][STRANDLINK_NODE_ID_LEN];
 
         for (int i = 0; i < GOSSIP_SHUFFLE_LEN && i < gs->passive_count; i++) {
             int pidx = gossip_rand_range(gs->passive_count);
@@ -507,7 +507,7 @@ int gossip_handle_shuffle(gossip_state_t *gs,
         }
 
         if (reply_count > 0) {
-            size_t rpl = (size_t)reply_count * NEXLINK_NODE_ID_LEN;
+            size_t rpl = (size_t)reply_count * STRANDLINK_NODE_ID_LEN;
             size_t msg_len = sizeof(gossip_msg_header_t) + rpl;
             uint8_t *msg = malloc(msg_len);
             if (msg) {
@@ -574,9 +574,9 @@ int gossip_handle_message(gossip_state_t *gs,
         const uint8_t *payload = (const uint8_t *)msg + sizeof(*hdr);
         uint16_t pl = hdr->payload_len;
         if (sizeof(*hdr) + pl > msg_len) return -1;
-        int num = pl / NEXLINK_NODE_ID_LEN;
+        int num = pl / STRANDLINK_NODE_ID_LEN;
         for (int i = 0; i < num; i++) {
-            const uint8_t *nid = &payload[i * NEXLINK_NODE_ID_LEN];
+            const uint8_t *nid = &payload[i * STRANDLINK_NODE_ID_LEN];
             if (!node_id_equal(nid, gs->self_id)) {
                 if (gs->passive_count < GOSSIP_MAX_PASSIVE) {
                     view_add(gs->passive_view, &gs->passive_count,

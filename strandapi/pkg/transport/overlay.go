@@ -12,26 +12,26 @@ import (
 
 // Overlay transport wire constants.
 const (
-	OverlayMagic   uint16 = 0x4E58 // "NX"
+	OverlayMagic   uint16 = 0x504C // "PL"
 	OverlayVersion byte   = 1
 	overlayHdrSize        = 8 // 2B magic + 1B version + 1B flags + 4B length
 	maxUDPPayload         = 65507
 )
 
 var (
-	ErrInvalidMagic   = errors.New("nexapi overlay: invalid magic bytes")
-	ErrVersionMismatch = errors.New("nexapi overlay: unsupported version")
-	ErrMessageTooLarge = errors.New("nexapi overlay: message exceeds maximum UDP payload")
-	ErrTransportClosed = errors.New("nexapi overlay: transport is closed")
+	ErrInvalidMagic   = errors.New("strandapi overlay: invalid magic bytes")
+	ErrVersionMismatch = errors.New("strandapi overlay: unsupported version")
+	ErrMessageTooLarge = errors.New("strandapi overlay: message exceeds maximum UDP payload")
+	ErrTransportClosed = errors.New("strandapi overlay: transport is closed")
 )
 
-// OverlayTransport is a pure-Go transport that frames NexAPI messages over
-// UDP. It requires no CGo, no NexLink, and no NexStream -- it exists to
-// provide full NexAPI functionality with zero native dependencies.
+// OverlayTransport is a pure-Go transport that frames StrandAPI messages over
+// UDP. It requires no CGo, no StrandLink, and no StrandStream -- it exists to
+// provide full StrandAPI functionality with zero native dependencies.
 //
 // Frame layout on the wire:
 //
-//	[2B magic 0x4E58][1B version][1B flags][4B length][1B opcode][payload...]
+//	[2B magic 0x504C][1B version][1B flags][4B length][1B opcode][payload...]
 type OverlayTransport struct {
 	conn   *net.UDPConn
 	remote *net.UDPAddr // non-nil for client (dialled) connections
@@ -39,15 +39,15 @@ type OverlayTransport struct {
 	closed bool
 }
 
-// DialOverlay connects to a remote NexAPI overlay endpoint.
+// DialOverlay connects to a remote StrandAPI overlay endpoint.
 func DialOverlay(addr string) (*OverlayTransport, error) {
 	raddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("nexapi overlay: resolve %s: %w", addr, err)
+		return nil, fmt.Errorf("strandapi overlay: resolve %s: %w", addr, err)
 	}
 	conn, err := net.DialUDP("udp", nil, raddr)
 	if err != nil {
-		return nil, fmt.Errorf("nexapi overlay: dial %s: %w", addr, err)
+		return nil, fmt.Errorf("strandapi overlay: dial %s: %w", addr, err)
 	}
 	return &OverlayTransport{conn: conn, remote: raddr}, nil
 }
@@ -56,16 +56,16 @@ func DialOverlay(addr string) (*OverlayTransport, error) {
 func ListenOverlay(addr string) (*OverlayTransport, error) {
 	laddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("nexapi overlay: resolve %s: %w", addr, err)
+		return nil, fmt.Errorf("strandapi overlay: resolve %s: %w", addr, err)
 	}
 	conn, err := net.ListenUDP("udp", laddr)
 	if err != nil {
-		return nil, fmt.Errorf("nexapi overlay: listen %s: %w", addr, err)
+		return nil, fmt.Errorf("strandapi overlay: listen %s: %w", addr, err)
 	}
 	return &OverlayTransport{conn: conn}, nil
 }
 
-// Send transmits a single NexAPI frame over the overlay.
+// Send transmits a single StrandAPI frame over the overlay.
 func (t *OverlayTransport) Send(ctx context.Context, opcode byte, payload []byte) error {
 	t.mu.Lock()
 	if t.closed {
@@ -105,7 +105,7 @@ func (t *OverlayTransport) Send(ctx context.Context, opcode byte, payload []byte
 	return err
 }
 
-// Recv blocks until a complete NexAPI overlay frame arrives.
+// Recv blocks until a complete StrandAPI overlay frame arrives.
 func (t *OverlayTransport) Recv(ctx context.Context) (byte, []byte, error) {
 	t.mu.Lock()
 	if t.closed {
@@ -146,7 +146,7 @@ func (t *OverlayTransport) Recv(ctx context.Context) (byte, []byte, error) {
 		return 0, nil, err
 	}
 	if n < overlayHdrSize+1 {
-		return 0, nil, fmt.Errorf("nexapi overlay: frame too short (%d bytes)", n)
+		return 0, nil, fmt.Errorf("strandapi overlay: frame too short (%d bytes)", n)
 	}
 
 	// Save the remote address for listener-mode transports so that
@@ -169,7 +169,7 @@ func (t *OverlayTransport) Recv(ctx context.Context) (byte, []byte, error) {
 	// Parse length
 	length := binary.LittleEndian.Uint32(buf[4:8])
 	if overlayHdrSize+int(length) > n {
-		return 0, nil, fmt.Errorf("nexapi overlay: declared length %d exceeds received %d", length, n-overlayHdrSize)
+		return 0, nil, fmt.Errorf("strandapi overlay: declared length %d exceeds received %d", length, n-overlayHdrSize)
 	}
 
 	opcode := buf[8]

@@ -10,8 +10,8 @@
  * is equivalent to a double-buffered RCU for moderate write rates.
  */
 
-#include "nexroute/routing_table.h"
-#include "nexroute/sad.h"
+#include "strandroute/routing_table.h"
+#include "strandroute/sad.h"
 
 #include <stdlib.h>
 #include <string.h>

@@ -15,14 +15,14 @@ permissions:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Phase 1: NexLink (Zig 0.15)
+  # Phase 1: StrandLink (Zig 0.13)
   # ---------------------------------------------------------------------------
-  nexlink:
-    name: NexLink (Zig)
+  strandlink:
+    name: StrandLink (Zig)
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: nexlink
+        working-directory: strandlink
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,9 +36,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            nexlink/.zig-cache
-            nexlink/zig-out
-          key: zig-${{ runner.os }}-${{ hashFiles('nexlink/build.zig', 'nexlink/src/**') }}
+            strandlink/.zig-cache
+            strandlink/zig-out
+          key: zig-${{ runner.os }}-${{ hashFiles('strandlink/build.zig', 'strandlink/src/**') }}
           restore-keys: |
             zig-${{ runner.os }}-
 
@@ -49,14 +49,14 @@ jobs:
         run: zig build test
 
   # ---------------------------------------------------------------------------
-  # Phase 2: NexRoute (C / CMake)
+  # Phase 2: StrandRoute (C / CMake)
   # ---------------------------------------------------------------------------
-  nexroute:
-    name: NexRoute (C)
+  strandroute:
+    name: StrandRoute (C)
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: nexroute
+        working-directory: strandroute
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -69,8 +69,8 @@ jobs:
       - name: Cache CMake build directory
         uses: actions/cache@v4
         with:
-          path: nexroute/build
-          key: cmake-${{ runner.os }}-${{ hashFiles('nexroute/CMakeLists.txt', 'nexroute/src/**', 'nexroute/include/**') }}
+          path: strandroute/build
+          key: cmake-${{ runner.os }}-${{ hashFiles('strandroute/CMakeLists.txt', 'strandroute/src/**', 'strandroute/include/**') }}
           restore-keys: |
             cmake-${{ runner.os }}-
 
@@ -89,10 +89,10 @@ jobs:
           ctest --output-on-failure
 
   # ---------------------------------------------------------------------------
-  # Phase 3: Rust (nexstream + nextrust)
+  # Phase 3: Rust (strandstream + strandtrust)
   # ---------------------------------------------------------------------------
   rust:
-    name: Rust (nexstream + nextrust)
+    name: Rust (strandstream + strandtrust)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -112,60 +112,60 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'nextrust/Cargo.toml', 'nexstream/Cargo.toml') }}
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'strandtrust/Cargo.toml', 'strandstream/Cargo.toml') }}
           restore-keys: |
             cargo-${{ runner.os }}-
 
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
 
-      # ---- nextrust ----
-      - name: "nextrust: check formatting"
-        working-directory: nextrust
+      # ---- strandtrust ----
+      - name: "strandtrust: check formatting"
+        working-directory: strandtrust
         run: cargo fmt --check
 
-      - name: "nextrust: clippy"
-        working-directory: nextrust
+      - name: "strandtrust: clippy"
+        working-directory: strandtrust
         run: cargo clippy --all-targets --all-features -- -D warnings -D clippy::pedantic -A clippy::missing_errors_doc -A clippy::missing_panics_doc
 
-      - name: "nextrust: audit"
-        working-directory: nextrust
+      - name: "strandtrust: audit"
+        working-directory: strandtrust
         run: cargo audit
 
-      - name: "nextrust: build"
-        working-directory: nextrust
+      - name: "strandtrust: build"
+        working-directory: strandtrust
         run: cargo build
 
-      - name: "nextrust: test"
-        working-directory: nextrust
+      - name: "strandtrust: test"
+        working-directory: strandtrust
         run: cargo test
 
-      # ---- nexstream ----
-      - name: "nexstream: check formatting"
-        working-directory: nexstream
+      # ---- strandstream ----
+      - name: "strandstream: check formatting"
+        working-directory: strandstream
         run: cargo fmt --check
 
-      - name: "nexstream: clippy"
-        working-directory: nexstream
+      - name: "strandstream: clippy"
+        working-directory: strandstream
         run: cargo clippy --all-targets --all-features -- -D warnings -D clippy::pedantic -A clippy::missing_errors_doc -A clippy::missing_panics_doc
 
-      - name: "nexstream: audit"
-        working-directory: nexstream
+      - name: "strandstream: audit"
+        working-directory: strandstream
         run: cargo audit
 
-      - name: "nexstream: build"
-        working-directory: nexstream
+      - name: "strandstream: build"
+        working-directory: strandstream
         run: cargo build
 
-      - name: "nexstream: test"
-        working-directory: nexstream
+      - name: "strandstream: test"
+        working-directory: strandstream
         run: cargo test
 
   # ---------------------------------------------------------------------------
-  # Phase 4-5: Go (nexapi + nexctl + nexus-cloud)
+  # Phase 4-5: Go (strandapi + strandctl + strand-cloud)
   # ---------------------------------------------------------------------------
   go:
-    name: Go (nexapi + nexctl + nexus-cloud)
+    name: Go (strandapi + strandctl + strand-cloud)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -183,7 +183,7 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: go-${{ runner.os }}-${{ hashFiles('go.work', 'nexctl/go.sum', 'nexctl/go.mod', 'nexapi/go.mod', 'nexus-cloud/go.mod') }}
+          key: go-${{ runner.os }}-${{ hashFiles('go.work', 'strandctl/go.sum', 'strandctl/go.mod', 'strandapi/go.mod', 'strand-cloud/go.mod') }}
           restore-keys: |
             go-${{ runner.os }}-
 
@@ -192,67 +192,67 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@latest
           go install golang.org/x/vuln/cmd/govulncheck@latest
 
-      # ---- nexapi ----
-      - name: "nexapi: build"
-        working-directory: nexapi
+      # ---- strandapi ----
+      - name: "strandapi: build"
+        working-directory: strandapi
         run: go build ./...
 
-      - name: "nexapi: test (with race detector)"
-        working-directory: nexapi
+      - name: "strandapi: test (with race detector)"
+        working-directory: strandapi
         run: go test -race ./...
 
-      - name: "nexapi: vet"
-        working-directory: nexapi
+      - name: "strandapi: vet"
+        working-directory: strandapi
         run: go vet ./...
 
-      - name: "nexapi: staticcheck"
-        working-directory: nexapi
+      - name: "strandapi: staticcheck"
+        working-directory: strandapi
         run: staticcheck ./...
 
-      - name: "nexapi: govulncheck"
-        working-directory: nexapi
+      - name: "strandapi: govulncheck"
+        working-directory: strandapi
         run: govulncheck ./...
 
-      # ---- nexctl ----
-      - name: "nexctl: build"
-        working-directory: nexctl
+      # ---- strandctl ----
+      - name: "strandctl: build"
+        working-directory: strandctl
         run: go build ./...
 
-      - name: "nexctl: test (with race detector)"
-        working-directory: nexctl
+      - name: "strandctl: test (with race detector)"
+        working-directory: strandctl
         run: go test -race ./...
 
-      - name: "nexctl: vet"
-        working-directory: nexctl
+      - name: "strandctl: vet"
+        working-directory: strandctl
         run: go vet ./...
 
-      - name: "nexctl: staticcheck"
-        working-directory: nexctl
+      - name: "strandctl: staticcheck"
+        working-directory: strandctl
         run: staticcheck ./...
 
-      - name: "nexctl: govulncheck"
-        working-directory: nexctl
+      - name: "strandctl: govulncheck"
+        working-directory: strandctl
         run: govulncheck ./...
 
-      # ---- nexus-cloud ----
-      - name: "nexus-cloud: build"
-        working-directory: nexus-cloud
+      # ---- strand-cloud ----
+      - name: "strand-cloud: build"
+        working-directory: strand-cloud
         run: go build ./...
 
-      - name: "nexus-cloud: test (with race detector)"
-        working-directory: nexus-cloud
+      - name: "strand-cloud: test (with race detector)"
+        working-directory: strand-cloud
         run: go test -race ./...
 
-      - name: "nexus-cloud: vet"
-        working-directory: nexus-cloud
+      - name: "strand-cloud: vet"
+        working-directory: strand-cloud
         run: go vet ./...
 
-      - name: "nexus-cloud: staticcheck"
-        working-directory: nexus-cloud
+      - name: "strand-cloud: staticcheck"
+        working-directory: strand-cloud
         run: staticcheck ./...
 
-      - name: "nexus-cloud: govulncheck"
-        working-directory: nexus-cloud
+      - name: "strand-cloud: govulncheck"
+        working-directory: strand-cloud
         run: govulncheck ./...
 
   # ---------------------------------------------------------------------------
@@ -261,7 +261,7 @@ jobs:
   integration:
     name: Integration Verification
     runs-on: ubuntu-latest
-    needs: [nexlink, nexroute, rust, go]
+    needs: [strandlink, strandroute, rust, go]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -284,37 +284,37 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake clang
 
-      - name: Build nexlink
-        working-directory: nexlink
+      - name: Build strandlink
+        working-directory: strandlink
         run: zig build
 
-      - name: Build nexroute
-        working-directory: nexroute
+      - name: Build strandroute
+        working-directory: strandroute
         run: |
           mkdir -p build && cd build
           cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Release \
-            -DNEXLINK_INCLUDE_DIR=../../nexlink/include \
-            -DNEXLINK_LIB_DIR=../../nexlink/zig-out/lib
+            -DSTRANDLINK_INCLUDE_DIR=../../strandlink/include \
+            -DSTRANDLINK_LIB_DIR=../../strandlink/zig-out/lib
           cmake --build . --parallel
 
-      - name: Build nextrust
-        working-directory: nextrust
+      - name: Build strandtrust
+        working-directory: strandtrust
         run: cargo build --release
 
-      - name: Build nexstream
-        working-directory: nexstream
+      - name: Build strandstream
+        working-directory: strandstream
         run: cargo build --release
 
-      - name: Build nexapi
-        working-directory: nexapi
+      - name: Build strandapi
+        working-directory: strandapi
         run: CGO_ENABLED=0 go build ./...
 
-      - name: Build nexctl
-        working-directory: nexctl
+      - name: Build strandctl
+        working-directory: strandctl
         run: go build ./...
 
-      - name: Build nexus-cloud
-        working-directory: nexus-cloud
+      - name: Build strand-cloud
+        working-directory: strand-cloud
         run: go build ./...
 
       - name: Run integration tests
@@ -335,12 +335,12 @@ jobs:
               fail=1
             fi
           }
-          check nexlink/zig-out/lib/libnexlink.a     "nexlink static library"
-          check nexlink/include/nexlink.h             "nexlink C header"
-          check nexroute/build/libnexroute.a          "nexroute static library"
-          check nexroute/build/nexroute_tests         "nexroute test binary"
-          check target/release/libnextrust.a          "nextrust static library"
-          check target/release/libnexstream.a         "nexstream static library"
+          check strandlink/zig-out/lib/libstrandlink.a     "strandlink static library"
+          check strandlink/include/strandlink.h             "strandlink C header"
+          check strandroute/build/libstrandroute.a          "strandroute static library"
+          check strandroute/build/strandroute_tests         "strandroute test binary"
+          check target/release/libstrandtrust.a            "strandtrust static library"
+          check target/release/libstrandstream.a           "strandstream static library"
           echo ""
           if [ "$fail" -ne 0 ]; then
             echo "FAILED: one or more expected artifacts are missing."

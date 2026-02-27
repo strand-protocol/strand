@@ -1,6 +1,6 @@
 //! Connection state machine.
 //!
-//! Manages the lifecycle of a NexStream connection:
+//! Manages the lifecycle of a StrandStream connection:
 //! Idle -> Connecting -> Open -> Closing -> Closed.
 
 use std::fmt;
@@ -9,7 +9,7 @@ use bytes::Bytes;
 
 use crate::congestion::cubic::Cubic;
 use crate::congestion::CongestionController;
-use crate::error::{NexStreamError, Result};
+use crate::error::{StrandStreamError, Result};
 use crate::flow_control::FlowController;
 use crate::loss_detection::LossDetector;
 use crate::mux::{Multiplexer, StreamId};
@@ -64,7 +64,7 @@ impl Default for ConnectionConfig {
     }
 }
 
-/// A NexStream connection.
+/// A StrandStream connection.
 pub struct Connection {
     /// Current connection state.
     state: ConnectionState,
@@ -103,7 +103,7 @@ impl Connection {
                 self.state = ConnectionState::Connecting;
                 Ok(())
             }
-            _ => Err(NexStreamError::InvalidStateTransition {
+            _ => Err(StrandStreamError::InvalidStateTransition {
                 from: self.state.to_string(),
                 to: "Connecting".into(),
             }),
@@ -117,7 +117,7 @@ impl Connection {
                 self.state = ConnectionState::Open;
                 Ok(())
             }
-            _ => Err(NexStreamError::InvalidStateTransition {
+            _ => Err(StrandStreamError::InvalidStateTransition {
                 from: self.state.to_string(),
                 to: "Open".into(),
             }),
@@ -127,7 +127,7 @@ impl Connection {
     /// Open a new stream on this connection.
     pub fn open_stream(&mut self, mode: TransportMode) -> Result<StreamId> {
         if self.state != ConnectionState::Open {
-            return Err(NexStreamError::ConnectionClosed);
+            return Err(StrandStreamError::ConnectionClosed);
         }
         let sid = self.mux.create_stream(mode)?;
         self.flow_control.add_stream(sid);
@@ -141,11 +141,11 @@ impl Connection {
     /// the available window, preventing unbounded memory growth and DoS.
     pub fn send(&mut self, stream_id: StreamId, data: Bytes) -> Result<()> {
         if self.state != ConnectionState::Open {
-            return Err(NexStreamError::ConnectionClosed);
+            return Err(StrandStreamError::ConnectionClosed);
         }
         // Enforce flow control before queuing data to prevent window exhaustion.
         if self.flow_control.available(stream_id) < data.len() {
-            return Err(NexStreamError::FlowControlViolation);
+            return Err(StrandStreamError::FlowControlViolation);
         }
         self.flow_control.consume(stream_id, data.len())?;
         self.mux.send(stream_id, data)
@@ -154,7 +154,7 @@ impl Connection {
     /// Receive data from a stream.
     pub fn recv(&mut self, stream_id: StreamId) -> Result<Option<Bytes>> {
         if self.state != ConnectionState::Open {
-            return Err(NexStreamError::ConnectionClosed);
+            return Err(StrandStreamError::ConnectionClosed);
         }
         self.mux.recv(stream_id)
     }
@@ -169,7 +169,7 @@ impl Connection {
                 Ok(())
             }
             ConnectionState::Closing | ConnectionState::Closed => Ok(()),
-            _ => Err(NexStreamError::InvalidStateTransition {
+            _ => Err(StrandStreamError::InvalidStateTransition {
                 from: self.state.to_string(),
                 to: "Closing".into(),
             }),

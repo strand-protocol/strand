@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/nexus-protocol/nexus/nexapi/pkg/nexbuf"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/protocol"
-	"github.com/nexus-protocol/nexus/nexapi/pkg/sad"
+	"github.com/strand-protocol/strand/strandapi/pkg/strandbuf"
+	"github.com/strand-protocol/strand/strandapi/pkg/protocol"
+	"github.com/strand-protocol/strand/strandapi/pkg/sad"
 )
 
-// FuzzNexBufRoundtrip feeds random bytes to the InferenceRequest decoder.
+// FuzzStrandBufRoundtrip feeds random bytes to the InferenceRequest decoder.
 // If decoding succeeds, re-encode and verify the output matches the decoded
 // state (encode -> decode -> encode must be idempotent).
-func FuzzNexBufRoundtrip(f *testing.F) {
+func FuzzStrandBufRoundtrip(f *testing.F) {
 	// Add seed corpus with a valid encoded InferenceRequest.
 	req := &protocol.InferenceRequest{
 		ID:          [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
@@ -21,7 +21,7 @@ func FuzzNexBufRoundtrip(f *testing.F) {
 		Temperature: 0.5,
 		Metadata:    map[string]string{},
 	}
-	buf := nexbuf.NewBuffer(256)
+	buf := strandbuf.NewBuffer(256)
 	req.Encode(buf)
 	f.Add(buf.Bytes())
 
@@ -33,7 +33,7 @@ func FuzzNexBufRoundtrip(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		decoded := &protocol.InferenceRequest{}
-		reader := nexbuf.NewReader(data)
+		reader := strandbuf.NewReader(data)
 		err := decoded.Decode(reader)
 		if err != nil {
 			// Decoding failed on random input -- that is perfectly fine.
@@ -41,18 +41,18 @@ func FuzzNexBufRoundtrip(f *testing.F) {
 		}
 
 		// If decoding succeeded, re-encode the decoded message.
-		buf1 := nexbuf.NewBuffer(len(data) + 64)
+		buf1 := strandbuf.NewBuffer(len(data) + 64)
 		decoded.Encode(buf1)
 
 		// Decode the re-encoded bytes.
 		decoded2 := &protocol.InferenceRequest{}
-		reader2 := nexbuf.NewReader(buf1.Bytes())
+		reader2 := strandbuf.NewReader(buf1.Bytes())
 		if err := decoded2.Decode(reader2); err != nil {
 			t.Fatalf("re-decode failed after successful decode+encode: %v", err)
 		}
 
 		// Re-encode the second decode and compare.
-		buf2 := nexbuf.NewBuffer(len(data) + 64)
+		buf2 := strandbuf.NewBuffer(len(data) + 64)
 		decoded2.Encode(buf2)
 
 		if !bytes.Equal(buf1.Bytes(), buf2.Bytes()) {
@@ -101,7 +101,7 @@ func FuzzSADParse(f *testing.F) {
 		LatencySLA:    500,
 		ModelType:     "llm",
 	}
-	buf := nexbuf.NewBuffer(64)
+	buf := strandbuf.NewBuffer(64)
 	s.Encode(buf)
 	f.Add(buf.Bytes())
 
@@ -116,7 +116,7 @@ func FuzzSADParse(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		decoded := &sad.SAD{}
-		reader := nexbuf.NewReader(data)
+		reader := strandbuf.NewReader(data)
 		// Must not panic.
 		_ = decoded.Decode(reader)
 	})
@@ -131,7 +131,7 @@ func FuzzInferenceResponseDecode(f *testing.F) {
 		PromptTokens:     10,
 		CompletionTokens: 5,
 	}
-	buf := nexbuf.NewBuffer(128)
+	buf := strandbuf.NewBuffer(128)
 	resp.Encode(buf)
 	f.Add(buf.Bytes())
 
@@ -139,8 +139,122 @@ func FuzzInferenceResponseDecode(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		decoded := &protocol.InferenceResponse{}
-		reader := nexbuf.NewReader(data)
+		reader := strandbuf.NewReader(data)
 		_ = decoded.Decode(reader)
+	})
+}
+
+// FuzzAgentNegotiateDecode feeds random bytes to AgentNegotiate.Decode.
+func FuzzAgentNegotiateDecode(f *testing.F) {
+	msg := &protocol.AgentNegotiate{
+		SessionID:    42,
+		Capabilities: []string{"text_gen", "code_gen"},
+		Version:      1,
+	}
+	buf := strandbuf.NewBuffer(128)
+	msg.Encode(buf)
+	f.Add(buf.Bytes())
+
+	f.Add([]byte{})
+	// Oversized capability count.
+	f.Add([]byte{0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF})
+	// Truncated after session ID.
+	f.Add([]byte{0x01, 0x00, 0x00, 0x00})
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		decoded := &protocol.AgentNegotiate{}
+		reader := strandbuf.NewReader(data)
+		err := decoded.Decode(reader)
+		if err != nil {
+			return
+		}
+		// Re-encode and verify idempotency.
+		buf1 := strandbuf.NewBuffer(len(data) + 64)
+		decoded.Encode(buf1)
+		decoded2 := &protocol.AgentNegotiate{}
+		reader2 := strandbuf.NewReader(buf1.Bytes())
+		if err := decoded2.Decode(reader2); err != nil {
+			t.Fatalf("re-decode failed: %v", err)
+		}
+		buf2 := strandbuf.NewBuffer(len(data) + 64)
+		decoded2.Encode(buf2)
+		if !bytes.Equal(buf1.Bytes(), buf2.Bytes()) {
+			t.Errorf("encode not idempotent:\n  first:  %x\n  second: %x", buf1.Bytes(), buf2.Bytes())
+		}
+	})
+}
+
+// FuzzAgentDelegateDecode feeds random bytes to AgentDelegate.Decode.
+func FuzzAgentDelegateDecode(f *testing.F) {
+	msg := &protocol.AgentDelegate{
+		SessionID:    1,
+		TargetNodeID: [16]byte{0xAA, 0xBB},
+		TaskPayload:  []byte("task data"),
+		TimeoutMS:    5000,
+	}
+	buf := strandbuf.NewBuffer(128)
+	msg.Encode(buf)
+	f.Add(buf.Bytes())
+
+	f.Add([]byte{})
+	f.Add([]byte{0xFF, 0x00, 0x00, 0x00})
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		decoded := &protocol.AgentDelegate{}
+		reader := strandbuf.NewReader(data)
+		err := decoded.Decode(reader)
+		if err != nil {
+			return
+		}
+		buf1 := strandbuf.NewBuffer(len(data) + 64)
+		decoded.Encode(buf1)
+		decoded2 := &protocol.AgentDelegate{}
+		reader2 := strandbuf.NewReader(buf1.Bytes())
+		if err := decoded2.Decode(reader2); err != nil {
+			t.Fatalf("re-decode failed: %v", err)
+		}
+		buf2 := strandbuf.NewBuffer(len(data) + 64)
+		decoded2.Encode(buf2)
+		if !bytes.Equal(buf1.Bytes(), buf2.Bytes()) {
+			t.Errorf("encode not idempotent:\n  first:  %x\n  second: %x", buf1.Bytes(), buf2.Bytes())
+		}
+	})
+}
+
+// FuzzAgentResultDecode feeds random bytes to AgentResult.Decode.
+func FuzzAgentResultDecode(f *testing.F) {
+	msg := &protocol.AgentResult{
+		SessionID:     1,
+		ResultPayload: []byte("result"),
+		ErrorCode:     0,
+		ErrorMsg:      "",
+	}
+	buf := strandbuf.NewBuffer(128)
+	msg.Encode(buf)
+	f.Add(buf.Bytes())
+
+	f.Add([]byte{})
+	f.Add([]byte{0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF})
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		decoded := &protocol.AgentResult{}
+		reader := strandbuf.NewReader(data)
+		err := decoded.Decode(reader)
+		if err != nil {
+			return
+		}
+		buf1 := strandbuf.NewBuffer(len(data) + 64)
+		decoded.Encode(buf1)
+		decoded2 := &protocol.AgentResult{}
+		reader2 := strandbuf.NewReader(buf1.Bytes())
+		if err := decoded2.Decode(reader2); err != nil {
+			t.Fatalf("re-decode failed: %v", err)
+		}
+		buf2 := strandbuf.NewBuffer(len(data) + 64)
+		decoded2.Encode(buf2)
+		if !bytes.Equal(buf1.Bytes(), buf2.Bytes()) {
+			t.Errorf("encode not idempotent:\n  first:  %x\n  second: %x", buf1.Bytes(), buf2.Bytes())
+		}
 	})
 }
 
@@ -151,7 +265,7 @@ func FuzzTensorTransferDecode(f *testing.F) {
 		Shape: []uint32{4, 4},
 		Data:  []byte{1, 2, 3, 4},
 	}
-	buf := nexbuf.NewBuffer(128)
+	buf := strandbuf.NewBuffer(128)
 	tensor.Encode(buf)
 	f.Add(buf.Bytes())
 
@@ -159,7 +273,7 @@ func FuzzTensorTransferDecode(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		decoded := &protocol.TensorTransfer{}
-		reader := nexbuf.NewReader(data)
+		reader := strandbuf.NewReader(data)
 		_ = decoded.Decode(reader)
 	})
 }

@@ -1,0 +1,245 @@
+# StrandRoute — L2 Semantic Routing
+
+**Language:** C + P4 | **Layer:** L2 | **Dependencies:** StrandLink
+
+StrandRoute replaces IP routing and BGP with Semantic Address Descriptors (SADs) that route by model capabilities, latency, cost, and trust level rather than IP addresses. It includes a P4 dataplane for hardware-accelerated SAD matching on programmable switches.
+
+## Overview
+
+Traditional networking routes packets by destination IP address. StrandRoute routes by *what you need*: model architecture, capabilities, context window size, latency constraints, cost limits, trust level, and region preferences. The routing table uses RCU-based lock-free concurrent data structures targeting 100K+ entries with sub-10-microsecond lookup.
+
+## Semantic Address Descriptors (SADs)
+
+SADs are binary-encoded multi-field descriptors that describe routing intent. Max 16 fields, 512 bytes total.
+
+### SAD Wire Format
+
+```
+Bytes 0:     version (uint8)
+Bytes 1:     flags (uint8)
+Bytes 2-3:   num_fields (uint16)
+Bytes 4-5:   total_length (uint16)
+Bytes 6+:    field entries [type(8b) | length(8b) | value(variable)]
+```
+
+### SAD struct
+
+```c
+typedef struct {
+    uint8_t     version;       // SAD_VERSION = 1
+    uint8_t     flags;
+    uint16_t    num_fields;
+    uint16_t    total_length;
+    sad_field_t fields[SAD_MAX_FIELDS];
+} sad_t;
+
+typedef struct {
+    sad_field_type_t type;
+    uint16_t         length;
+    uint8_t          value[SAD_MAX_FIELD_VALUE];
+} sad_field_t;
+```
+
+### Field Types
+
+| Code | Field | Type | Example |
+|------|-------|------|---------|
+| 0x01 | `MODEL_ARCH` | `model_arch_t` | `TRANSFORMER`, `DIFFUSION`, `MOE` |
+| 0x02 | `CAPABILITY` | bitfield | `CAP_CODE_GEN \| CAP_REASONING` |
+| 0x03 | `CONTEXT_WINDOW` | uint32 | `131072` |
+| 0x04 | `MAX_LATENCY_MS` | uint32 | `100` |
+| 0x05 | `MAX_COST_MILLI` | uint32 | `50` |
+| 0x06 | `TRUST_LEVEL` | `trust_level_t` | `TRUST_PROVENANCE` |
+| 0x07 | `REGION_PREFER` | uint16[] | `[us-east, eu-west]` |
+| 0x08 | `REGION_EXCLUDE` | uint16[] | `[cn-north]` |
+| 0x09 | `PUBLISHER_ID` | bytes | Publisher node ID |
+| 0x0A | `MIN_BENCHMARK` | uint32 | Minimum benchmark score |
+| 0x0B | `CUSTOM` | bytes | Application-defined |
+
+### Model Architecture Enum
+
+```c
+typedef enum {
+    MODEL_ARCH_TRANSFORMER = 0x01,
+    MODEL_ARCH_DIFFUSION   = 0x02,
+    MODEL_ARCH_MOE         = 0x03,
+    MODEL_ARCH_CNN         = 0x04,
+    MODEL_ARCH_RNN         = 0x05,
+    MODEL_ARCH_RL_AGENT    = 0x06,
+} model_arch_t;
+```
+
+### Capability Flags
+
+```c
+#define CAP_TEXT_GEN        (1u << 0)
+#define CAP_CODE_GEN        (1u << 1)
+#define CAP_IMAGE_GEN       (1u << 2)
+#define CAP_AUDIO_GEN       (1u << 3)
+#define CAP_EMBEDDING       (1u << 4)
+#define CAP_CLASSIFICATION  (1u << 5)
+#define CAP_TOOL_USE        (1u << 6)
+#define CAP_REASONING       (1u << 7)
+```
+
+### Trust Levels
+
+```c
+typedef enum {
+    TRUST_NONE        = 0,   // No identity verification
+    TRUST_IDENTITY    = 1,   // Node ID verified
+    TRUST_PROVENANCE  = 2,   // Model provenance chain verified
+    TRUST_SAFETY_EVAL = 3,   // Safety evaluation passed
+    TRUST_FULL_AUDIT  = 4,   // Full security audit completed
+} trust_level_t;
+```
+
+## SAD API
+
+```c
+// Initialization
+void sad_init(sad_t *sad);
+
+// Building
+int sad_add_field(sad_t *sad, sad_field_type_t type, const void *value, uint16_t length);
+int sad_add_uint32(sad_t *sad, sad_field_type_t type, uint32_t value);
+int sad_add_uint8(sad_t *sad, sad_field_type_t type, uint8_t value);
+int sad_add_regions(sad_t *sad, sad_field_type_t type, const uint16_t *regions, uint16_t count);
+
+// Lookup
+const sad_field_t *sad_find_field(const sad_t *sad, sad_field_type_t type);
+uint32_t sad_get_uint32(const sad_t *sad, sad_field_type_t type);
+uint8_t  sad_get_uint8(const sad_t *sad, sad_field_type_t type);
+
+// Wire format
+int sad_encode(const sad_t *sad, uint8_t *buf, size_t buf_len);
+int sad_decode(const uint8_t *buf, size_t buf_len, sad_t *sad);
+int sad_validate(const uint8_t *buf, size_t buf_len);
+```
+
+## Resolution Scoring
+
+Weighted multi-constraint scoring function. Hard constraints cause immediate disqualification; soft constraints contribute to a weighted score.
+
+### Default Weights
+
+```c
+typedef struct {
+    float capability;       // 0.30
+    float latency;          // 0.25
+    float cost;             // 0.20
+    float context_window;   // 0.15
+    float trust;            // 0.10
+} scoring_weights_t;
+```
+
+**Hard constraints** (disqualify on mismatch):
+
+- `CONTEXT_WINDOW` — must meet minimum
+- `TRUST_LEVEL` — must meet minimum
+- `REGION_EXCLUDE` — must not be in excluded region
+
+**Soft constraints** (weighted scoring):
+
+- `CAPABILITY` — bitfield match ratio
+- `MAX_LATENCY_MS` — inverse latency score
+- `MAX_COST_MILLI` — inverse cost score
+
+## Routing Table
+
+RCU-based lock-free concurrent data structure. Readers never block, writers create copy-on-write snapshots.
+
+```c
+typedef struct {
+    uint8_t  node_id[16];
+    sad_t    capabilities;
+    uint32_t latency_us;
+    float    load_factor;
+    uint32_t cost_milli;
+    uint8_t  trust_level;
+    uint16_t region_code;
+    uint64_t last_updated;
+    uint64_t ttl_ns;
+} route_entry_t;
+
+typedef struct {
+    route_entry_t entry;
+    float         score;
+} resolve_result_t;
+```
+
+### Routing Table API
+
+```c
+routing_table_t *routing_table_create(uint32_t initial_capacity);
+void routing_table_destroy(routing_table_t *rt);
+
+int routing_table_insert(routing_table_t *rt, const route_entry_t *entry);
+int routing_table_remove(routing_table_t *rt, const uint8_t node_id[16]);
+
+int routing_table_lookup(const routing_table_t *rt,
+                         const sad_t *query,
+                         resolve_result_t *results,
+                         int max_results);
+
+int routing_table_update_metrics(routing_table_t *rt,
+                                 const uint8_t node_id[16],
+                                 uint32_t latency_us,
+                                 float load_factor);
+
+uint32_t routing_table_size(const routing_table_t *rt);
+int routing_table_snapshot(const routing_table_t *rt, route_entry_t *out, int max);
+int routing_table_gc(routing_table_t *rt, uint64_t now_ns);
+```
+
+## Gossip Protocol
+
+Route advertisements propagate via HyParView gossip:
+
+- **Fanout:** 3 (default)
+- **Interval:** 1 second
+- **TTL:** 30 seconds
+- **Message signing:** All outgoing messages are signed via `sign_fn` callback
+
+## P4 Dataplane
+
+P4_16 programs for programmable switch ASICs. TCAM tables for SAD field matching, exact-match tables for Node ID forwarding.
+
+### P4Runtime API
+
+```c
+int p4rt_init(const char *host, int port);   // Default: localhost:9090
+void p4rt_close(void);
+
+int p4rt_sad_table_add(const sad_t *sad, const uint8_t node_id[16]);
+int p4rt_sad_table_delete(const sad_t *sad);
+int p4rt_node_forward_add(const uint8_t node_id[16], int egress_port);
+int p4rt_node_forward_delete(const uint8_t node_id[16]);
+
+int p4rt_is_connected(void);
+const char *p4rt_strerror(int errcode);
+```
+
+### P4 Programs
+
+- `headers.p4` — StrandLink + SAD header definitions
+- `parser.p4` — Frame and SAD field parsing
+- `sad_lookup.p4` — TCAM-based SAD field matching
+- `sad_forward.p4` — Node ID exact-match forwarding
+- `forwarding.p4` — Top-level forwarding pipeline
+
+## Build
+
+```bash
+cd strandroute
+mkdir -p build && cd build
+cmake .. -DSTRANDLINK_INCLUDE_DIR=../../strandlink/include
+make
+make test
+```
+
+## Tests
+
+- **test_sad.c** — SAD encode/decode round-trip, field validation, max-fields boundary
+- **test_routing.c** — Routing table CRUD, concurrent access, scoring accuracy, GC
+- **test_main.c** — Integration with StrandLink frame forwarding

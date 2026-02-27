@@ -2,11 +2,11 @@
 
 use std::time::Duration;
 
-use nextrust::crypto::keys::IdentityKeyPair;
-use nextrust::mic::builder::MICBuilder;
-use nextrust::mic::serializer::{deserialize, serialize};
-use nextrust::mic::validator::{validate, validate_chain};
-use nextrust::mic::{Capability, Provenance, MIC};
+use strandtrust::crypto::keys::IdentityKeyPair;
+use strandtrust::mic::builder::MICBuilder;
+use strandtrust::mic::serializer::{deserialize, serialize};
+use strandtrust::mic::validator::{validate, validate_chain};
+use strandtrust::mic::{Capability, Provenance, MIC};
 
 // ── Builder ──────────────────────────────────────────────────────────────
 

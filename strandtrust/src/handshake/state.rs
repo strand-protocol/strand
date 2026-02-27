@@ -2,7 +2,7 @@
 
 use crate::mic::MIC;
 
-/// The current state of a NexTrust handshake.
+/// The current state of a StrandTrust handshake.
 #[derive(Debug)]
 pub enum HandshakeState {
     /// No handshake in progress.

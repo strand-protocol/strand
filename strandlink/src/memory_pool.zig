@@ -1,4 +1,4 @@
-// memory_pool.zig — Fixed-size slab allocator for NexLink frame buffers
+// memory_pool.zig — Fixed-size slab allocator for StrandLink frame buffers
 //
 // Pre-allocates N fixed-size blocks at init time. alloc() pops from the freelist,
 // free() pushes back. The freelist is implemented as a lock-free atomic stack

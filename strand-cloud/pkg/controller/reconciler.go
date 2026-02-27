@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/nexus-protocol/nexus/nexus-cloud/pkg/store"
+	"github.com/strand-protocol/strand/strand-cloud/pkg/store"
 )
 
 // FirmwareUpdate records a pending firmware update for a node.
