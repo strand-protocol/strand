@@ -1,0 +1,54 @@
+config:
+  strand-gcp:environment: staging
+  strand-gcp:gcpProject: strand-protocol-staging
+  strand-gcp:gcpRegion: us-central1
+  strand-gcp:gcpZone: us-central1-a
+  strand-gcp:domain: staging.strandinfra.com
+  strand-gcp:gke:
+    systemPool:
+      minCount: 1
+      maxCount: 3
+      machineType: e2-standard-2
+      diskSizeGb: 50
+      preemptible: false
+    controlPlanePool:
+      minCount: 2
+      maxCount: 5
+      machineType: e2-standard-4
+      diskSizeGb: 100
+      preemptible: false
+    gpuInferencePool:
+      minCount: 0
+      maxCount: 4
+      machineType: g2-standard-8
+      diskSizeGb: 200
+      preemptible: true
+      gpuType: nvidia-l4
+      gpuCount: 1
+      gpuDriverVersion: DEFAULT
+    releaseChannel: REGULAR
+    masterAuthorizedNetworkCidr: "10.0.0.0/8"
+  strand-gcp:network:
+    podCidr: "10.4.0.0/14"
+    serviceCidr: "10.8.0.0/20"
+    masterCidr: "172.16.0.0/28"
+  strand-gcp:billing:
+    billingAccountId: ""
+    bigQueryDatasetId: strand_staging_gke_usage
+    enableUsageMetering: true
+    billingExportDatasetId: strand_staging_billing_export
+  strand-gcp:monitoring:
+    enableManagedPrometheus: true
+    enableCloudMonitoring: true
+    alertNotificationChannel: ops@strandprotocol.com
+  strand-gcp:storage:
+    etcdDiskSizeGb: 50
+    etcdDiskType: pd-ssd
+  strand-gcp:nim:
+    enabled: true
+    image: "nvcr.io/nim/meta/llama-3.1-8b-instruct:latest"
+    modelName: "meta/llama-3.1-8b-instruct"
+    gpuCount: 1
+    replicas: 1
+    maxReplicas: 4
+  strand-gcp:tenants: []

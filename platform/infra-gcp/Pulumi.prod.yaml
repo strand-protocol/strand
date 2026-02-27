@@ -1,0 +1,54 @@
+config:
+  strand-gcp:environment: prod
+  strand-gcp:gcpProject: strand-protocol-prod
+  strand-gcp:gcpRegion: us-central1
+  strand-gcp:gcpZone: us-central1-a
+  strand-gcp:domain: strandinfra.com
+  strand-gcp:gke:
+    systemPool:
+      minCount: 2
+      maxCount: 4
+      machineType: e2-standard-2
+      diskSizeGb: 100
+      preemptible: false
+    controlPlanePool:
+      minCount: 3
+      maxCount: 8
+      machineType: e2-standard-8
+      diskSizeGb: 200
+      preemptible: false
+    gpuInferencePool:
+      minCount: 1
+      maxCount: 16
+      machineType: g2-standard-16
+      diskSizeGb: 500
+      preemptible: false
+      gpuType: nvidia-l4
+      gpuCount: 1
+      gpuDriverVersion: DEFAULT
+    releaseChannel: STABLE
+    masterAuthorizedNetworkCidr: "10.0.0.0/8"
+  strand-gcp:network:
+    podCidr: "10.4.0.0/14"
+    serviceCidr: "10.8.0.0/20"
+    masterCidr: "172.16.0.0/28"
+  strand-gcp:billing:
+    billingAccountId: ""
+    bigQueryDatasetId: strand_prod_gke_usage
+    enableUsageMetering: true
+    billingExportDatasetId: strand_prod_billing_export
+  strand-gcp:monitoring:
+    enableManagedPrometheus: true
+    enableCloudMonitoring: true
+    alertNotificationChannel: ops@strandprotocol.com
+  strand-gcp:storage:
+    etcdDiskSizeGb: 200
+    etcdDiskType: pd-ssd
+  strand-gcp:nim:
+    enabled: true
+    image: "nvcr.io/nim/meta/llama-3.1-8b-instruct:latest"
+    modelName: "meta/llama-3.1-8b-instruct"
+    gpuCount: 1
+    replicas: 2
+    maxReplicas: 16
+  strand-gcp:tenants: []

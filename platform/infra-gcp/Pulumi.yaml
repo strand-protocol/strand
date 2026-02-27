@@ -1,0 +1,7 @@
+name: strand-platform-gcp
+runtime: nodejs
+description: Strand Protocol GKE infrastructure on Google Cloud Platform
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: strand-platform-gcp
